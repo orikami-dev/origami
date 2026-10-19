@@ -42,6 +42,7 @@ Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la 
 
 ## Toutes les versions
 
+- [**0.60.13**](https://github.com/orikami-dev/origami/releases/tag/v0.60.13) : Xbox 360 : Skyrim corrigé, son AAudio (DMC 4), images/s dans l'ATH.
 - [**0.60.12**](https://github.com/orikami-dev/origami/releases/tag/v0.60.12) : (19/10/2026)
 - [**0.60.11**](https://github.com/orikami-dev/origami/releases/tag/v0.60.11) : Xbox 360 : le réglage qui coupe le cache d'instructions n'était jamais pris en compte (passé en texte alors que le moteur attend un…
 - [**0.60.10**](https://github.com/orikami-dev/origami/releases/tag/v0.60.10) : Xbox 360 : la vraie cause du SIGBUS est le moteur qui crée executable_addr_flags.bin à 0 octet puis écrit dedans (le stockage n'y est…

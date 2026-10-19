@@ -1,8 +1,12 @@
-# Origami (nom de code FOLD/PLAY) · build 0.60.11
+# Origami (nom de code FOLD/PLAY) · build 0.60.13
 
 *Une production KAMI-WORKS. Le lanceur de jeux rétro qui change de forme quand tu plies ton Fold.*
 
 APK : [dist/origami-0.60.11-debug.apk](../dist/) (Android 8+, arm64 pour le moteur intégré, signé en debug).
+
+**0.60.13** : Xbox 360 : moteur Xenia recompilé avec native/xenia-patches/02-origami-fixes.patch : XThread détruit sur son propre fil (Skyrim), sortie son AAudio dans le système audio nop (DMC 4 bloqué sans pilote), IoDismountVolumeByFileHandle, compteur d'images pour l'ATH (nativeFrames), ftruncate dans MappedMemory avant mmap.
+
+**0.60.12** : ATH façon RTSS sur PS3 et Xbox 360 (HudOverlay), valeurs inconnues affichées « — ».
 
 **0.60.11** : Xbox 360 : le réglage qui coupe le cache d'instructions n'était jamais pris en compte (passé en texte alors que le moteur attend un booléen), d'où le même SIGBUS en 0.60.10. Il est maintenant transmis comme booléen.
 
