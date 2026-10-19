@@ -185,7 +185,7 @@ public class Ps3Activity extends Activity {
      */
     private void place() {
         boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        boolean pad = pads != null && pads.any();
+        boolean pad = pads != null && pads.any() && store.padFullscreen();
         FrameLayout.LayoutParams sl = (FrameLayout.LayoutParams) screen.getLayoutParams();
         FrameLayout.LayoutParams dl = (FrameLayout.LayoutParams) deck.getLayoutParams();
         int h = getResources().getDisplayMetrics().heightPixels;
@@ -205,6 +205,14 @@ public class Ps3Activity extends Activity {
         deck.setVisibility(pad ? View.GONE : View.VISIBLE);
         screen.setLayoutParams(sl);
         deck.setLayoutParams(dl);
+        // Messages du moteur (chargement, compilation) : au milieu de l'écran du haut en portrait,
+        // au milieu de l'écran en paysage (demande BOSS, 0.62).
+        if (status != null) {
+            FrameLayout.LayoutParams tl = (FrameLayout.LayoutParams) status.getLayoutParams();
+            tl.height = sl.height;
+            tl.gravity = Gravity.TOP;
+            status.setLayoutParams(tl);
+        }
         applyFormat();
     }
 
@@ -293,11 +301,24 @@ public class Ps3Activity extends Activity {
             public void run() {
                 if (isFinishing()) return;
                 int s = Ps3Core.nativeState();
-                if (s == Ps3Core.STOPPED || s == Ps3Core.READY) {
+                boolean moving = android.os.SystemClock.uptimeMillis() < stateUntil;
+                if (s == Ps3Core.RUNNING && stateMsg != null) {
+                    // Le moteur est reparti de l'état écrit (sauvegarde) ou relu (chargement).
+                    I18n.toast(Ps3Activity.this, stateMsg, android.widget.Toast.LENGTH_SHORT).show();
+                    stateMsg = null;
+                    stateUntil = 0;
+                    status(null);
+                } else if ((s == Ps3Core.STOPPED || s == Ps3Core.READY) && !moving) {
+                    if (stateMsg != null) {
+                        stateMsg = null;
+                        fail("Le moteur ne s'est pas relancé après la sauvegarde rapide. Ce jeu ne la "
+                                + "permet peut-être pas : utilise la sauvegarde du jeu.");
+                        return;
+                    }
                     finish();
                     return;
                 }
-                stage.postDelayed(this, 1000);
+                stage.postDelayed(this, moving ? 500 : 1000);
             }
         }, 3000);
     }
@@ -418,7 +439,7 @@ public class Ps3Activity extends Activity {
     private void applyFormat() {
         if (stage == null || screen == null) return;
         boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        boolean full = land || (pads != null && pads.any());
+        boolean full = land || (pads != null && pads.any() && store.padFullscreen());
         android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
         int w = stage.getWidth() > 0 ? stage.getWidth() : dm.widthPixels;
         int h = full ? (stage.getHeight() > 0 ? stage.getHeight() : dm.heightPixels) : dm.heightPixels / 2;
@@ -575,6 +596,24 @@ public class Ps3Activity extends Activity {
                         Ps3Core.nativeHomeMenu();
                     }
                 })
+                .sub("Format d'image", ScreenFormat.label(store.displayMode("ps3"))
+                        + (store.formatLocked() ? " · verrouillé" : ""), new Runnable() {
+                    public void run() {
+                        EngineMenus.format(Ps3Activity.this, stage, store, "ps3", backHome(), new Runnable() {
+                            public void run() {
+                                applyFormat();
+                                if (deck != null) deck.refreshKeys();
+                            }
+                        });
+                    }
+                })
+                .sub("Options contrôleur", "Manette, transparence, gâchettes", new Runnable() {
+                    public void run() {
+                        EngineMenus.controller(Ps3Activity.this, stage, store, deck, backHome(), new Runnable() {
+                            public void run() { place(); }
+                        });
+                    }
+                })
                 .sub("Profil et réglages", EngineSettings.profileName(this, EngineSettings.PS3), new Runnable() {
                     public void run() {
                         EngineSettings.menu(Ps3Activity.this, stage, EngineSettings.PS3, "PLAYSTATION 3", backHome());
@@ -614,17 +653,51 @@ public class Ps3Activity extends Activity {
         Theme.fullscreen(this);
     }
 
+    /**
+     * Sur PS3, un état se sauvegarde en arrêtant la machine, qui repart aussitôt de l'état écrit
+     * (ARMSX3 : Emu.Kill puis Restart). Pendant ce passage le moteur est « arrêté » : watch() ne doit
+     * pas prendre ça pour la fin du jeu, sinon on revenait à l'accueil sans rien dire.
+     */
+    private volatile long stateUntil;
+    private volatile String stateMsg;
+
     private void quickSave() {
-        boolean ok = Ps3Core.nativeSaveState(1);
-        I18n.toast(this, ok ? "Partie sauvegardée." : "Sauvegarde impossible ici.", android.widget.Toast.LENGTH_SHORT).show();
+        if (stateMsg != null) return;
+        stateUntil = android.os.SystemClock.uptimeMillis() + 90000;
+        stateMsg = "Partie sauvegardée.";
+        status("Sauvegarde rapide…");
+        new Thread(new Runnable() {
+            public void run() {
+                // Le moteur attend une image pour la vignette : pas sur le fil de l'interface.
+                final boolean ok = Ps3Core.nativeSaveState(1);
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        if (ok) return;
+                        stateUntil = 0;
+                        stateMsg = null;
+                        status(null);
+                        I18n.toast(Ps3Activity.this, "Sauvegarde impossible ici.", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }, "ps3-save").start();
     }
 
     private void quickLoad() {
+        if (stateMsg != null) return;
         if (!Ps3Core.nativeHasState(1)) {
             I18n.toast(this, "Aucune sauvegarde rapide.", android.widget.Toast.LENGTH_SHORT).show();
             return;
         }
-        Ps3Core.nativeLoadState(1);
+        stateUntil = android.os.SystemClock.uptimeMillis() + 120000;
+        stateMsg = "Sauvegarde rapide chargée.";
+        status("Chargement de la sauvegarde rapide…");
+        if (!Ps3Core.nativeLoadState(1)) {
+            stateUntil = 0;
+            stateMsg = null;
+            status(null);
+            I18n.toast(this, "Chargement impossible.", android.widget.Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void quit() {
@@ -660,6 +733,11 @@ public class Ps3Activity extends Activity {
         super.onResume();
         if (hud != null) hud.apply();
         Theme.fullscreen(this);
+        // Retour de l'éditeur de manette : la disposition a pu changer.
+        if (deck != null) {
+            deck.reloadFromSource();
+            place();
+        }
         if (ready) Ps3Core.nativeBackground(false);
     }
 

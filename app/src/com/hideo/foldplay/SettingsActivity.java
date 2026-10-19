@@ -904,12 +904,14 @@ public class SettingsActivity extends Activity {
         super.onResume();
         if (pads == null) pads = new Pads(this);
         pads.input().registerInputDeviceListener(padListener, null);
+        UiSound.musicStart(this);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         pads.input().unregisterInputDeviceListener(padListener);
+        UiSound.musicPause();
     }
 
     private void display() {
@@ -1017,9 +1019,32 @@ public class SettingsActivity extends Activity {
             }
         });
         note("Manette tactile, manettes physiques et vibrations : icône manette en haut de l'accueil.");
-        toggle("Son des menus", "Petit signal d'appel à l'ouverture d'un menu", store.menuSound(), new Toggle() {
+        header("Son");
+        toggle("Bruits de l'interface", "Déplacement, validation, retour, ouverture d'un menu et lancement d'un jeu, "
+                + "propres à chaque thème", store.menuSound(), new Toggle() {
             public void set(boolean on) {
                 store.setMenuSound(on);
+                UiSound.play(SettingsActivity.this, UiSound.SELECT);
+            }
+        });
+        final String[] levels = {"0 %", "10 %", "20 %", "30 %", "40 %", "50 %", "60 %", "70 %", "80 %", "90 %", "100 %"};
+        choice("Volume des bruits", levels, Math.round(store.uiVolume() / 10f), new Choice() {
+            public void set(int i) {
+                store.setUiVolume(i * 10);
+                UiSound.play(SettingsActivity.this, UiSound.SELECT);
+            }
+        });
+        toggle("Musique d'accueil", "Une boucle par thème, coupée pendant les parties", store.musicOn(), new Toggle() {
+            public void set(boolean on) {
+                store.setMusicOn(on);
+                if (on) UiSound.musicStart(SettingsActivity.this);
+                else UiSound.musicPause();
+            }
+        });
+        choice("Volume de la musique", levels, Math.round(store.musicVolume() / 10f), new Choice() {
+            public void set(int i) {
+                store.setMusicVolume(i * 10);
+                UiSound.musicStart(SettingsActivity.this);
             }
         });
     }

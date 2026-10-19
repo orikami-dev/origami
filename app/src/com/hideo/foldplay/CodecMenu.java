@@ -222,7 +222,7 @@ final class CodecMenu extends FrameLayout {
                             .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
                 }
             }).start();
-            CodecSound.call(getContext());
+            UiSound.play(getContext(), UiSound.OPEN);
         }
         setFocus(0);
     }
@@ -571,7 +571,9 @@ final class CodecMenu extends FrameLayout {
 
     private void setFocus(int i) {
         if (rows.isEmpty()) return;
+        int before = focus;
         focus = Math.max(0, Math.min(rows.size() - 1, i));
+        if (focus != before && isShown()) UiSound.play(getContext(), UiSound.MOVE);
         for (int k = 0; k < rows.size(); k++) {
             View r = rows.get(k);
             if (k == focus) {
@@ -601,6 +603,7 @@ final class CodecMenu extends FrameLayout {
     private void activate(int i) {
         if (i < 0 || i >= items.size()) return;
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        UiSound.play(getContext(), UiSound.SELECT);
         Item it = items.get(i);
         if (!it.keepOpen) {
             // On ferme d'abord : l'action peut ouvrir un autre menu à la place.
@@ -640,6 +643,7 @@ final class CodecMenu extends FrameLayout {
     }
 
     private void goBack() {
+        UiSound.play(getContext(), UiSound.BACK);
         if (back != null) back.run();
         else dismiss();
     }

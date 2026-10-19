@@ -505,6 +505,33 @@ final class Store {
         prefs.edit().putBoolean("menu_sound", on).apply();
     }
 
+    /** Volume des bruits de l'interface, 0 à 100. */
+    int uiVolume() {
+        return prefs.getInt("ui_volume", 70);
+    }
+
+    void setUiVolume(int v) {
+        prefs.edit().putInt("ui_volume", Math.max(0, Math.min(100, v))).apply();
+    }
+
+    /** Musique d'accueil en boucle (par thème). */
+    boolean musicOn() {
+        return prefs.getBoolean("music_on", true);
+    }
+
+    void setMusicOn(boolean on) {
+        prefs.edit().putBoolean("music_on", on).apply();
+    }
+
+    /** Volume de la musique d'accueil, 0 à 100. */
+    int musicVolume() {
+        return prefs.getInt("music_volume", 35);
+    }
+
+    void setMusicVolume(int v) {
+        prefs.edit().putInt("music_volume", Math.max(0, Math.min(100, v))).apply();
+    }
+
     boolean haptics() {
         return hapticLevel() > 0;
     }
@@ -711,6 +738,15 @@ final class Store {
     /** Clients Remote Play ajoutés à la main (« paquet/activité »), en plus des clients connus. */
     Set<String> remoteClients() {
         return new HashSet<String>(prefs.getStringSet("remote_clients", new HashSet<String>()));
+    }
+
+    /** App de Remote Play préférée d'une plateforme (« app:paquet/activité »), ou null. */
+    String remotePreferred(String group) {
+        return prefs.getString("remote_pref_" + group, null);
+    }
+
+    void setRemotePreferred(String group, String uri) {
+        prefs.edit().putString("remote_pref_" + group, uri).apply();
     }
 
     void setRemoteClient(String component, boolean on) {

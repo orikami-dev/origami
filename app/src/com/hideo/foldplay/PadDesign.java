@@ -68,10 +68,21 @@ final class PadDesign {
         bottom = rowAtBottom(w, h, bottom, true);
         float s = solve(o, w, h, bottom, true);
         float m = M * s, g = G * s;
-        shoulders(o, w, s, "L2", "L", "R2", "R");
         float rS = STICK * s / 2, rD = DPAD * s / 2, rF = faceRadius(FACE * s);
         float[] left = stagger(w, h, m, g, rS, rD, s);
         float[] right = stagger(w, h, m, g, rF, rS, s);
+        // Gâchettes en arc au-dessus du joystick gauche et du losange (0.62, façon X et Y de la
+        // GameCube), sinon empilées dans les coins du haut (disposition d'origine).
+        float[][] bl = arc(left[0], left[1], rS, true, s);
+        float[][] br = arc(w - right[0], right[1], rF, false, s);
+        if (ConsolePad.ergo && inside(bl, w, h, s) && inside(br, w, h, s)) {
+            o.tilted("L2", bl[0][0], bl[0][1], bl[0][2], bl[0][3], bl[0][4]);
+            o.tilted("L", bl[1][0], bl[1][1], bl[1][2], bl[1][3], bl[1][4]);
+            o.tilted("R2", br[0][0], br[0][1], br[0][2], br[0][3], br[0][4]);
+            o.tilted("R", br[1][0], br[1][1], br[1][2], br[1][3], br[1][4]);
+        } else {
+            shoulders(o, w, s, "L2", "L", "R2", "R");
+        }
         o.circle("STICK_L", left[0], left[1], rS);
         o.circle("DPAD", left[2], left[3], rD);
         face(o, w - right[0], right[1], FACE * s);
@@ -148,6 +159,37 @@ final class PadDesign {
         o.circle("A", cx, cy + d, b / 2);
         o.circle("X", cx - d, cy, b / 2);
         o.circle("B", cx + d, cy, b / 2);
+    }
+
+    /**
+     * Deux gâchettes en haricots posées sur un arc au-dessus d'un groupe (centre cx, cy, rayon r) :
+     * la 2 côté bord de l'écran, la 1 côté centre. Renvoie [x, y, l, h, degrés] pour chacune.
+     */
+    private static float[][] arc(float cx, float cy, float r, boolean left, float s) {
+        float bw = SH_W * s, bh = SH_H * s;
+        float rad = r + G * s + bh / 2;
+        float[][] out = new float[2][];
+        for (int i = 0; i < 2; i++) {
+            float deg = (left ? -1 : 1) * (i == 0 ? 30f : -30f);
+            double a = Math.toRadians(deg);
+            float x = cx + (float) (rad * Math.sin(a)), y = cy - (float) (rad * Math.cos(a));
+            out[i] = new float[] {x - bw / 2, y - bh / 2, bw, bh, deg};
+        }
+        return out;
+    }
+
+    /** Les gâchettes tournées restent-elles dans la zone, hors de la rangée du centre ? */
+    private static boolean inside(float[][] beans, float w, float h, float s) {
+        float ch = (HOME / 2 + G + PILL_W) * s;
+        for (float[] b : beans) {
+            double a = Math.toRadians(b[4]);
+            float ex = (float) (Math.abs(b[2] * Math.cos(a)) + Math.abs(b[3] * Math.sin(a))) / 2;
+            float ey = (float) (Math.abs(b[2] * Math.sin(a)) + Math.abs(b[3] * Math.cos(a))) / 2;
+            float cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
+            if (cx - ex < 0 || cx + ex > w || cy - ey < 0 || cy + ey > h) return false;
+            if (Math.abs(cx - w / 2) < ex + ch) return false;
+        }
+        return true;
     }
 
     /** Gâchettes empilées dans les coins du haut, la 2 au-dessus de la 1. */

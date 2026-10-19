@@ -219,7 +219,7 @@ public class X360Activity extends WindowedAppActivity {
     /** Même règle que les autres consoles : portrait = manette en bas, paysage = superposée. */
     private void place() {
         boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        boolean pad = pads != null && pads.any();
+        boolean pad = pads != null && pads.any() && store.padFullscreen();
         FrameLayout.LayoutParams sl = (FrameLayout.LayoutParams) screen.getLayoutParams();
         FrameLayout.LayoutParams dl = (FrameLayout.LayoutParams) deck.getLayoutParams();
         int h = getResources().getDisplayMetrics().heightPixels;
@@ -237,6 +237,14 @@ public class X360Activity extends WindowedAppActivity {
         deck.setVisibility(pad ? View.GONE : View.VISIBLE);
         screen.setLayoutParams(sl);
         deck.setLayoutParams(dl);
+        // Messages du moteur (chargement, compilation) : au milieu de l'écran du haut en portrait,
+        // au milieu de l'écran en paysage (demande BOSS, 0.62).
+        if (status != null) {
+            FrameLayout.LayoutParams tl = (FrameLayout.LayoutParams) status.getLayoutParams();
+            tl.height = sl.height;
+            tl.gravity = Gravity.TOP;
+            status.setLayoutParams(tl);
+        }
         applyFormat();
     }
 
@@ -297,7 +305,7 @@ public class X360Activity extends WindowedAppActivity {
     private void applyFormat() {
         if (stage == null || screen == null) return;
         boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        boolean full = land || (pads != null && pads.any());
+        boolean full = land || (pads != null && pads.any() && store.padFullscreen());
         android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
         int w = stage.getWidth() > 0 ? stage.getWidth() : dm.widthPixels;
         int h = full ? (stage.getHeight() > 0 ? stage.getHeight() : dm.heightPixels) : dm.heightPixels / 2;
@@ -457,6 +465,24 @@ public class X360Activity extends WindowedAppActivity {
                 .item("Reprendre", null, new Runnable() {
                     public void run() { resumeGame(); }
                 })
+                .sub("Format d'image", ScreenFormat.label(store.displayMode("x360"))
+                        + (store.formatLocked() ? " · verrouillé" : ""), new Runnable() {
+                    public void run() {
+                        EngineMenus.format(X360Activity.this, stage, store, "x360", backHome(), new Runnable() {
+                            public void run() {
+                                applyFormat();
+                                if (deck != null) deck.refreshKeys();
+                            }
+                        });
+                    }
+                })
+                .sub("Options contrôleur", "Manette, transparence, gâchettes", new Runnable() {
+                    public void run() {
+                        EngineMenus.controller(X360Activity.this, stage, store, deck, backHome(), new Runnable() {
+                            public void run() { place(); }
+                        });
+                    }
+                })
                 .sub("Profil et réglages", EngineSettings.profileName(this, EngineSettings.X360), new Runnable() {
                     public void run() {
                         EngineSettings.menu(X360Activity.this, stage, EngineSettings.X360, "XBOX 360", backHome());
@@ -515,6 +541,11 @@ public class X360Activity extends WindowedAppActivity {
         super.onResume();
         if (hud != null) hud.apply();
         Theme.fullscreen(this);
+        // Retour de l'éditeur de manette : la disposition a pu changer.
+        if (deck != null) {
+            deck.reloadFromSource();
+            place();
+        }
     }
 
     @Override
