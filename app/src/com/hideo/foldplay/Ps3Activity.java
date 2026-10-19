@@ -256,6 +256,7 @@ public class Ps3Activity extends Activity {
         booted = true;
         new Thread(new Runnable() {
             public void run() {
+                EngineSettings.applyPs3(Ps3Activity.this);
                 final int r = Ps3Core.nativeBoot(path);
                 runOnUiThread(new Runnable() {
                     public void run() {
@@ -525,6 +526,17 @@ public class Ps3Activity extends Activity {
                         Ps3Core.nativeHomeMenu();
                     }
                 })
+                .sub("Profil et réglages", EngineSettings.profileName(this, EngineSettings.PS3), new Runnable() {
+                    public void run() {
+                        EngineSettings.menu(Ps3Activity.this, stage, EngineSettings.PS3, "PLAYSTATION 3", backHome());
+                    }
+                })
+                .check("ATH", "Images/s, processeur, batterie…", store.hud(), new Runnable() {
+                    public void run() {
+                        store.setHud(!store.hud());
+                        if (hud != null) hud.apply();
+                    }
+                })
                 .item("Quitter le jeu", null, new Runnable() {
                     public void run() { quit(); }
                 })
@@ -532,6 +544,17 @@ public class Ps3Activity extends Activity {
                     public void run() { resumeGame(); }
                 })
                 .show(stage);
+    }
+
+    /** Retour du sous-menu vers le menu Home. */
+    private Runnable backHome() {
+        return new Runnable() {
+            public void run() {
+                CodecMenu m = CodecMenu.find(stage);
+                if (m != null) m.dismiss();
+                home();
+            }
+        };
     }
 
     private void resumeGame() {

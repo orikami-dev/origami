@@ -107,6 +107,8 @@ public class X360Activity extends WindowedAppActivity {
             purgeEmpty(cache);
             purgeEmpty(new File(r, "cache"));
             cvars.putString("hid", "origami");
+            // Profil et réglages graphiques choisis dans le menu Home (0.60.14).
+            EngineSettings.putCvars(this, cvars);
             getIntent().putExtra(EXTRA_CVARS, cvars);
             started = true;
         }
@@ -402,13 +404,15 @@ public class X360Activity extends WindowedAppActivity {
                 .item("Reprendre", null, new Runnable() {
                     public void run() { resumeGame(); }
                 })
-                .item("Guide Xbox", "Le menu Guide du jeu", new Runnable() {
+                .sub("Profil et réglages", EngineSettings.profileName(this, EngineSettings.X360), new Runnable() {
                     public void run() {
-                        resumeGame();
-                        nativePad(0, true, GUIDE, 0, 0, 0, 0, 0, 0);
-                        stage.postDelayed(new Runnable() {
-                            public void run() { send(); }
-                        }, 150);
+                        EngineSettings.menu(X360Activity.this, stage, EngineSettings.X360, "XBOX 360", backHome());
+                    }
+                })
+                .check("ATH", "Images/s, processeur, batterie…", store.hud(), new Runnable() {
+                    public void run() {
+                        store.setHud(!store.hud());
+                        if (hud != null) hud.apply();
                     }
                 })
                 .item("Quitter le jeu", null, new Runnable() {
@@ -418,6 +422,17 @@ public class X360Activity extends WindowedAppActivity {
                     public void run() { resumeGame(); }
                 })
                 .show(stage);
+    }
+
+    /** Retour du sous-menu vers le menu Home. */
+    private Runnable backHome() {
+        return new Runnable() {
+            public void run() {
+                CodecMenu m = CodecMenu.find(stage);
+                if (m != null) m.dismiss();
+                home();
+            }
+        };
     }
 
     private void resumeGame() {

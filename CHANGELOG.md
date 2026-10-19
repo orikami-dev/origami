@@ -44,6 +44,7 @@ Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la 
 
 ⭐ = mise à jour majeure.
 
+- [**0.60.14**](https://github.com/orikami-dev/origami/releases/tag/v0.60.14) : profils et réglages PS3 et Xbox 360 dans le menu Home, ATH depuis le menu.
 - [**0.60.13**](https://github.com/orikami-dev/origami/releases/tag/v0.60.13) : Xbox 360 : Skyrim corrigé, son AAudio (DMC 4), images/s dans l'ATH.
 - [**0.60.12**](https://github.com/orikami-dev/origami/releases/tag/v0.60.12) : (19/10/2026)
 - [**0.60.11**](https://github.com/orikami-dev/origami/releases/tag/v0.60.11) : Xbox 360 : le réglage qui coupe le cache d'instructions n'était jamais pris en compte (passé en texte alors que le moteur attend un…
