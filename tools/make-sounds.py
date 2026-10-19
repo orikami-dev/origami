@@ -3,7 +3,7 @@
 import numpy as np, subprocess, os
 
 SR = 44100
-ROOT = "/mnt/project-files/foldplay/app/assets"
+ROOT = os.environ.get("ORIGAMI_ASSETS", "/mnt/project-files/foldplay/app/assets")
 THEMES = ["codec", "arctique", "ecarlate", "sakura", "ambre"]
 DUR = 64                      # durée des boucles musicales (s)
 L = DUR * SR                  # longueur en échantillons
@@ -124,7 +124,7 @@ def fin(x, maxdur, peak=.501):
 def srev(x, n, t60, wet, seed=5):
     z = np.zeros(n); z[:min(n, len(x))] = x[:n]; return reverb(z[None], t60, wet, seed)[0]
 
-DUR_UI = dict(move=.06, select=.15, back=.15, open=.4, launch=1.2)
+DUR_UI = dict(move=.08, select=.22, back=.22, open=.55, launch=1.6)
 def N(k): return int(DUR_UI[k] * SR)
 
 def sfx_codec(r):
@@ -209,6 +209,10 @@ def m_codec(r):
         g = np.clip(filt(r.standard_normal(n), hi=40) * 8 + .5, 0, 1)
         put(b, filt(r.standard_normal(n), 1500, 5000) * np.sin(np.pi * np.arange(n) / n) ** 2 * g, r.uniform(0, DUR), .05, r.uniform(.2, .8))
     b[0] += .012 * cnoise(r, 3000, 9000); b[1] += .012 * cnoise(r, 3000, 9000)
+    for i, m in enumerate([33, 29, 26, 28] * 2):              # basse ronde sous chaque accord
+        put(b, filt(padnote(mf(m), 8.5, r, 4), hi=300), i * 8 - .3, .22, .5)
+    for k in range(32):                                       # pulsation sourde, comme un cœur à l'écoute
+        put(b, taiko(.6, r, 48) * .6, k * 2, .12, .5)
     return reverb(b, 1.5, .25, 11)
 
 def m_arctique(r):
@@ -226,29 +230,96 @@ def m_arctique(r):
         put(bl, bell(mf(m), 6, 2.0), t0, .12, r.uniform(.15, .85))
         if r.random() < .3: put(bl, bell(mf(m - 7), 6, 2.0), t0 + .25, .08, r.uniform(.15, .85))
     b += echo(bl, 1.5, .4, 3)
+    for i, m in enumerate([38, 35, 31, 33] * 2):              # basses tenues sous la glace
+        put(b, filt(padnote(mf(m), 9, r, 4), hi=350), i * 8 - .5, .2, .5)
     return reverb(b, 4, .5, 12, 8000)
 
+def shaku(f, dur, r, vib=.012, scoop=True):
+    # shakuhachi : souffle accordé, attaque en « meri » (le son monte depuis un demi-ton plus bas),
+    # vibrato qui s'élargit en fin de note, bruit de souffle filtré autour de la hauteur
+    n = int(dur * SR); t = T(n)
+    bend = (2 ** (-1 / 12) - 1) * np.exp(-t / .09) if scoop else 0
+    vd = vib * np.minimum(1, t / max(dur * .6, .01)) ** 1.5
+    fi = f * (1 + bend + vd * np.sin(2 * np.pi * 5.2 * t))
+    ph = 2 * np.pi * np.cumsum(fi) / SR
+    tone = np.sin(ph) + .28 * np.sin(2 * ph) + .1 * np.sin(3 * ph) + .04 * np.sin(4 * ph)
+    breath = filt(r.standard_normal(n), f * .8, f * 3.5) * .35 + filt(r.standard_normal(n), 2500, 7000) * .06
+    env = np.minimum(1, t / .12) ** 1.6 * np.minimum(1, (dur - t) / .25).clip(0, 1) ** 1.2
+    puff = np.exp(-t / .05) * .5
+    return endfade((tone * (.85 + .15 * np.sin(2 * np.pi * .7 * t)) + breath * (1 + 2 * puff)) * env)
+
+def kotoq(f, dur, r, hl=.6, bright=.35):
+    # koto : corde pincée (Karplus-Strong) + attaque d'onglet + léger glissé de la main gauche
+    y = pluck(f, dur, r, hl); n = len(y); t = T(n)
+    pick = filt(r.standard_normal(n), 1500, 6000) * np.exp(-t / .006) * bright
+    return endfade(y + pick)
+
+def kane(f, dur):
+    # petite cloche de temple
+    return voice(f, dur, [(1, 1, 1), (2.4, .5, .5), (3.9, .3, .35), (5.6, .15, .25)], .001, dur * .35)
+
+def ka(r, d=.05):
+    # « ka » : frappe sur le cerclage du taiko
+    n = int(d * SR); t = T(n)
+    return endfade(filt(r.standard_normal(n), 1800, 6000) * np.exp(-t / .012) + .5 * np.sin(2 * np.pi * 900 * t) * np.exp(-t / .01))
+
 def m_ecarlate(r):
+    # « Éventail écarlate » : 90 BPM, 24 mesures (64 s). Koto en ostinato, shakuhachi qui chante
+    # une phrase en trois parties (A, B, A'), taikos et ka, cordes graves tenues. Gamme in sur ré.
     b = np.zeros((2, L)); t = T(L)
-    for f, g in ((73.4, .3), (110, .12)):                     # bourdon ré / la
-        for c, dt in ((0, 1.), (1, 1.002)):
-            b[c] += g * filt(np.sin(2 * np.pi * snap(f * dt) * t), hi=400) * lfo(2 + c, c)
-    deg = [0, 1, 5, 7, 8]                                     # gamme in : ré mib sol la sib
-    sc = [50 + 12 * o + d for o in range(3) for d in deg]
-    pos = 9
-    for i in range(8):
-        k = 0
-        while k < 7:
-            pos = int(np.clip(pos + r.choice([-2, -1, -1, 0, 1, 1, 2, 3]), 0, len(sc) - 1))
-            t0 = i * 8 + k * 1.1 + r.uniform(0, .5) + 0.3
-            if r.random() < .8: put(b, pluck(mf(sc[pos]), 3, r, .5), t0, .3, r.uniform(.35, .65))
-            if r.random() < .25:                              # petite montée rapide
-                for j in range(1, 3):
-                    pos = min(pos + 1, len(sc) - 1); put(b, pluck(mf(sc[pos]), 2.5, r, .5), t0 + .13 * j, .22, .5)
-            k += 1 if r.random() < .5 else 2
-        put(b, pluck(mf(38), 4, r, .8), i * 8, .4, .5)
-        put(b, taiko(1.2, r, 55), i * 8, .45, .5); put(b, taiko(1.0, r, 55), i * 8 + 4, .2, .5)
-    return reverb(b, 2.5, .3, 13)
+    beat = 60 / 90; bar = 4 * beat
+    D = 50                                                    # ré 3
+    sc = [0, 1, 5, 7, 8]                                      # ré mib sol la sib
+    def deg(k, o=0): return D + 12 * (o + k // 5) + sc[k % 5]
+    # cordes graves tenues (accords ré-la, sib-fa, sol-ré, la-mi) toutes les 4 mesures
+    roots = [(38, 45), (34, 41), (31, 38), (33, 40)]
+    for i in range(6):
+        lo, hi = roots[i % 4]
+        for m, g in ((lo, .1), (hi, .07), (lo + 12, .05)):
+            put(b, filt(padnote(mf(m), 4 * bar + 2, r, 5), hi=1400), i * 4 * bar - 1, g, r.uniform(.35, .65))
+    # bourdon très doux pour l'assise
+    for c, dt in ((0, 1.), (1, 1.002)):
+        b[c] += .08 * filt(np.sin(2 * np.pi * snap(36.7 * dt) * t), hi=200) * lfo(4 + c, c)
+    # koto : ostinato en croches, motif qui suit l'accord
+    pat = [0, 2, 4, 2, 5, 4, 2, 1]
+    off = [0, -2, -3, -1]
+    for bi in range(24):
+        o = off[(bi // 4) % 4]
+        for k, p in enumerate(pat):
+            if bi % 8 == 7 and k >= 6: continue               # respiration en fin de phrase
+            m = deg(p + o + 5)
+            put(b, kotoq(mf(m), 1.6, r, .45, .25), bi * bar + k * beat / 2, .16 if k % 2 == 0 else .11, .3 + .05 * (k % 4))
+    # basse de koto sur les temps forts
+    for bi in range(24):
+        lo = roots[(bi // 4) % 4][0]
+        put(b, kotoq(mf(lo), 3, r, .9, .15), bi * bar, .26, .5)
+        if bi % 2: put(b, kotoq(mf(lo + 7), 2, r, .7, .15), bi * bar + 2.5 * beat, .14, .55)
+    # shakuhachi : phrase A (mesures 0-7), B plus haute (8-15), A' ornée (16-23)
+    A = [(5, 0, 3), (7, 3, 1), (6, 4, 2), (5, 6, 2), (4, 8, 3), (2, 11, 1), (3, 12, 4)]
+    B = [(7, 0, 2), (8, 2, 2), (9, 4, 3), (8, 7, 1), (7, 8, 2), (6, 10, 2), (5, 12, 4)]
+    for sect, phrase, lift in ((0, A, 0), (8, B, 0), (16, A, 1)):
+        for k, (d, st, ln) in enumerate(phrase):
+            t0 = sect * bar + st * beat * 2 + .02
+            dur = ln * beat * 2 + .3
+            put(b, shaku(mf(deg(d, 1)), dur, r), t0, .22, .45 + .1 * np.sin(k))
+            if lift and k in (1, 4):                          # ornement : note de passage brève
+                put(b, shaku(mf(deg(d + 1, 1)), beat * .7, r, scoop=False), t0 - beat * .4, .14, .5)
+    # taiko : « don » sur le 1, « don-don » en fin de mesure, ka sur les contretemps
+    for bi in range(24):
+        t0 = bi * bar
+        put(b, taiko(1.4, r, 58), t0, .42, .5)
+        if bi % 2 == 1:
+            put(b, taiko(.9, r, 64), t0 + 3 * beat, .28, .42)
+            put(b, taiko(.9, r, 64), t0 + 3.5 * beat, .24, .58)
+        for k in (1, 3):
+            put(b, ka(r), t0 + k * beat + beat / 2, .1, .3 if k == 1 else .7)
+        if bi % 4 == 3: put(b, taiko(2.2, r, 46), t0 + 2 * beat, .35, .5)
+    # cloches de temple aux changements de section
+    for t0, m in ((0, 86), (8 * bar, 89), (16 * bar, 86)):
+        put(b, kane(mf(m), 5), t0, .1, .3); put(b, kane(mf(m - 5), 5), t0 + .04, .07, .7)
+    # souffle de vent léger, comme un éventail
+    for c in (0, 1): b[c] += .02 * cnoise(r, 600, 3000) * lfo(3 + c, c * 2)
+    return reverb(b, 2.4, .32, 13)
 
 def m_sakura(r):
     b = np.zeros((2, L)); t = T(L)
@@ -264,6 +335,9 @@ def m_sakura(r):
         for tt in (0, 3, 5):
             m = int(r.choice([79, 81, 84, 86, 88])); put(b, box(mf(m + 12 * (m < 84)), 3.5, 1.5), i * 8 + tt + .25, .13, r.uniform(.35, .65))
     for c in (0, 1): b[c] += .015 * cnoise(r, 4000, 10000)
+    for i, m in enumerate([36, 33, 29, 31] * 2):              # basse douce sur les temps 1 et 3
+        for k in (0, 4):
+            put(b, filt(rhodes(mf(m), 3.5, .35, 1.4), hi=500), i * 8 + k, .2, .5)
     return reverb(echo(b, .75, .25, 2), 2.5, .35, 14)
 
 def m_ambre(r):
@@ -290,6 +364,23 @@ def m_ambre(r):
 MUSIC = dict(codec=m_codec, arctique=m_arctique, ecarlate=m_ecarlate, sakura=m_sakura, ambre=m_ambre)
 
 # ---------- export ----------
+def body(x, k):
+    # un peu de corps sous les bruits : écho grave court, plus marqué sur les gros événements
+    n = len(x); t = T(n); f0 = dict(move=0, select=180, back=150, open=110, launch=70)[k]
+    if f0 == 0: return x
+    thump = np.sin(2 * np.pi * f0 * t) * np.exp(-t / .05) * np.minimum(1, t / .003)
+    return x + thump * abs(x).max() * (.35 if k != 'launch' else .5)
+
+def stereo_ui(x, k, seed):
+    # petite pièce stéréo : chaque côté a sa propre réverbération (les bruits ne sonnent plus « plats »)
+    n = len(x); wet = .12 if k == 'move' else .2
+    t60 = dict(move=.12, select=.25, back=.25, open=.45, launch=.8)[k]
+    pad = int(t60 * 1.4 * SR); z = np.concatenate([x, np.zeros(pad)])
+    y = reverb(np.stack([z, z]), t60, wet, seed)[:, :n]       # pas de queue rebouclée au début
+    fo = int(min(.04, n / SR * .25) * SR); y[:, -fo:] *= np.cos(np.linspace(0, np.pi / 2, fo)) ** 2
+    y[0] = .92 * y[0] + .08 * y[1]; y[1] = .92 * y[1] + .08 * y[0]
+    return y * .501 / abs(y).max()
+
 def encode(path, x, ch, q):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     pcm = (np.clip(x, -1, 1) * 32767).astype('<i2')
@@ -313,11 +404,11 @@ if __name__ == "__main__":
     for ti, th in enumerate(THEMES):
         for k, x in SFX[th](np.random.default_rng(1000 + ti)).items():
             p = f"{ROOT}/sounds/{th}/{k}.ogg"
-            encode(p, fin(x, DUR_UI[k]), 1, 3); rows.append(p)
+            encode(p, stereo_ui(fin(body(x, k), DUR_UI[k]), k, 300 + ti), 2, 6); rows.append(p)
         m = master(MUSIC[th](np.random.default_rng(2000 + ti)), -10)
         jump = abs(m[:, 0] - m[:, -1]).max(); typ = np.sqrt((np.diff(m, axis=1) ** 2).mean())
         print(f"{th}: saut boucle {jump:.2e}, diff rms typique {typ:.2e}, pic {20*np.log10(abs(m).max()):.1f} dBFS")
-        p = f"{ROOT}/music/{th}.ogg"; encode(p, m, 2, 1); rows.append(p)
+        p = f"{ROOT}/music/{th}.ogg"; encode(p, m, 2, 5); rows.append(p)
     tot = 0
     print(f"\n{'fichier':<70}{'durée (s)':>10}{'taille (Ko)':>12}")
     for p in rows:

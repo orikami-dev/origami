@@ -268,7 +268,22 @@ final class CodecMenu extends FrameLayout {
         // En-tête : barre verte, titre au pochoir, sous-titre.
         LinearLayout head = new LinearLayout(getContext());
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.setPadding(px(18), 0, px(18), px(8));
+        head.setPadding(px(10), 0, px(18), px(8));
+        // Flèche retour aux couleurs du thème, sur chaque menu et sous-menu (0.62.1).
+        android.widget.ImageView backBtn = new android.widget.ImageView(getContext());
+        backBtn.setImageDrawable(Icons.of(getContext(), "back", Theme.CODEC, 22));
+        backBtn.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+        backBtn.setContentDescription(I18n.tr("Retour"));
+        backBtn.setBackground(Theme.pill(Theme.alpha(Theme.CODEC, 0x1A), px(20)));
+        backBtn.setOnClickListener(new OnClickListener() {
+            public void onClick(View v) {
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                goBack();
+            }
+        });
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(px(40), px(40));
+        blp.rightMargin = px(10);
+        head.addView(backBtn, blp);
         View bar = new View(getContext());
         bar.setBackgroundColor(Theme.CODEC);
         head.addView(bar, new LinearLayout.LayoutParams(px(4), px(26)));

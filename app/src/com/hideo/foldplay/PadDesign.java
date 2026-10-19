@@ -170,7 +170,9 @@ final class PadDesign {
         float rad = r + G * s + bh / 2;
         float[][] out = new float[2][];
         for (int i = 0; i < 2; i++) {
-            float deg = (left ? -1 : 1) * (i == 0 ? 30f : -30f);
+            // La 2 juste au-dessus du joystick, la 1 plus bas vers le centre, comme Y puis X
+            // autour du A de la GameCube : rien ne dépasse vers le bord de l'écran (0.62.1).
+            float deg = (left ? 1 : -1) * (i == 0 ? 8f : 48f);
             double a = Math.toRadians(deg);
             float x = cx + (float) (rad * Math.sin(a)), y = cy - (float) (rad * Math.cos(a));
             out[i] = new float[] {x - bw / 2, y - bh / 2, bw, bh, deg};
@@ -180,13 +182,14 @@ final class PadDesign {
 
     /** Les gâchettes tournées restent-elles dans la zone, hors de la rangée du centre ? */
     private static boolean inside(float[][] beans, float w, float h, float s) {
+        float mg = M * s;
         float ch = (HOME / 2 + G + PILL_W) * s;
         for (float[] b : beans) {
             double a = Math.toRadians(b[4]);
             float ex = (float) (Math.abs(b[2] * Math.cos(a)) + Math.abs(b[3] * Math.sin(a))) / 2;
             float ey = (float) (Math.abs(b[2] * Math.sin(a)) + Math.abs(b[3] * Math.cos(a))) / 2;
             float cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
-            if (cx - ex < 0 || cx + ex > w || cy - ey < 0 || cy + ey > h) return false;
+            if (cx - ex < mg || cx + ex > w - mg || cy - ey < mg || cy + ey > h) return false;
             if (Math.abs(cx - w / 2) < ex + ch) return false;
         }
         return true;

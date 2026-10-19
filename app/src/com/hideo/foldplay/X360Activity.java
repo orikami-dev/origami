@@ -110,6 +110,9 @@ public class X360Activity extends WindowedAppActivity {
             purgeEmpty(cache);
             purgeEmpty(new File(r, "cache"));
             cvars.putString("hid", "origami");
+            // Les fenêtres du système 360 (« connectez-vous au Xbox LIVE »…) ne se touchent pas :
+            // en mode headless, le moteur choisit tout seul le bouton par défaut (0.62.1).
+            cvars.putBoolean("headless", true);
             // Profil et réglages graphiques choisis dans le menu Home (0.60.14).
             EngineSettings.putCvars(this, cvars);
             getIntent().putExtra(EXTRA_CVARS, cvars);

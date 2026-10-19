@@ -201,6 +201,8 @@ final class CartridgeView extends View implements CoverLoader.Target {
             lr.set(cx - side / 2f, cy - side / 2f, cx + side / 2f, cy + side / 2f);
             src.set(0, 0, cover.getWidth(), cover.getHeight());
             c.drawBitmap(cover, src, lr, null);
+        } else if (RemoteEmblem.handles(game.uri)) {
+            RemoteEmblem.draw(c, game.uri, cx, cy, side * 1.2f);
         } else {
             // Action : flèches d'actualisation ; client pas encore installé : pictogramme d'apps, en retrait.
             String name = !action ? "apps" : game.uri.startsWith("action:addclient") ? "plus" : "refresh";

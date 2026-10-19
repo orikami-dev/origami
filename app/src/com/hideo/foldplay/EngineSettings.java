@@ -164,10 +164,17 @@ final class EngineSettings {
     }
 
     /** PS3 : les réglages sont écrits dans la configuration du moteur avant le lancement du jeu. */
-    static void applyPs3(Context ctx) {
+    static void applyPs3(Context ctx, String game) {
+        String g = game == null ? "" : game.toUpperCase(java.util.Locale.ROOT);
         for (Opt o : PS3_OPTS) {
             try {
-                Ps3Core.nativeSettingsSet(o.key, get(ctx, PS3, o));
+                String v = get(ctx, PS3, o);
+                // Correctifs par jeu, sauf si BOSS a choisi lui-même la valeur (0.62.1) :
+                // Demon's Souls a besoin des tampons de couleur pour dessiner le monde après la cinématique.
+                if (o.key.equals("Video@@Write Color Buffers") && prefs(ctx, PS3).getString("v_" + o.key, null) == null
+                        && (g.contains("DEMON") || g.contains("BLES00932") || g.contains("BLUS30443") || g.contains("BCJS30022")
+                        || g.contains("BCAS20071"))) v = "true";
+                Ps3Core.nativeSettingsSet(o.key, v);
             } catch (Throwable ignored) {
                 // Réglage inconnu de cette version du moteur : on garde le sien.
             }

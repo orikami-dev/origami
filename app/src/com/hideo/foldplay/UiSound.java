@@ -3,7 +3,6 @@ package com.hideo.foldplay;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
-import android.media.MediaPlayer;
 import android.media.SoundPool;
 
 /**
@@ -20,7 +19,6 @@ final class UiSound {
     private static final int[] ids = new int[NAMES.length];
     private static long lastMove;
 
-    private static MediaPlayer music;
     private static String musicTheme;
     private static boolean wanted;
 
@@ -54,7 +52,7 @@ final class UiSound {
         if (pool != null) pool.release();
         pool = new SoundPool.Builder().setMaxStreams(4)
                 .setAudioAttributes(new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_GAME)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
                 .build();
         poolTheme = theme;
@@ -76,47 +74,49 @@ final class UiSound {
 
     // ------------------------------------------------------------------ musique
 
-    /** Lance (ou reprend) la musique d'accueil du thème actif, en boucle. */
+    private static MusicLoop music;
+    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
+    /** Pause retardée : passer d'un écran à l'autre ne coupe plus la musique (0.62.1). */
+    private static final Runnable PAUSE = new Runnable() {
+        public void run() {
+            if (music != null) music.pause();
+        }
+    };
+
+    /** Lance (ou reprend) la musique d'accueil du thème actif, en boucle sans blanc. */
     static void musicStart(Context ctx) {
+        MAIN.removeCallbacks(PAUSE);
         wanted = true;
         Store store = new Store(ctx);
         String theme = store.theme();
         float vol = store.musicOn() ? store.musicVolume() / 100f : 0f;
         try {
             if (vol <= 0f) {
-                musicStop();
-                wanted = true;
+                if (music != null) music.pause();
                 return;
             }
-            if (music != null && !theme.equals(musicTheme)) musicStop();
-            wanted = true;
+            if (music != null && !theme.equals(musicTheme)) {
+                music.release();
+                music = null;
+            }
             if (music == null) {
                 AssetFileDescriptor fd = open(ctx.getApplicationContext(), "music/" + theme + ".ogg");
                 if (fd == null) return;
-                music = new MediaPlayer();
-                music.setAudioAttributes(new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_GAME)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
-                music.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
+                music = new MusicLoop(fd);
                 fd.close();
-                music.setLooping(true);
-                music.prepare();
                 musicTheme = theme;
             }
-            music.setVolume(vol, vol);
-            if (!music.isPlaying()) music.start();
+            music.play(vol);
         } catch (Exception e) {
             musicStop();
         }
     }
 
-    /** Met la musique en pause (jeu lancé, app en arrière-plan). */
+    /** Met la musique en pause (jeu lancé, app en arrière-plan), après un court délai. */
     static void musicPause() {
         wanted = false;
-        try {
-            if (music != null && music.isPlaying()) music.pause();
-        } catch (Exception ignored) {
-        }
+        MAIN.removeCallbacks(PAUSE);
+        MAIN.postDelayed(PAUSE, 700);
     }
 
     /** Thème ou volume changé : on recharge si la musique devait jouer. */
@@ -126,12 +126,8 @@ final class UiSound {
 
     static void musicStop() {
         wanted = false;
-        if (music != null) {
-            try {
-                music.release();
-            } catch (Exception ignored) {
-            }
-        }
+        MAIN.removeCallbacks(PAUSE);
+        if (music != null) music.release();
         music = null;
         musicTheme = null;
     }

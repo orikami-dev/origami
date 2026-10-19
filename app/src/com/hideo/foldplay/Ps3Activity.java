@@ -271,7 +271,7 @@ public class Ps3Activity extends Activity {
         booted = true;
         new Thread(new Runnable() {
             public void run() {
-                EngineSettings.applyPs3(Ps3Activity.this);
+                EngineSettings.applyPs3(Ps3Activity.this, title + " " + path);
                 final int r = Ps3Core.nativeBoot(path);
                 runOnUiThread(new Runnable() {
                     public void run() {

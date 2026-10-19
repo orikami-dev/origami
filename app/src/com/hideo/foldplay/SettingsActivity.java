@@ -33,6 +33,7 @@ public class SettingsActivity extends Activity {
         {"cores", "Cœurs"},
         {"covers", "Jaquettes et fiches"},
         {"display", "Affichage"},
+        {"sound", "Son"},
         {"about", "À propos"},
     };
 
@@ -113,6 +114,7 @@ public class SettingsActivity extends Activity {
             else if (section.equals("cores")) cores();
             else if (section.equals("covers")) covers();
             else if (section.equals("display")) display();
+            else if (section.equals("sound")) sound();
             else if (section.equals("pads")) pads();
             else about();
         }
@@ -1019,7 +1021,11 @@ public class SettingsActivity extends Activity {
             }
         });
         note("Manette tactile, manettes physiques et vibrations : icône manette en haut de l'accueil.");
-        header("Son");
+    }
+
+    /** Son (0.62.1) : sa propre catégorie, demandée par BOSS. */
+    private void sound() {
+        header("Interface");
         toggle("Bruits de l'interface", "Déplacement, validation, retour, ouverture d'un menu et lancement d'un jeu, "
                 + "propres à chaque thème", store.menuSound(), new Toggle() {
             public void set(boolean on) {
@@ -1034,6 +1040,7 @@ public class SettingsActivity extends Activity {
                 UiSound.play(SettingsActivity.this, UiSound.SELECT);
             }
         });
+        header("Musique");
         toggle("Musique d'accueil", "Une boucle par thème, coupée pendant les parties", store.musicOn(), new Toggle() {
             public void set(boolean on) {
                 store.setMusicOn(on);

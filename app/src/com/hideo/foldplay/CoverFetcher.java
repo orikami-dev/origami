@@ -147,6 +147,20 @@ final class CoverFetcher {
                     // du titre dans le jeu et on prend la jaquette du catalogue Xbox, sinon la
                     // vignette du conteneur (jeux « Games on Demand »).
                     X360Icon.Info x = g.system.id.equals("x360") ? X360Icon.read(cr, g) : null;
+                    if (g.system.id.equals("x360") && (x == null || x.titleId == null)) {
+                        try {
+                            if (x360Index == null) x360Index = new org.json.JSONArray(new String(get(X360Icon.DB + "games.json"), "UTF-8"));
+                            String id = X360Icon.idByName(x360Index, g.title);
+                            if (id == null) id = X360Icon.idByName(x360Index, g.fileBase);
+                            if (id != null) {
+                                if (x == null) x = new X360Icon.Info();
+                                x.titleId = id;
+                            }
+                        } catch (Exception ignored) {
+                            // Index injoignable : bases suivantes.
+                        }
+                    }
+                    android.util.Log.i("Origami", "jaquette 360 " + g.title + " : titre " + (x == null ? "illisible" : x.titleId));
                     if (x != null && x.titleId != null) {
                         for (String url : X360Icon.boxartUrls(x.titleId)) {
                             if (got) break;
@@ -442,6 +456,9 @@ final class CoverFetcher {
     private static String encodePath(String s) throws Exception {
         return URLEncoder.encode(s, "UTF-8").replace("+", "%20");
     }
+
+    /** Index des jeux Xbox 360 (x360db), chargé une fois par lancement si un jeu ne se lit pas. */
+    private org.json.JSONArray x360Index;
 
     private static byte[] get(String url) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();

@@ -255,6 +255,21 @@ final class Icons extends Drawable {
                 c.drawLine(12, 16, 12, 19, stroke);
                 c.drawLine(8, 19.5f, 16, 19.5f, stroke);
                 break;
+            case "sound":
+                // Haut-parleur et deux ondes.
+                path.moveTo(4, 9.5f);
+                path.lineTo(7.5f, 9.5f);
+                path.lineTo(12, 5.5f);
+                path.lineTo(12, 18.5f);
+                path.lineTo(7.5f, 14.5f);
+                path.lineTo(4, 14.5f);
+                path.close();
+                c.drawPath(path, stroke);
+                r.set(11, 8.5f, 18, 15.5f);
+                c.drawArc(r, -50, 100, false, stroke);
+                r.set(10, 5, 21.5f, 19);
+                c.drawArc(r, -50, 100, false, stroke);
+                break;
             case "about":
                 c.drawCircle(12, 12, 8.5f, stroke);
                 c.drawLine(12, 11, 12, 16.5f, stroke);

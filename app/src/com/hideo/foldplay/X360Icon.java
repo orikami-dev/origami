@@ -48,7 +48,45 @@ final class X360Icon {
     /** Image de la jaquette du catalogue Xbox pour ce titre (grand format). */
     static String[] boxartUrls(String titleId) {
         String base = "http://download.xbox.com/content/images/66acd000-77fe-1000-9115-d802" + titleId + "/1033/";
-        return new String[] {base + "boxartlg.jpg", base + "boxartsm.jpg"};
+        // Archive libre du catalogue Xbox (x360db, utilisée par Xenia Manager) d'abord : le serveur
+        // de Microsoft ne répond plus pour tous les titres (0.62.1).
+        return new String[] {DB + "titles/" + titleId + "/artwork/boxart.jpg", base + "boxartlg.jpg", base + "boxartsm.jpg"};
+    }
+
+    static final String DB = "https://raw.githubusercontent.com/xenia-manager/x360db/main/";
+
+    /** Nom de jeu réduit à ses lettres et chiffres, sans « The » ni mentions entre parenthèses. */
+    static String norm(String s) {
+        s = s.toLowerCase(Locale.ROOT).replaceAll("\\([^)]*\\)|\\[[^]]*\\]", " ");
+        StringBuilder b = new StringBuilder();
+        for (String w : s.split("[^a-z0-9]+")) {
+            if (w.isEmpty() || w.equals("the")) continue;
+            b.append(w);
+        }
+        return b.toString();
+    }
+
+    /**
+     * Identifiant de titre retrouvé par le nom quand le jeu ne se lit pas (format inconnu) :
+     * index games.json de x360db, nom exact d'abord, sinon le plus long nom contenu.
+     */
+    static String idByName(org.json.JSONArray index, String name) {
+        String n = norm(name);
+        if (n.length() < 3) return null;
+        String best = null;
+        int bestLen = 0;
+        for (int i = 0; i < index.length(); i++) {
+            org.json.JSONObject o = index.optJSONObject(i);
+            if (o == null) continue;
+            String t = norm(o.optString("title", ""));
+            if (t.isEmpty()) continue;
+            if (t.equals(n)) return o.optString("id", null);
+            if (t.length() >= 4 && (n.contains(t) || t.contains(n)) && t.length() > bestLen) {
+                best = o.optString("id", null);
+                bestLen = t.length();
+            }
+        }
+        return best;
     }
 
     private static Info fromFile(ContentResolver cr, Uri uri) throws Exception {

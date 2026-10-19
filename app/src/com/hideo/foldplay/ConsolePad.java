@@ -308,13 +308,15 @@ final class ConsolePad {
     /** Cases [x, y, l, h] de chaque touche de la manette Flex, pour une zone de w × h cases. */
     static void place(ControlLayout l, PadDesign.Out o, float w, float h, boolean bottom) {
         Spec s = of(l.family);
-        if (bottom && solve(s, w, h, true) < 0.85f && solve(s, w, h, false) > solve(s, w, h, true) + 0.02f) bottom = false;
-        float k = solve(s, w, h, bottom);
+        // Les gâchettes en arc ne doivent jamais rapetisser la manette (0.62.1) : sinon, empilées.
+        boolean arc = arc(s) && solve(s, w, h, bottom, true) >= solve(s, w, h, bottom, false) - 0.03f;
+        if (bottom && solve(s, w, h, true, arc) < 0.85f && solve(s, w, h, false, arc) > solve(s, w, h, true, arc) + 0.02f) bottom = false;
+        float k = solve(s, w, h, bottom, arc);
         float m = M * k, g = G * k;
         float sw = SH_W * k, sh = SH_H * k;
         float[] left = side(s, w, h, k, size(s.leftOut, s) * k / 2, size(s.leftIn, s) * k / 2);
         float[] right = side(s, w, h, k, faceRadius(s) * k, size(s.rightIn, s) * k / 2);
-        if (arc(s)) {
+        if (arc) {
             float[][] bl = beans(s.shL, left[0], left[1], size(s.leftOut, s) * k / 2, true, k);
             float[][] br = beans(s.shR, w - right[0], right[1], faceRadius(s) * k, false, k);
             for (int i = 0; i < bl.length; i++) o.tilted(s.shL.get(i)[0], bl[i][0], bl[i][1], bl[i][2], bl[i][3], bl[i][4]);
@@ -348,9 +350,10 @@ final class ConsolePad {
         float[][] out = new float[n][];
         float bw = SH_W * k, bh = SH_H * k;
         float rad = r + G * k + bh / 2;
-        float step = n > 1 ? 32f : 0f;
         for (int i = 0; i < n; i++) {
-            float deg = n > 1 ? (left ? -step + 2 * step * i : step - 2 * step * i) : 0f;
+            // Vers le centre de l'écran : la première juste au-dessus, la suivante plus bas, comme
+            // Y puis X autour du A de la GameCube. Rien ne dépasse côté bord (0.62.1).
+            float deg = (left ? 1 : -1) * (n > 1 ? 8f + 40f * i : 20f);
             double a = Math.toRadians(deg);
             float x = cx + (float) (rad * Math.sin(a)), y = cy - (float) (rad * Math.cos(a));
             out[i] = new float[] {x - bw / 2, y - bh / 2, bw, bh, deg};
@@ -364,7 +367,7 @@ final class ConsolePad {
         float ex = (float) (Math.abs(b[2] * Math.cos(a)) + Math.abs(b[3] * Math.sin(a))) / 2;
         float ey = (float) (Math.abs(b[2] * Math.sin(a)) + Math.abs(b[3] * Math.cos(a))) / 2;
         float cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
-        if (cx - ex < 0 || cx + ex > w || cy - ey < 0) return false;
+        if (cx - ex < g || cx + ex > w - g || cy - ey < g) return false;
         boolean beside = cx + ex <= w / 2 - ch - g || cx - ex >= w / 2 + ch + g;
         return beside || cy - ey >= cBottom + g;
     }
@@ -404,22 +407,21 @@ final class ConsolePad {
     }
 
     /** La plus grande échelle (0,45 à 1,15, 1,35 en rétro) à laquelle tout tient sans chevauchement. */
-    private static float solve(Spec s, float w, float h, boolean bottom) {
+    private static float solve(Spec s, float w, float h, boolean bottom, boolean arc) {
         // Manettes rétro (croix et boutons seulement) : plus de place, touches un peu plus grandes.
         float lo = 0.45f, hi = s.leftIn == null && s.rightIn == null ? 1.35f : 1.15f;
-        if (fits(s, w, h, hi, bottom)) return hi;
+        if (fits(s, w, h, hi, bottom, arc)) return hi;
         for (int i = 0; i < 18; i++) {
             float mid = (lo + hi) / 2;
-            if (fits(s, w, h, mid, bottom)) lo = mid;
+            if (fits(s, w, h, mid, bottom, arc)) lo = mid;
             else hi = mid;
         }
         return lo;
     }
 
-    private static boolean fits(Spec s, float w, float h, float k, boolean bottom) {
+    private static boolean fits(Spec s, float w, float h, float k, boolean bottom, boolean arc) {
         float m = M * k, g = G * k;
         float ch = (HOME / 2 + G + PILL_W) * k, cH = (HOME + 2 * G + 2 * PILL_H) * k;
-        boolean arc = arc(s);
         int stack = arc ? 0 : Math.max(s.shL.size(), s.shR.size());
         float shBottom = stack == 0 ? 0 : m + stack * SH_H * k + (stack - 1) * g;
         if (stack > 0 && !bottom && m + SH_W * k + g > w / 2 - ch) return false;
@@ -440,7 +442,15 @@ final class ConsolePad {
             if (arc && rOut[i] > 0) {
                 float[][] bs = i == 0 ? beans(s.shL, p[0], p[1], rOut[i], true, k)
                         : beans(s.shR, w - p[0], p[1], rOut[i], false, k);
-                for (float[] b : bs) if (!beanFits(b, w, ch, cBottom, g)) return false;
+                for (float[] b : bs) {
+                    if (!beanFits(b, w, ch, cBottom, g)) return false;
+                    // Ni sur la commande intérieure du même pouce.
+                    if (rIn[i] > 0) {
+                        float ix = i == 0 ? p[2] : w - p[2];
+                        float dx = b[0] + b[2] / 2 - ix, dy = b[1] + b[3] / 2 - p[3];
+                        if (Math.sqrt(dx * dx + dy * dy) < rIn[i] + b[3] / 2 + g) return false;
+                    }
+                }
             }
         }
         return true;
