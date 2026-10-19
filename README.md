@@ -55,6 +55,22 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
   <img src="docs/images/fonds-haut-manette-0.60.4.png" width="90%" alt="Thèmes">
 </p>
 
+## ⭐ Mises à jour majeures
+
+| Version | Ce qu'elle a apporté |
+|---|---|
+| [0.60.0](https://github.com/orikami-dev/origami/releases/tag/v0.60.0) | Xbox 360 intégrée (portage Android de Xenia). |
+| [0.50.1](https://github.com/orikami-dev/origami/releases/tag/v0.50.1) | PS3 intégrée (ARMSX3). |
+| [0.50.0](https://github.com/orikami-dev/origami/releases/tag/v0.50.0) | Thèmes sans redémarrage, en route vers la PS3. |
+| [0.41.0](https://github.com/orikami-dev/origami/releases/tag/v0.41.0) | Réglages en deux volets et 10 langues. |
+| [0.40.0](https://github.com/orikami-dev/origami/releases/tag/v0.40.0) | Accueil façon XMB et navigation à la manette partout. |
+| [0.29.0](https://github.com/orikami-dev/origami/releases/tag/v0.29.0) | L'app devient Origami. |
+| [0.25.0](https://github.com/orikami-dev/origami/releases/tag/v0.25.0) | GameCube et Wii intégrées (Dolphin). |
+| [0.23.0](https://github.com/orikami-dev/origami/releases/tag/v0.23.0) | PS2 intégrée (ARMSX2). |
+| [0.21.0](https://github.com/orikami-dev/origami/releases/tag/v0.21.0) | La 3D : N64, PSP et Dreamcast en OpenGL ES. |
+| [0.8.0](https://github.com/orikami-dev/origami/releases/tag/v0.8.0) | Moteur d'émulation intégré : les jeux tournent dans Origami, manette en bas. |
+| [0.1.0](https://github.com/orikami-dev/origami/releases/tag/v0.1.0) | Premier build : lanceur rétro pensé pour le Galaxy Fold. |
+
 ## 🛠️ Le dépôt
 
 | Dossier | Contenu |
