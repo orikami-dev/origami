@@ -1,0 +1,88 @@
+--- a/pcsx2-libretro/Main.cpp	2026-10-18 19:47:52.992009423 +0000
++++ b/pcsx2-libretro/Main.cpp	2026-10-18 19:47:52.752737806 +0000
+@@ -119,6 +119,9 @@
+ 	// Placeholder frame while there is no real presentation path (M2).
+ 	static constexpr u32 kFrameWidth = 640;
+ 	static constexpr u32 kFrameHeight = 448;
++	// Origami: the frontend gets the picture at the internal resolution (640x448 times the
++	// upscale), instead of always 640x448, so raising the resolution shows on screen.
++	static std::atomic<u32> s_present_scale{1};
+ 	static std::vector<u32> s_frame_buffer;
+ 
+ 	static std::string s_content_path;
+@@ -337,8 +340,8 @@
+ 	// M2 will return a WindowInfo describing the negotiated Vulkan context.
+ 	WindowInfo wi;
+ 	wi.type = WindowInfo::Type::Surfaceless;
+-	wi.surface_width = LibretroCore::kFrameWidth;
+-	wi.surface_height = LibretroCore::kFrameHeight;
++	wi.surface_width = LibretroCore::kFrameWidth * LibretroCore::s_present_scale.load();
++	wi.surface_height = LibretroCore::kFrameHeight * LibretroCore::s_present_scale.load();
+ 	wi.surface_scale = 1.0f;
+ 	return wi;
+ }
+@@ -1145,6 +1148,7 @@
+ 	if (!s_base_settings)
+ 		return;
+ 
++	const u32 old_scale = LibretroCore::s_present_scale.load();
+ 	struct retro_variable var;
+ 	{
+ 		auto lock = Host::GetSettingsLock();
+@@ -1171,8 +1175,11 @@
+ 
+ 		var = {"armsx2_upscale", nullptr};
+ 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+-			s_base_settings->SetFloatValue("EmuCore/GS", "upscale_multiplier",
+-				static_cast<float>(std::clamp(atoi(var.value), 1, 4)));
++		{
++			const int scale = std::clamp(atoi(var.value), 1, 4);
++			s_base_settings->SetFloatValue("EmuCore/GS", "upscale_multiplier", static_cast<float>(scale));
++			LibretroCore::s_present_scale.store(static_cast<u32>(scale));
++		}
+ 
+ 		var = {"armsx2_fast_boot", nullptr};
+ 		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+@@ -1361,9 +1368,25 @@
+ 	}
+ 
+ 	if (startup)
++	{
+ 		VMManager::Internal::LoadStartupSettings();
+-	else
+-		Host::RunOnCPUThread([]() { VMManager::ApplySettings(); }, false);
++		return;
++	}
++	Host::RunOnCPUThread([]() { VMManager::ApplySettings(); }, false);
++
++	// New internal resolution: present at the matching size, and tell the frontend.
++	const u32 scale = LibretroCore::s_present_scale.load();
++	if (scale != old_scale)
++	{
++		if (MTGS::IsOpen())
++			MTGS::ResizeDisplayWindow(LibretroCore::kFrameWidth * scale, LibretroCore::kFrameHeight * scale, 1.0f);
++		struct retro_system_av_info av;
++		retro_get_system_av_info(&av);
++		// Keep the rate the VM runs at (PAL games are not at 59.94).
++		if (VMManager::HasValidVM() && VMManager::GetFrameRate() > 1.0f)
++			av.timing.fps = VMManager::GetFrameRate();
++		environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av);
++	}
+ }
+ 
+ //////////////////////////////////////////////////////////////////////////
+@@ -1745,10 +1768,10 @@
+ RETRO_API void retro_get_system_av_info(struct retro_system_av_info* info)
+ {
+ 	std::memset(info, 0, sizeof(*info));
+-	info->geometry.base_width = LibretroCore::kFrameWidth;
+-	info->geometry.base_height = LibretroCore::kFrameHeight;
+-	info->geometry.max_width = LibretroCore::kFrameWidth;
+-	info->geometry.max_height = LibretroCore::kFrameHeight;
++	info->geometry.base_width = LibretroCore::kFrameWidth * LibretroCore::s_present_scale.load();
++	info->geometry.base_height = LibretroCore::kFrameHeight * LibretroCore::s_present_scale.load();
++	info->geometry.max_width = LibretroCore::kFrameWidth * 4;
++	info->geometry.max_height = LibretroCore::kFrameHeight * 4;
+ #ifdef ENABLE_VULKAN
+ 	info->geometry.max_width = VKLibretro::kMaxCanvasWidth;
+ 	info->geometry.max_height = VKLibretro::kMaxCanvasHeight;

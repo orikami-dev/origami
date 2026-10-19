@@ -1,0 +1,211 @@
+diff --git a/android/src/rpcsx-android.cpp b/android/src/rpcsx-android.cpp
+index 2faa743..4961ad7 100644
+--- a/android/src/rpcsx-android.cpp
++++ b/android/src/rpcsx-android.cpp
+@@ -139,6 +139,7 @@ static std::atomic<u64> g_native_window_epoch;
+ extern std::string g_android_executable_dir;
+ extern std::string g_android_config_dir;
+ extern std::string g_android_cache_dir;
++namespace vk { void flush_pipeline_cache_now(); }
+ // Exact SoC identity as reported by Android (Build.SOC_MANUFACTURER/SOC_MODEL),
+ // handed in through _rpcsx_setSocInfo. MIDRs cannot identify the SoC.
+ static std::string g_android_soc_info;
+@@ -4216,6 +4217,8 @@ extern "C" int _rpcsx_getState() {
+   return static_cast<int>(Emu.GetStatus(false));
+ }
+ extern "C" void _rpcsx_kill() {
++  // Origami: the caller ends the process right after, before the device is torn down.
++  vk::flush_pipeline_cache_now();
+   std::lock_guard vfs_lock(g_emu_lifecycle_mutex);
+   stop_session();
+ }
+@@ -4224,6 +4227,8 @@ extern "C" void _rpcsx_resume() { Emu.Resume(); }
+ // From the activity's onStart/onStop. See Emu/android_app_state.h for who reads it.
+ extern "C" void _rpcsx_setAppBackgrounded(bool backgrounded) {
+   g_android_app_backgrounded = backgrounded;
++  // Origami: a backgrounded game can be killed by Android at any time.
++  if (backgrounded) vk::flush_pipeline_cache_now();
+ }
+ 
+ // The counterpart to _rpcsx_resume, which had none. Rpcs3Bridge.pause() set a bool and returned,
+diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+index fe0e779..de99269 100644
+--- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
++++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+@@ -1239,6 +1239,19 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ 	// Frame dumps (VKFrameDump.cpp) start, wait and finish on flips.
+ 	frame_dump_on_flip(info);
+ 
++	// Origami: save the driver pipeline cache every 30 s of play, off this thread. The
++	// game process is killed on exit, so waiting for device teardown loses every pipeline.
++	{
++		static std::chrono::steady_clock::time_point s_last_flush{};
++		const auto now = std::chrono::steady_clock::now();
++
++		if (now - s_last_flush > std::chrono::seconds(30))
++		{
++			s_last_flush = now;
++			vk::flush_pipeline_cache_async();
++		}
++	}
++
+ 	// GPU timing is driven from the flip, the only place that corresponds to a real
+ 	// presented frame. collect() is non-blocking: anything the GPU has not finished is
+ 	// left for a later call rather than waited on.
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
+index 31709b5..535e20d 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
+@@ -2,6 +2,9 @@
+ #include <cstdlib>
+ #include <algorithm>
+ #include <string_view>
++#include <atomic>
++#include <mutex>
++#include <thread>
+ #include "Utilities/File.h"
+ #include "util/sysinfo.hpp"
+ #include "instance.h"
+@@ -1331,6 +1334,18 @@ namespace vk
+ 		const u64 vram_allocation_limit = g_cfg.video.vk.vram_allocation_limit * 0x100000ull;
+ 		memory_map.device_local_total_bytes = std::min(memory_map.device_local_total_bytes, vram_allocation_limit);
+ 
++#ifdef __ANDROID__
++		// Origami: take the pipeline cache entry points from the device itself. The loader
++		// first asked vkGetInstanceProcAddr(NULL, ...) for them, which the spec does not
++		// allow for device commands.
++		if (vkGetDeviceProcAddr)
++		{
++			if (auto p = vkGetDeviceProcAddr(dev, "vkCreatePipelineCache")) vkCreatePipelineCache = reinterpret_cast<PFN_vkCreatePipelineCache>(p);
++			if (auto p = vkGetDeviceProcAddr(dev, "vkGetPipelineCacheData")) vkGetPipelineCacheData = reinterpret_cast<PFN_vkGetPipelineCacheData>(p);
++			if (auto p = vkGetDeviceProcAddr(dev, "vkDestroyPipelineCache")) vkDestroyPipelineCache = reinterpret_cast<PFN_vkDestroyPipelineCache>(p);
++		}
++#endif
++
+ 		load_pipeline_cache();
+ 	}
+ 
+@@ -1358,6 +1373,44 @@ namespace vk
+ 		constexpr u64 k_pipeline_cache_size_limit = 128ull << 20;
+ 	}
+ 
++	namespace
++	{
++		// Serialises cache writes with each other and with device teardown.
++		std::mutex g_pipeline_cache_io;
++	}
++
++	void render_device::flush_pipeline_cache() const
++	{
++		std::lock_guard lock(g_pipeline_cache_io);
++		save_pipeline_cache();
++	}
++
++	void flush_pipeline_cache_now()
++	{
++		std::lock_guard lock(g_pipeline_cache_io);
++
++		if (g_render_device)
++		{
++			g_render_device->save_pipeline_cache();
++		}
++	}
++
++	void flush_pipeline_cache_async()
++	{
++		static std::atomic<bool> s_busy{false};
++
++		if (s_busy.exchange(true))
++		{
++			return;
++		}
++
++		std::thread([]
++		{
++			flush_pipeline_cache_now();
++			s_busy = false;
++		}).detach();
++	}
++
+ 	std::string render_device::get_pipeline_cache_path() const
+ 	{
+ 		const std::string& cache_dir = fs::get_cache_dir();
+@@ -1468,8 +1521,9 @@ namespace vk
+ 
+ 		usz data_size = 0;
+ 
+-		if (vkGetPipelineCacheData(dev, m_pipeline_cache, &data_size, nullptr) != VK_SUCCESS || !data_size)
++		if (const VkResult res = vkGetPipelineCacheData(dev, m_pipeline_cache, &data_size, nullptr); res != VK_SUCCESS || !data_size)
+ 		{
++			rsx_log.warning("vk: vkGetPipelineCacheData failed (0x%x, %zu bytes); pipeline cache not saved.", static_cast<u32>(res), data_size);
+ 			return;
+ 		}
+ 
+@@ -1513,6 +1567,10 @@ namespace vk
+ 				rsx_log.notice("vk: wrote %zu bytes of driver pipeline cache.", data_size);
+ 			}
+ 		}
++		else
++		{
++			rsx_log.warning("vk: could not open %s; pipeline cache not saved.", path);
++		}
+ 	}
+ 
+ 	void render_device::save_and_destroy_pipeline_cache()
+@@ -1522,6 +1580,8 @@ namespace vk
+ 			return;
+ 		}
+ 
++		std::lock_guard lock(g_pipeline_cache_io);
++
+ 		save_pipeline_cache();
+ 
+ 		vkDestroyPipelineCache(dev, m_pipeline_cache, nullptr);
+@@ -1531,9 +1591,13 @@ namespace vk
+ 
+ 	void render_device::destroy()
+ 	{
+-		if (g_render_device == this)
+ 		{
+-			g_render_device = nullptr;
++			std::lock_guard lock(g_pipeline_cache_io);
++
++			if (g_render_device == this)
++			{
++				g_render_device = nullptr;
++			}
+ 		}
+ 
+ 		if (dev && pgpu)
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.h b/rpcs3/Emu/RSX/VK/vkutils/device.h
+index fa91d5b..c7abac8 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/device.h
++++ b/rpcs3/Emu/RSX/VK/vkutils/device.h
+@@ -203,6 +203,7 @@ namespace vk
+ 		void load_pipeline_cache();
+ 		void save_pipeline_cache() const;
+ 		void save_and_destroy_pipeline_cache();
++		friend void flush_pipeline_cache_now();
+ 
+ 		VkQueue m_graphics_queue = VK_NULL_HANDLE;
+ 		VkQueue m_present_queue = VK_NULL_HANDLE;
+@@ -237,6 +238,10 @@ namespace vk
+ 		// the spec only requires external synchronisation on a cache created with
+ 		// VK_PIPELINE_CACHE_CREATE_EXTERNALLY_SYNCHRONIZED_BIT_EXT, which this is not.
+ 		VkPipelineCache get_pipeline_cache() const { return m_pipeline_cache; }
++
++		// Origami: writes the driver pipeline cache now if it grew. Android ends the game
++		// process without tearing the device down, so a save at teardown alone never ran.
++		void flush_pipeline_cache() const;
+ 		const gpu_shader_types_support& get_shader_types_support() const { return pgpu->shader_types_support; }
+ 		const custom_border_color_features& get_custom_border_color_support() const { return pgpu->custom_border_color_support; }
+ 		bool get_unsized_array_support() const { return pgpu->unsized_array_support; }
+@@ -330,4 +335,8 @@ namespace vk
+ 	gpu_formats_support get_optimal_tiling_supported_formats(const physical_device& dev);
+ 
+ 	extern const render_device* g_render_device;
++
++	// Origami: flush the current device's pipeline cache, blocking or on a worker thread.
++	void flush_pipeline_cache_now();
++	void flush_pipeline_cache_async();
+ }

@@ -1,0 +1,250 @@
+{
+ "_doc": "Script d'installation des cœurs Origami. Lu par CoreInstaller après chaque téléchargement. Étapes communes : vérification (ELF arm64), fichiers d'appoint, puis profil de réglages selon la gamme de l'appareil (haut / milieu / bas). Les choix faits par l'utilisateur passent toujours avant le profil.",
+ "tiers": {
+  "haut": "puce Snapdragon 8 (SM8xxx), Dimensity 9xxx ou Tensor, ou 12 Go de mémoire et plus",
+  "milieu": "8 Go de mémoire et plus",
+  "bas": "le reste"
+ },
+ "cores": {
+  "swanstation": {
+   "haut": {
+    "swanstation_GPU_Renderer": "Auto",
+    "swanstation_GPU_ResolutionScale": "4"
+   },
+   "milieu": {
+    "swanstation_GPU_Renderer": "Auto",
+    "swanstation_GPU_ResolutionScale": "2"
+   },
+   "bas": {
+    "swanstation_GPU_Renderer": "Auto",
+    "swanstation_GPU_ResolutionScale": "1"
+   }
+  },
+  "ppsspp": {
+   "haut": {
+    "ppsspp_internal_resolution": "1440x816"
+   },
+   "milieu": {
+    "ppsspp_internal_resolution": "960x544"
+   },
+   "bas": {
+    "ppsspp_internal_resolution": "480x272"
+   }
+  },
+  "mupen64plus_next_gles3": {
+   "haut": {
+    "mupen64plus-rdp-plugin": "gliden64",
+    "mupen64plus-43screensize": "1280x960"
+   },
+   "milieu": {
+    "mupen64plus-rdp-plugin": "gliden64",
+    "mupen64plus-43screensize": "960x720"
+   },
+   "bas": {
+    "mupen64plus-rdp-plugin": "gliden64",
+    "mupen64plus-43screensize": "640x480"
+   }
+  },
+  "flycast": {
+   "haut": {
+    "flycast_internal_resolution": "1920x1440"
+   },
+   "milieu": {
+    "flycast_internal_resolution": "1280x960"
+   },
+   "bas": {
+    "flycast_internal_resolution": "640x480"
+   }
+  }
+ },
+ "_profiles_doc": "Profils d'émulation choisis par jeu (ou par défaut), appliqués tout de suite en jeu : performance = fluidité d'abord (définition native, effets coûteux coupés), balanced = définition relevée et filtrage, quality = définition haute et effets activés, plafonnés contre la chauffe. Chaque profil règle explicitement ses clés. Une valeur est cherchée telle quelle, sinon comme début d'une valeur proposée par le cœur ; une valeur inconnue du cœur est ignorée.",
+ "profiles": {
+  "armsx2": {
+   "performance": {
+    "armsx2_upscale": "1x",
+    "armsx2_blending_accuracy": "Minimum",
+    "armsx2_anisotropic_filtering": "0",
+    "armsx2_mipmapping": "disabled",
+    "armsx2_trilinear_filtering": "Off",
+    "armsx2_fxaa": "disabled",
+    "armsx2_texture_filtering": "Bilinear (PS2)",
+    "armsx2_dithering": "Unscaled",
+    "armsx2_mtvu": "enabled"
+   },
+   "balanced": {
+    "armsx2_upscale": "2x",
+    "armsx2_blending_accuracy": "Basic",
+    "armsx2_anisotropic_filtering": "4",
+    "armsx2_mipmapping": "enabled",
+    "armsx2_trilinear_filtering": "Automatic",
+    "armsx2_fxaa": "disabled",
+    "armsx2_texture_filtering": "Bilinear (PS2)",
+    "armsx2_dithering": "Scaled",
+    "armsx2_mtvu": "enabled"
+   },
+   "quality": {
+    "armsx2_upscale": "3x",
+    "armsx2_blending_accuracy": "Medium",
+    "armsx2_anisotropic_filtering": "8",
+    "armsx2_mipmapping": "enabled",
+    "armsx2_trilinear_filtering": "Trilinear (PS2)",
+    "armsx2_fxaa": "enabled",
+    "armsx2_texture_filtering": "Bilinear (PS2)",
+    "armsx2_dithering": "Scaled",
+    "armsx2_mtvu": "enabled"
+   }
+  },
+  "dolphin": {
+   "performance": {
+    "dolphin_efb_scale": "1",
+    "dolphin_max_anisotropy": "0",
+    "dolphin_anti_aliasing": "0",
+    "dolphin_force_texture_filtering_mode": "0",
+    "dolphin_force_true_color": "disabled",
+    "dolphin_fast_depth_calculation": "enabled",
+    "dolphin_shader_compilation_mode": "2"
+   },
+   "balanced": {
+    "dolphin_efb_scale": "2",
+    "dolphin_max_anisotropy": "1",
+    "dolphin_anti_aliasing": "0",
+    "dolphin_force_texture_filtering_mode": "0",
+    "dolphin_force_true_color": "enabled",
+    "dolphin_fast_depth_calculation": "enabled",
+    "dolphin_shader_compilation_mode": "2"
+   },
+   "quality": {
+    "dolphin_efb_scale": "3",
+    "dolphin_max_anisotropy": "2",
+    "dolphin_anti_aliasing": "1",
+    "dolphin_force_texture_filtering_mode": "2",
+    "dolphin_force_true_color": "enabled",
+    "dolphin_fast_depth_calculation": "disabled",
+    "dolphin_shader_compilation_mode": "2"
+   }
+  },
+  "swanstation": {
+   "performance": {
+    "swanstation_GPU_ResolutionScale": "1",
+    "swanstation_GPU_TrueColor": "false",
+    "swanstation_GPU_PGXPEnable": "false",
+    "swanstation_GPU_TextureFilter": "Nearest",
+    "swanstation_GPU_MSAA": "1"
+   },
+   "balanced": {
+    "swanstation_GPU_ResolutionScale": "3",
+    "swanstation_GPU_TrueColor": "true",
+    "swanstation_GPU_PGXPEnable": "true",
+    "swanstation_GPU_TextureFilter": "Nearest",
+    "swanstation_GPU_MSAA": "1"
+   },
+   "quality": {
+    "swanstation_GPU_ResolutionScale": "5",
+    "swanstation_GPU_TrueColor": "true",
+    "swanstation_GPU_PGXPEnable": "true",
+    "swanstation_GPU_TextureFilter": "Bilinear",
+    "swanstation_GPU_MSAA": "2"
+   }
+  },
+  "ppsspp": {
+   "performance": {
+    "ppsspp_internal_resolution": "480x272",
+    "ppsspp_texture_anisotropic_filtering": "disabled",
+    "ppsspp_texture_filtering": "Auto",
+    "ppsspp_texture_scaling_level": "disabled",
+    "ppsspp_frameskip": "disabled"
+   },
+   "balanced": {
+    "ppsspp_internal_resolution": "960x544",
+    "ppsspp_texture_anisotropic_filtering": "4x",
+    "ppsspp_texture_filtering": "Auto",
+    "ppsspp_texture_scaling_level": "disabled",
+    "ppsspp_frameskip": "disabled"
+   },
+   "quality": {
+    "ppsspp_internal_resolution": "1440x816",
+    "ppsspp_texture_anisotropic_filtering": "8x",
+    "ppsspp_texture_filtering": "Auto max quality",
+    "ppsspp_texture_scaling_level": "2x",
+    "ppsspp_frameskip": "disabled"
+   }
+  },
+  "mupen64plus_next_gles3": {
+   "performance": {
+    "mupen64plus-43screensize": "640x480",
+    "mupen64plus-MultiSampling": "0",
+    "mupen64plus-BilinearMode": "standard",
+    "mupen64plus-txFilterMode": "None"
+   },
+   "balanced": {
+    "mupen64plus-43screensize": "960x720",
+    "mupen64plus-MultiSampling": "0",
+    "mupen64plus-BilinearMode": "3point",
+    "mupen64plus-txFilterMode": "None"
+   },
+   "quality": {
+    "mupen64plus-43screensize": "1280x960",
+    "mupen64plus-MultiSampling": "2",
+    "mupen64plus-BilinearMode": "3point",
+    "mupen64plus-txFilterMode": "Smooth filtering 1"
+   }
+  },
+  "flycast": {
+   "performance": {
+    "flycast_internal_resolution": "640x480",
+    "flycast_anisotropic_filtering": "1",
+    "flycast_texupscale": "1",
+    "flycast_alpha_sorting": "per-strip",
+    "flycast_mipmapping": "disabled"
+   },
+   "balanced": {
+    "flycast_internal_resolution": "1280x960",
+    "flycast_anisotropic_filtering": "4",
+    "flycast_texupscale": "1",
+    "flycast_alpha_sorting": "per-triangle",
+    "flycast_mipmapping": "enabled"
+   },
+   "quality": {
+    "flycast_internal_resolution": "1920x1440",
+    "flycast_anisotropic_filtering": "8",
+    "flycast_texupscale": "2",
+    "flycast_alpha_sorting": "per-pixel",
+    "flycast_mipmapping": "enabled"
+   }
+  },
+  "pcsx_rearmed": {
+   "performance": {
+    "pcsx_rearmed_neon_enhancement_enable": "disabled",
+    "pcsx_rearmed_neon_enhancement_no_main": "disabled",
+    "pcsx_rearmed_neon_interlace_enable": "disabled"
+   },
+   "balanced": {
+    "pcsx_rearmed_neon_enhancement_enable": "enabled",
+    "pcsx_rearmed_neon_enhancement_no_main": "enabled",
+    "pcsx_rearmed_neon_interlace_enable": "disabled"
+   },
+   "quality": {
+    "pcsx_rearmed_neon_enhancement_enable": "enabled",
+    "pcsx_rearmed_neon_enhancement_no_main": "disabled",
+    "pcsx_rearmed_neon_interlace_enable": "enabled"
+   }
+  },
+  "melonds": {
+   "performance": {
+    "melonds_opengl_renderer": "disabled",
+    "melonds_opengl_resolution": "1x",
+    "melonds_opengl_filtering": "nearest"
+   },
+   "balanced": {
+    "melonds_opengl_renderer": "enabled",
+    "melonds_opengl_resolution": "2x",
+    "melonds_opengl_filtering": "nearest"
+   },
+   "quality": {
+    "melonds_opengl_renderer": "enabled",
+    "melonds_opengl_resolution": "3x",
+    "melonds_opengl_filtering": "linear"
+   }
+  }
+ }
+}

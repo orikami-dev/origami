@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Écran plié à moitié : vue Flex. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFF1F1F1" android:pathData="M4,3h16v9H4zM6,5v5h12V5z" />
+    <path android:fillColor="#FFF1F1F1" android:pathData="M4,13h16l2,7H2z" />
+    <path android:fillColor="#FF4CFFA0" android:pathData="M8,6.5h3v2H8zM13,6.5h3v2h-3z" />
+</vector>

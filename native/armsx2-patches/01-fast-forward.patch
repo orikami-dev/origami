@@ -1,0 +1,28 @@
+diff --git a/pcsx2-libretro/Main.cpp b/pcsx2-libretro/Main.cpp
+index 201a874..a4cc388 100644
+--- a/pcsx2-libretro/Main.cpp
++++ b/pcsx2-libretro/Main.cpp
+@@ -2128,6 +2128,23 @@ RETRO_API void retro_run(void)
+ {
+ 	input_poll_cb();
+ 
++	// FOLD/PLAY: follow the frontend's fast-forward. The VM paces itself with
++	// its own limiter, so calling retro_run more often alone changes nothing;
++	// switch it to Turbo (TurboScalar, 2x by default) while fast-forwarding.
++	{
++		bool ff = false;
++		if (!environ_cb(RETRO_ENVIRONMENT_GET_FASTFORWARDING, &ff))
++			ff = false;
++		static bool s_ff = false;
++		if (ff != s_ff && VMManager::HasValidVM())
++		{
++			s_ff = ff;
++			Host::RunOnCPUThread([ff]() {
++				VMManager::SetLimiterMode(ff ? LimiterModeType::Turbo : LimiterModeType::Nominal);
++			}, false);
++		}
++	}
++
+ 	bool options_updated = false;
+ 	if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated) && options_updated)
+ 		ApplyCoreOptions(false);

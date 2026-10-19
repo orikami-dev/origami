@@ -1,0 +1,302 @@
+diff --git a/src/xenia/apu/nop/CMakeLists.txt b/src/xenia/apu/nop/CMakeLists.txt
+index febc15c..fc6207f 100644
+--- a/src/xenia/apu/nop/CMakeLists.txt
++++ b/src/xenia/apu/nop/CMakeLists.txt
+@@ -2,3 +2,6 @@ add_library(xenia-apu-nop STATIC)
+ xe_platform_sources(xenia-apu-nop ${CMAKE_CURRENT_SOURCE_DIR})
+ target_link_libraries(xenia-apu-nop PUBLIC xenia-base xenia-apu)
+ xe_target_defaults(xenia-apu-nop)
++if(ANDROID)
++  target_link_libraries(xenia-apu-nop PUBLIC aaudio)
++endif()
+diff --git a/src/xenia/apu/nop/nop_audio_system.cc b/src/xenia/apu/nop/nop_audio_system.cc
+index cfac7e7..ba3dea7 100644
+--- a/src/xenia/apu/nop/nop_audio_system.cc
++++ b/src/xenia/apu/nop/nop_audio_system.cc
+@@ -11,6 +11,20 @@
+ 
+ #include "xenia/apu/apu_flags.h"
+ 
++#if XE_PLATFORM_ANDROID
++#include <aaudio/AAudio.h>
++
++#include <cstring>
++#include <deque>
++#include <mutex>
++#include <vector>
++
++#include "xenia/apu/audio_driver.h"
++#include "xenia/base/byte_order.h"
++#include "xenia/base/logging.h"
++#include "xenia/base/threading.h"
++#endif
++
+ namespace xe {
+ namespace apu {
+ namespace nop {
+@@ -24,19 +38,170 @@ NopAudioSystem::NopAudioSystem(cpu::Processor* processor)
+ 
+ NopAudioSystem::~NopAudioSystem() = default;
+ 
++#if XE_PLATFORM_ANDROID
++// Origami: AAudio output for Android. Without a driver, RegisterClient failed and titles
++// waiting on their audio callback (Devil May Cry 4) never got past a black screen.
++// Frames are mixed down to stereo; each frame played releases the client semaphore,
++// which is what paces the guest's audio thread.
++class AAudioDriver : public AudioDriver {
++ public:
++  AAudioDriver(xe::threading::Semaphore* semaphore, uint32_t frequency,
++               uint32_t channels, bool need_format_conversion)
++      : semaphore_(semaphore),
++        frequency_(frequency),
++        channels_(channels),
++        convert_(need_format_conversion) {
++    channel_samples_ = channels_ == 2 ? 768 : 256;
++  }
++  ~AAudioDriver() override { Shutdown(); }
++
++  bool Initialize() override {
++    AAudioStreamBuilder* builder = nullptr;
++    if (AAudio_createStreamBuilder(&builder) != AAUDIO_OK) return false;
++    AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
++    AAudioStreamBuilder_setChannelCount(builder, 2);
++    AAudioStreamBuilder_setSampleRate(builder, int32_t(frequency_));
++    AAudioStreamBuilder_setPerformanceMode(builder,
++                                           AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
++    AAudioStreamBuilder_setUsage(builder, AAUDIO_USAGE_GAME);
++    AAudioStreamBuilder_setDataCallback(builder, DataCallback, this);
++    aaudio_result_t res = AAudioStreamBuilder_openStream(builder, &stream_);
++    AAudioStreamBuilder_delete(builder);
++    if (res != AAUDIO_OK) {
++      XELOGE("AAudioDriver: openStream failed: {}", AAudio_convertResultToText(res));
++      stream_ = nullptr;
++      return false;
++    }
++    if (AAudioStream_requestStart(stream_) != AAUDIO_OK) {
++      XELOGE("AAudioDriver: requestStart failed");
++      return false;
++    }
++    XELOGI("AAudioDriver: {} Hz stereo, guest {} channels", frequency_, channels_);
++    return true;
++  }
++
++  void Shutdown() override {
++    if (stream_) {
++      AAudioStream_requestStop(stream_);
++      AAudioStream_close(stream_);
++      stream_ = nullptr;
++    }
++    std::lock_guard<std::mutex> lock(mutex_);
++    queue_.clear();
++  }
++
++  void SubmitFrame(float* frame) override {
++    std::vector<float> out(size_t(channel_samples_) * 2);
++    const uint32_t n = channel_samples_;
++    if (convert_) {
++      // Guest layout: 6 big-endian channel planes (FL FR C LFE BL BR).
++      for (uint32_t i = 0; i < n; i++) {
++        float fl = xe::byte_swap(frame[0 * n + i]);
++        float fr = xe::byte_swap(frame[1 * n + i]);
++        float c = xe::byte_swap(frame[2 * n + i]) * 0.5f;
++        float bl = xe::byte_swap(frame[4 * n + i]);
++        float br = xe::byte_swap(frame[5 * n + i]);
++        out[i * 2] = (fl + bl + c) * 0.4f;
++        out[i * 2 + 1] = (fr + br + c) * 0.4f;
++      }
++    } else if (channels_ == 2) {
++      std::memcpy(out.data(), frame, out.size() * sizeof(float));
++    } else {
++      // Already interleaved little-endian: keep front left and right.
++      for (uint32_t i = 0; i < n; i++) {
++        out[i * 2] = frame[i * channels_];
++        out[i * 2 + 1] = frame[i * channels_ + 1];
++      }
++    }
++    std::lock_guard<std::mutex> lock(mutex_);
++    queue_.push_back(std::move(out));
++  }
++
++  void Pause() override {
++    if (stream_) AAudioStream_requestPause(stream_);
++  }
++  void Resume() override {
++    if (stream_) AAudioStream_requestStart(stream_);
++  }
++  void SetVolume(float volume) override { volume_ = volume; }
++
++ private:
++  static aaudio_data_callback_result_t DataCallback(AAudioStream*, void* user,
++                                                    void* audio_data,
++                                                    int32_t num_frames) {
++    auto* self = static_cast<AAudioDriver*>(user);
++    auto* dst = static_cast<float*>(audio_data);
++    size_t want = size_t(num_frames) * 2;
++    uint32_t released = 0;
++    {
++      std::lock_guard<std::mutex> lock(self->mutex_);
++      while (want && !self->queue_.empty()) {
++        auto& front = self->queue_.front();
++        size_t take = std::min(want, front.size() - self->offset_);
++        const float gain = cvars::mute ? 0.0f : self->volume_;
++        for (size_t i = 0; i < take; i++) {
++          dst[i] = front[self->offset_ + i] * gain;
++        }
++        dst += take;
++        want -= take;
++        self->offset_ += take;
++        if (self->offset_ >= front.size()) {
++          self->queue_.pop_front();
++          self->offset_ = 0;
++          released++;
++        }
++      }
++    }
++    if (want) std::memset(dst, 0, want * sizeof(float));
++    if (released) self->semaphore_->Release(released, nullptr);
++    return AAUDIO_CALLBACK_RESULT_CONTINUE;
++  }
++
++  xe::threading::Semaphore* semaphore_;
++  uint32_t frequency_, channels_, channel_samples_;
++  bool convert_;
++  float volume_ = 1.0f;
++  AAudioStream* stream_ = nullptr;
++  std::mutex mutex_;
++  std::deque<std::vector<float>> queue_;
++  size_t offset_ = 0;
++};
++#endif
++
+ X_STATUS NopAudioSystem::CreateDriver(size_t index,
+                                       xe::threading::Semaphore* semaphore,
+                                       AudioDriver** out_driver) {
++#if XE_PLATFORM_ANDROID
++  auto driver = std::make_unique<AAudioDriver>(
++      semaphore, AudioDriver::kFrameFrequencyDefault,
++      AudioDriver::kFrameChannelsDefault, true);
++  if (!driver->Initialize()) {
++    return X_STATUS_UNSUCCESSFUL;
++  }
++  *out_driver = driver.release();
++  return X_STATUS_SUCCESS;
++#else
+   return X_STATUS_NOT_IMPLEMENTED;
++#endif
+ }
+ 
+ AudioDriver* NopAudioSystem::CreateDriver(xe::threading::Semaphore* semaphore,
+                                           uint32_t frequency, uint32_t channels,
+                                           bool need_format_conversion) {
++#if XE_PLATFORM_ANDROID
++  return new AAudioDriver(semaphore, frequency, channels, need_format_conversion);
++#else
+   return nullptr;
++#endif
+ }
+ 
+-void NopAudioSystem::DestroyDriver(AudioDriver* driver) { assert_always(); }
++void NopAudioSystem::DestroyDriver(AudioDriver* driver) {
++#if XE_PLATFORM_ANDROID
++  delete driver;
++#else
++  assert_always();
++#endif
++}
+ 
+ }  // namespace nop
+ }  // namespace apu
+diff --git a/src/xenia/base/mapped_memory_posix.cc b/src/xenia/base/mapped_memory_posix.cc
+index db65075..cd3cf92 100644
+--- a/src/xenia/base/mapped_memory_posix.cc
++++ b/src/xenia/base/mapped_memory_posix.cc
+@@ -53,6 +53,14 @@ class PosixMappedMemory : public MappedMemory {
+     }
+     uint64_t file_size = uint64_t(file_stat.st_size);
+ 
++    // Origami: a writable mapping past the end of the file faults (SIGBUS) on the first
++    // write, as with a freshly created empty cache file, so grow the file first.
++    if (mode == Mode::kReadWrite && length && file_size < uint64_t(offset + length)) {
++      if (ftruncate(file_descriptor, off_t(offset + length)) == 0) {
++        file_size = uint64_t(offset + length);
++      }
++    }
++
+     size_t map_length = length;
+     if (!length) {
+       map_length = size_t(file_size);
+diff --git a/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc b/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc
+index bed9436..82abcf2 100644
+--- a/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc
++++ b/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc
+@@ -570,6 +570,13 @@ dword_result_t NtFlushBuffersFile_entry(
+ }
+ DECLARE_XBOXKRNL_EXPORT1(NtFlushBuffersFile, kFileSystem, kStub);
+ 
++// Origami: called by some titles (Devil May Cry 4) when releasing a volume; nothing to
++// dismount on the host, so report success instead of an undefined extern call.
++dword_result_t IoDismountVolumeByFileHandle_entry(dword_t file_handle) {
++  return X_STATUS_SUCCESS;
++}
++DECLARE_XBOXKRNL_EXPORT1(IoDismountVolumeByFileHandle, kFileSystem, kStub);
++
+ // https://docs.microsoft.com/en-us/windows/win32/devnotes/ntopensymboliclinkobject
+ dword_result_t NtOpenSymbolicLinkObject_entry(
+     lpdword_t handle_out, pointer_t<X_OBJECT_ATTRIBUTES> object_attrs) {
+diff --git a/src/xenia/kernel/xthread.cc b/src/xenia/kernel/xthread.cc
+index 19be6a6..956ad8f 100644
+--- a/src/xenia/kernel/xthread.cc
++++ b/src/xenia/kernel/xthread.cc
+@@ -83,6 +83,12 @@ XThread::~XThread() {
+   // Notify processor of our impending destruction.
+   emulator()->processor()->OnThreadDestroyed(thread_id_);
+ 
++  // Origami: when the guest thread releases its last handle in Exit(), it is destroyed
++  // on itself and still terminates through its host thread object afterwards (Skyrim
++  // crashed locking that object's destroyed mutex). Keep it alive in that case.
++  if (thread_ && xe::threading::Thread::GetCurrentThread() == thread_.get()) {
++    thread_.release();
++  }
+   thread_.reset();
+ 
+   if (thread_state_) {
+diff --git a/src/xenia/ui/presenter.cc b/src/xenia/ui/presenter.cc
+index d53a081..5a472dd 100644
+--- a/src/xenia/ui/presenter.cc
++++ b/src/xenia/ui/presenter.cc
+@@ -9,6 +9,8 @@
+ 
+ #include "xenia/ui/presenter.h"
+ 
++#include <atomic>
++
+ #include "xenia/base/assert.h"
+ #include "xenia/base/cvar.h"
+ #include "xenia/base/logging.h"
+@@ -349,10 +351,14 @@ void Presenter::PaintFromUIThread(bool force_paint) {
+   }
+ }
+ 
++// Origami: guest frames handed to the presenter, read by X360Activity for its HUD.
++static std::atomic<uint64_t> origami_guest_frames{0};
++
+ bool Presenter::RefreshGuestOutput(
+     uint32_t frontbuffer_width, uint32_t frontbuffer_height,
+     uint32_t display_aspect_ratio_x, uint32_t display_aspect_ratio_y,
+     std::function<bool(GuestOutputRefreshContext& context)> refresher) {
++  origami_guest_frames.fetch_add(1, std::memory_order_relaxed);
+   GuestOutputProperties& writable_properties =
+       guest_output_properties_[guest_output_mailbox_writable_];
+   writable_properties.frontbuffer_width = frontbuffer_width;
+@@ -1447,3 +1453,11 @@ void Presenter::DXGIUITickThread() {
+ 
+ }  // namespace ui
+ }  // namespace xe
++
++#if XE_PLATFORM_ANDROID
++#include <jni.h>
++extern "C" JNIEXPORT jlong JNICALL
++Java_com_hideo_foldplay_X360Activity_nativeFrames(JNIEnv*, jclass) {
++  return jlong(xe::ui::origami_guest_frames.load(std::memory_order_relaxed));
++}
++#endif

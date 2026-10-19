@@ -1,0 +1,490 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7bd84ce..e82b048 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -200,6 +200,10 @@ else()
+         $<$<COMPILE_LANGUAGE:CXX>:-Wno-nontrivial-memcall>
+       )
+     endif()
++    if(ANDROID)
++      # Clang du NDK : numéro de version en avance sur les options qu'il connaît.
++      add_compile_options(-Wno-unknown-warning-option)
++    endif()
+     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 21)
+       add_compile_options(
+         $<$<COMPILE_LANGUAGE:CXX>:-Wno-character-conversion>
+diff --git a/cmake/XeniaHelpers.cmake b/cmake/XeniaHelpers.cmake
+index b712553..b704027 100644
+--- a/cmake/XeniaHelpers.cmake
++++ b/cmake/XeniaHelpers.cmake
+@@ -75,6 +75,14 @@ function(xe_platform_sources target base_path)
+       "${base_path}/*_gtk.h"
+       "${base_path}/*_gtk.cc"
+     )
++  elseif(ANDROID)
++    file(${glob_mode} _plat_sources      "${base_path}/*_posix.h"
++      "${base_path}/*_posix.cc"
++      "${base_path}/*_linux.h"
++      "${base_path}/*_linux.cc"
++      "${base_path}/*_android.h"
++      "${base_path}/*_android.cc"
++    )
+   endif()
+ 
+   list(APPEND _sources ${_plat_sources})
+diff --git a/src/xenia/CMakeLists.txt b/src/xenia/CMakeLists.txt
+index e410c0e..a5ecdc8 100644
+--- a/src/xenia/CMakeLists.txt
++++ b/src/xenia/CMakeLists.txt
+@@ -40,9 +40,14 @@ add_subdirectory(app/discord)
+ add_subdirectory(app)
+ 
+ # SDL-based modules (not Android)
+-add_subdirectory(apu/sdl)
+-add_subdirectory(helper/sdl)
+-add_subdirectory(hid/sdl)
++if(ANDROID)
++  add_subdirectory(hid/origami)
++endif()
++if(NOT ANDROID)
++  add_subdirectory(apu/sdl)
++  add_subdirectory(helper/sdl)
++  add_subdirectory(hid/sdl)
++endif()
+ 
+ # Platform-conditional modules
+ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+diff --git a/src/xenia/app/CMakeLists.txt b/src/xenia/app/CMakeLists.txt
+index adee3b3..ab88aec 100644
+--- a/src/xenia/app/CMakeLists.txt
++++ b/src/xenia/app/CMakeLists.txt
+@@ -2,11 +2,16 @@
+ 
+ if(WIN32)
+   add_executable(xenia-app WIN32)
++elseif(ANDROID)
++  # Android : bibliothèque chargée par l'activité Java (System.loadLibrary("xenia-app")).
++  add_library(xenia-app SHARED)
+ else()
+   add_executable(xenia-app)
+ endif()
+ 
+-set_target_properties(xenia-app PROPERTIES OUTPUT_NAME "xenia_canary")
++if(NOT ANDROID)
++  set_target_properties(xenia-app PROPERTIES OUTPUT_NAME "xenia_canary")
++endif()
+ 
+ # Main source
+ target_sources(xenia-app PRIVATE
+@@ -31,6 +36,10 @@ if(WIN32)
+       PROPERTIES COMPILE_OPTIONS "/arch:SSE2"
+     )
+   endif()
++elseif(ANDROID)
++  target_sources(xenia-app PRIVATE
++    ${PROJECT_SOURCE_DIR}/src/xenia/ui/windowed_app_main_android.cc
++  )
+ else()
+   target_sources(xenia-app PRIVATE
+     ${PROJECT_SOURCE_DIR}/src/xenia/base/main_init_posix.cc
+@@ -87,7 +96,12 @@ if(NOT APPLE)
+   )
+ endif()
+ 
+-# Non-Android specific (always true for Windows/Linux)
++if(ANDROID)
++  target_link_libraries(xenia-app PRIVATE xenia-app-discord xenia-debug-ui xenia-hid-origami android log)
++  # Assembleur NEON de FFmpeg : adresses relatives sans GOT, valables si les symboles ne sont
++  # pas interposables. Seuls les points d'entrée JNI comptent de toute façon.
++  target_link_options(xenia-app PRIVATE -Wl,-Bsymbolic)
++else()
+ target_link_libraries(xenia-app PRIVATE
+   xenia-app-discord
+   xenia-apu-sdl
+@@ -95,6 +109,7 @@ target_link_libraries(xenia-app PRIVATE
+   xenia-helper-sdl
+   xenia-hid-sdl
+ )
++endif()
+ 
+ # Architecture-specific backend
+ if(XE_TARGET_X86_64)
+diff --git a/src/xenia/app/xenia_main.cc b/src/xenia/app/xenia_main.cc
+index a18ffd7..8a5dfb0 100644
+--- a/src/xenia/app/xenia_main.cc
++++ b/src/xenia/app/xenia_main.cc
+@@ -36,7 +36,7 @@
+ 
+ // Available audio systems:
+ #include "xenia/apu/nop/nop_audio_system.h"
+-#if XE_PLATFORM_LINUX
++#if XE_PLATFORM_LINUX && !XE_PLATFORM_ANDROID
+ #include "xenia/apu/alsa/alsa_audio_system.h"
+ #endif  // XE_PLATFORM_LINUX
+ #if !XE_PLATFORM_ANDROID
+@@ -57,6 +57,9 @@
+ 
+ // Available input drivers:
+ #include "xenia/hid/nop/nop_hid.h"
++#if XE_PLATFORM_ANDROID
++#include "xenia/hid/origami/origami_hid.h"
++#endif
+ #if !XE_PLATFORM_ANDROID
+ #include "xenia/hid/sdl/sdl_hid.h"
+ #endif  // !XE_PLATFORM_ANDROID
+@@ -313,7 +316,7 @@ std::unique_ptr<apu::AudioSystem> EmulatorApp::CreateAudioSystem(
+ #if XE_PLATFORM_WIN32
+   factory.Add<apu::xaudio2::XAudio2AudioSystem>("xaudio2");
+ #endif  // XE_PLATFORM_WIN32
+-#if XE_PLATFORM_LINUX
++#if XE_PLATFORM_LINUX && !XE_PLATFORM_ANDROID
+   factory.Add<apu::alsa::ALSAAudioSystem>("alsa");
+ #endif  // XE_PLATFORM_LINUX
+ #if !XE_PLATFORM_ANDROID
+@@ -446,6 +449,9 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorApp::CreateInputDrivers(
+ #if XE_PLATFORM_WIN32
+     factory.Add("xinput", xe::hid::xinput::Create);
+ #endif  // XE_PLATFORM_WIN32
++#if XE_PLATFORM_ANDROID
++    factory.Add("origami", xe::hid::origami::Create);
++#endif
+ #if !XE_PLATFORM_ANDROID
+     factory.Add("sdl", xe::hid::sdl::Create);
+ #endif  // !XE_PLATFORM_ANDROID
+diff --git a/src/xenia/base/filesystem_android.cc b/src/xenia/base/filesystem_android.cc
+index 7bff4f3..15f4021 100644
+--- a/src/xenia/base/filesystem_android.cc
++++ b/src/xenia/base/filesystem_android.cc
+@@ -274,9 +274,7 @@ int OpenAndroidContentFileDescriptor(const std::string_view uri,
+   return file_descriptor;
+ }
+ 
+-bool SetAttributes(const std::filesystem::path& path, uint64_t attributes) {
+-  return false;
+-}
++// SetAttributes : version POSIX (filesystem_posix.cc), compilée aussi sur Android.
+ 
+ }  // namespace filesystem
+ }  // namespace xe
+diff --git a/src/xenia/base/threading_posix.cc b/src/xenia/base/threading_posix.cc
+index 630e822..ba89676 100644
+--- a/src/xenia/base/threading_posix.cc
++++ b/src/xenia/base/threading_posix.cc
+@@ -192,13 +192,24 @@ bool SetTlsValue(TlsHandle handle, uintptr_t value) {
+   return pthread_setspecific(handle, reinterpret_cast<void*>(value)) == 0;
+ }
+ 
++#if XE_PLATFORM_ANDROID
++static inline void XePthreadMutexConsistent(pthread_mutex_t*) {}
++#else
++static inline void XePthreadMutexConsistent(pthread_mutex_t* m) {
++  pthread_mutex_consistent(m);
++}
++#endif
++
+ class PosixConditionBase {
+  public:
+   PosixConditionBase() {
+     // Initialize as robust mutex to handle thread termination gracefully
+     pthread_mutexattr_t attr;
+     pthread_mutexattr_init(&attr);
++#if !XE_PLATFORM_ANDROID
++    // Bionic n'a pas de mutex « robustes » : simple mutex sur Android.
+     pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
++#endif
+ 
+     // Get the native handle and set it as robust
+     auto native_mutex = static_cast<pthread_mutex_t*>(mutex_.native_handle());
+@@ -219,7 +230,7 @@ class PosixConditionBase {
+     int lock_result = pthread_mutex_lock(native_mutex);
+     if (lock_result == EOWNERDEAD) {
+       // Recover from dead owner
+-      pthread_mutex_consistent(native_mutex);
++      XePthreadMutexConsistent(native_mutex);
+     } else if (lock_result != 0) {
+       return WaitResult::kFailed;
+     }
+@@ -283,7 +294,7 @@ class PosixConditionBase {
+           // Successfully acquired lock or recovered from dead owner
+           if (result == EOWNERDEAD) {
+             // Make mutex consistent after previous owner died
+-            pthread_mutex_consistent(native_mutex);
++            XePthreadMutexConsistent(native_mutex);
+           }
+           locks.emplace_back(handles[i]->mutex_, std::adopt_lock);
+         } else {
+@@ -685,7 +696,7 @@ class PosixCondition<Thread> final : public PosixConditionBase {
+   }
+ 
+ #if XE_PLATFORM_ANDROID
+-  void SetAndroidPreApi26Name(const std::string_view name) {
++  void SetAndroidPreApi26Name(const std::string_view name) const {
+     if (android_pthread_getname_np_) {
+       return;
+     }
+@@ -943,7 +954,7 @@ class PosixCondition<Thread> final : public PosixConditionBase {
+   // Name accessible via name() on Android before API 26 which added
+   // pthread_getname_np.
+   mutable std::mutex android_pre_api_26_name_mutex_;
+-  char android_pre_api_26_name_[16];
++  mutable char android_pre_api_26_name_[16];
+ #endif
+ };
+ 
+diff --git a/src/xenia/hid/origami/CMakeLists.txt b/src/xenia/hid/origami/CMakeLists.txt
+new file mode 100644
+index 0000000..24cc0e9
+--- /dev/null
++++ b/src/xenia/hid/origami/CMakeLists.txt
+@@ -0,0 +1,4 @@
++add_library(xenia-hid-origami STATIC)
++xe_platform_sources(xenia-hid-origami ${CMAKE_CURRENT_SOURCE_DIR})
++target_link_libraries(xenia-hid-origami PUBLIC xenia-base xenia-hid)
++xe_target_defaults(xenia-hid-origami)
+diff --git a/src/xenia/hid/origami/origami_hid.cc b/src/xenia/hid/origami/origami_hid.cc
+new file mode 100644
+index 0000000..ac147c5
+--- /dev/null
++++ b/src/xenia/hid/origami/origami_hid.cc
+@@ -0,0 +1,147 @@
++/**
++ ******************************************************************************
++ * Xenia : Xbox 360 Emulator Research Project                                 *
++ ******************************************************************************
++ * Released under the BSD license - see LICENSE in the root for more details. *
++ ******************************************************************************
++ */
++
++#include "xenia/hid/origami/origami_hid.h"
++
++#include <jni.h>
++
++#include <atomic>
++#include <cstring>
++#include <mutex>
++
++#include "xenia/hid/input_driver.h"
++
++namespace xe {
++namespace hid {
++namespace origami {
++
++namespace {
++
++constexpr uint32_t kPorts = 4;
++
++struct Pad {
++  bool connected = false;
++  uint32_t packet = 0;
++  uint16_t buttons = 0;
++  uint8_t lt = 0, rt = 0;
++  int16_t lx = 0, ly = 0, rx = 0, ry = 0;
++  uint16_t rumble_l = 0, rumble_r = 0;
++};
++
++std::mutex pads_mutex;
++Pad pads[kPorts];
++
++}  // namespace
++
++class OrigamiInputDriver final : public InputDriver {
++ public:
++  OrigamiInputDriver(xe::ui::Window* window, size_t window_z_order)
++      : InputDriver(window, window_z_order) {}
++
++  X_STATUS Setup() override { return X_STATUS_SUCCESS; }
++
++  X_RESULT GetCapabilities(uint32_t user_index, uint32_t flags,
++                           X_INPUT_CAPABILITIES* out_caps) override {
++    if (!Connected(user_index)) return X_ERROR_DEVICE_NOT_CONNECTED;
++    std::memset(out_caps, 0, sizeof(*out_caps));
++    out_caps->type = 0x01;      // XINPUT_DEVTYPE_GAMEPAD
++    out_caps->sub_type = 0x01;  // XINPUT_DEVSUBTYPE_GAMEPAD
++    out_caps->gamepad.buttons = 0xF7FF;
++    out_caps->gamepad.left_trigger = 0xFF;
++    out_caps->gamepad.right_trigger = 0xFF;
++    out_caps->gamepad.thumb_lx = int16_t(0xFFC0);
++    out_caps->gamepad.thumb_ly = int16_t(0xFFC0);
++    out_caps->gamepad.thumb_rx = int16_t(0xFFC0);
++    out_caps->gamepad.thumb_ry = int16_t(0xFFC0);
++    out_caps->vibration.left_motor_speed = 0xFF;
++    out_caps->vibration.right_motor_speed = 0xFF;
++    return X_ERROR_SUCCESS;
++  }
++
++  X_RESULT GetState(uint32_t user_index, X_INPUT_STATE* out_state) override {
++    if (user_index >= kPorts) return X_ERROR_DEVICE_NOT_CONNECTED;
++    std::lock_guard<std::mutex> lock(pads_mutex);
++    const Pad& p = pads[user_index];
++    if (!p.connected) return X_ERROR_DEVICE_NOT_CONNECTED;
++    if (out_state) {
++      out_state->packet_number = p.packet;
++      out_state->gamepad.buttons = p.buttons;
++      out_state->gamepad.left_trigger = p.lt;
++      out_state->gamepad.right_trigger = p.rt;
++      out_state->gamepad.thumb_lx = p.lx;
++      out_state->gamepad.thumb_ly = p.ly;
++      out_state->gamepad.thumb_rx = p.rx;
++      out_state->gamepad.thumb_ry = p.ry;
++    }
++    return X_ERROR_SUCCESS;
++  }
++
++  X_RESULT SetState(uint32_t user_index,
++                    X_INPUT_VIBRATION* vibration) override {
++    if (user_index >= kPorts) return X_ERROR_DEVICE_NOT_CONNECTED;
++    std::lock_guard<std::mutex> lock(pads_mutex);
++    Pad& p = pads[user_index];
++    if (!p.connected) return X_ERROR_DEVICE_NOT_CONNECTED;
++    p.rumble_l = vibration->left_motor_speed;
++    p.rumble_r = vibration->right_motor_speed;
++    return X_ERROR_SUCCESS;
++  }
++
++  X_RESULT GetKeystroke(uint32_t user_index, uint32_t flags,
++                        X_INPUT_KEYSTROKE* out_keystroke) override {
++    // Les jeux se contentent de GetState ; pas de file de frappes pour l'instant.
++    return Connected(user_index) ? X_ERROR_EMPTY : X_ERROR_DEVICE_NOT_CONNECTED;
++  }
++
++  InputType GetInputType() const override { return InputType::Controller; }
++
++ private:
++  static bool Connected(uint32_t user_index) {
++    if (user_index >= kPorts && user_index != 0xFF) return false;
++    std::lock_guard<std::mutex> lock(pads_mutex);
++    return pads[user_index == 0xFF ? 0 : user_index].connected;
++  }
++};
++
++std::unique_ptr<InputDriver> Create(xe::ui::Window* window,
++                                    size_t window_z_order) {
++  return std::make_unique<OrigamiInputDriver>(window, window_z_order);
++}
++
++}  // namespace origami
++}  // namespace hid
++}  // namespace xe
++
++using xe::hid::origami::pads;
++using xe::hid::origami::pads_mutex;
++
++// État complet d'une manette, poussé par X360Activity à chaque changement.
++extern "C" JNIEXPORT void JNICALL Java_com_hideo_foldplay_X360Activity_nativePad(
++    JNIEnv*, jclass, jint port, jboolean connected, jint buttons, jint lt,
++    jint rt, jint lx, jint ly, jint rx, jint ry) {
++  if (port < 0 || port >= 4) return;
++  std::lock_guard<std::mutex> lock(pads_mutex);
++  auto& p = pads[port];
++  p.connected = connected;
++  p.packet++;
++  p.buttons = uint16_t(buttons);
++  p.lt = uint8_t(lt);
++  p.rt = uint8_t(rt);
++  p.lx = int16_t(lx);
++  p.ly = int16_t(ly);
++  p.rx = int16_t(rx);
++  p.ry = int16_t(ry);
++}
++
++// Vibration demandée par le jeu (gauche << 16 | droite), lue par Java.
++extern "C" JNIEXPORT jint JNICALL
++Java_com_hideo_foldplay_X360Activity_nativeRumble(JNIEnv*, jclass, jint port) {
++  if (port < 0 || port >= 4) return 0;
++  std::lock_guard<std::mutex> lock(pads_mutex);
++  return jint((uint32_t(pads[port].rumble_l) << 16) | pads[port].rumble_r);
++}
+diff --git a/src/xenia/hid/origami/origami_hid.h b/src/xenia/hid/origami/origami_hid.h
+new file mode 100644
+index 0000000..f08ea6b
+--- /dev/null
++++ b/src/xenia/hid/origami/origami_hid.h
+@@ -0,0 +1,30 @@
++/**
++ ******************************************************************************
++ * Xenia : Xbox 360 Emulator Research Project                                 *
++ ******************************************************************************
++ * Released under the BSD license - see LICENSE in the root for more details. *
++ ******************************************************************************
++ */
++
++// Origami (Android) : la manette tactile ou physique est lue côté Java, puis
++// poussée ici par JNI. Le pilote la rend aux jeux comme une manette XInput.
++
++#ifndef XENIA_HID_ORIGAMI_ORIGAMI_HID_H_
++#define XENIA_HID_ORIGAMI_ORIGAMI_HID_H_
++
++#include <memory>
++
++#include "xenia/hid/input_system.h"
++
++namespace xe {
++namespace hid {
++namespace origami {
++
++std::unique_ptr<InputDriver> Create(xe::ui::Window* window,
++                                    size_t window_z_order);
++
++}  // namespace origami
++}  // namespace hid
++}  // namespace xe
++
++#endif  // XENIA_HID_ORIGAMI_ORIGAMI_HID_H_
+diff --git a/src/xenia/ui/imgui_drawer.cc b/src/xenia/ui/imgui_drawer.cc
+index 5ed5644..e0ed65f 100644
+--- a/src/xenia/ui/imgui_drawer.cc
++++ b/src/xenia/ui/imgui_drawer.cc
+@@ -31,11 +31,11 @@
+ #include <ShlObj_core.h>
+ #endif
+ 
+-#if XE_PLATFORM_LINUX
++#if XE_PLATFORM_LINUX && !XE_PLATFORM_ANDROID
+ #include <fontconfig/fontconfig.h>
+ #endif
+ 
+-#ifdef XE_PLATFORM_LINUX
++#if XE_PLATFORM_LINUX && !XE_PLATFORM_ANDROID
+ #include <gtk/gtk.h>
+ #endif
+ 
+@@ -142,7 +142,7 @@ void ImGuiDrawer::RemoveNotification(ImGuiNotification* dialog) {
+   DetachIfLastWindowRemoved();
+ }
+ 
+-#ifdef XE_PLATFORM_LINUX
++#if XE_PLATFORM_LINUX && !XE_PLATFORM_ANDROID
+ static void SetClipboardText(void* user_data, const char* text) {
+   GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+   gtk_clipboard_set_text(clipboard, text, -1);
+@@ -169,7 +169,7 @@ void ImGuiDrawer::Initialize() {
+   InitializeFonts(font_size);
+   InitializeFonts(title_font_size);
+ 
+-#ifdef XE_PLATFORM_LINUX
++#if XE_PLATFORM_LINUX && !XE_PLATFORM_ANDROID
+   io.SetClipboardTextFn = SetClipboardText;
+   io.GetClipboardTextFn = GetClipboardText;
+ #endif
+@@ -439,7 +439,7 @@ bool ImGuiDrawer::LoadJapaneseFont(ImGuiIO& io, float font_size) {
+   return true;
+ #endif
+ 
+-#if XE_PLATFORM_LINUX
++#if XE_PLATFORM_LINUX && !XE_PLATFORM_ANDROID
+   // On Linux, find and merge CJK font using fontconfig
+   FcConfig* config = FcInitLoadConfigAndFonts();
+   if (!config) {
+diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
+index fcdca8b..88b5070 100644
+--- a/third_party/CMakeLists.txt
++++ b/third_party/CMakeLists.txt
+@@ -127,7 +127,7 @@ elseif(APPLE)
+     discord-rpc/src/discord_register_osx.m
+   )
+   target_link_libraries(discord-rpc PRIVATE "-framework AppKit")
+-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
++elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID)
+   target_sources(discord-rpc PRIVATE
+     discord-rpc/src/connection_unix.cpp
+     discord-rpc/src/discord_register_linux.cpp

@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.hideo.foldplay">
+
+    <!-- Uniquement pour récupérer les jaquettes manquantes. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Jeux en plusieurs fichiers (.cue + .bin…) lus directement par le moteur intégré, sur demande. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <queries>
+        <package android:name="com.retroarch" />
+        <package android:name="com.retroarch.aarch64" />
+        <package android:name="com.swordfish.lemuroid" />
+        <package android:name="com.fastemulator.gba" />
+        <package android:name="com.fastemulator.gbafree" />
+        <package android:name="com.fastemulator.gbc" />
+        <package android:name="com.fastemulator.gbcfree" />
+        <package android:name="it.dbtecno.pizzaboygba" />
+        <package android:name="it.dbtecno.pizzaboygbapro" />
+        <package android:name="it.dbtecno.pizzaboy" />
+        <package android:name="it.dbtecno.pizzaboypro" />
+        <package android:name="com.johnemulators.johngba" />
+        <package android:name="com.johnemulators.johngbalite" />
+        <package android:name="com.explusalpha.GbaEmu" />
+        <package android:name="com.explusalpha.GbcEmu" />
+        <package android:name="com.explusalpha.NesEmu" />
+        <package android:name="com.explusalpha.Snes9xPlus" />
+        <package android:name="com.explusalpha.MdEmu" />
+        <package android:name="com.nostalgiaemulators.nes" />
+        <package android:name="com.nostalgiaemulators.nesfull" />
+        <package android:name="com.dsemu.drastic" />
+        <package android:name="me.magnum.melonds" />
+        <package android:name="com.github.stenzek.duckstation" />
+        <package android:name="org.ppsspp.ppsspp" />
+        <package android:name="org.ppsspp.ppssppgold" />
+        <package android:name="org.mupen64plusae.v3.fzurita" />
+        <package android:name="org.mupen64plusae.v3.fzurita.pro" />
+        <package android:name="xyz.aethersx2.android" />
+        <package android:name="xyz.aethersx2.custom" />
+        <package android:name="come.nanodata.armsx2" />
+        <package android:name="org.dolphinemu.dolphinemu" />
+        <package android:name="org.dolphinemu.mmjr" />
+        <package android:name="org.azahar_emu.azahar" />
+        <package android:name="io.github.lime3ds.android" />
+        <package android:name="org.citra.emu" />
+        <package android:name="org.vita3k.emulator" />
+        <package android:name="dev.eden.eden_emulator" />
+        <package android:name="org.citron.citron_emu" />
+        <package android:name="org.sudachi.sudachi_emu" />
+        <package android:name="org.kenjinx.android" />
+        <package android:name="org.yuzu.yuzu_emu" />
+        <package android:name="com.flycast.emulator" />
+        <package android:name="io.recompiled.redream" />
+        <package android:name="org.uoyabause.android" />
+        <package android:name="org.uoyabause.uranus.pro" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="file" />
+        </intent>
+        <package android:name="com.playstation.remoteplay" />
+        <package android:name="com.microsoft.xboxone.smartglass" />
+        <package android:name="com.gamepass" />
+        <package android:name="com.valvesoftware.steamlink" />
+        <package android:name="com.limelight" />
+        <package android:name="com.metallic.chiaki" />
+        <package android:name="com.parsec.app" />
+        <package android:name="com.nvidia.geforcenow" />
+        <!-- Jeux mobiles et clients Remote Play du XMB (0.60.5) : applications ouvrables. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:resizeableActivity="true"
+        android:extractNativeLibs="true"
+        android:allowBackup="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode" />
+        <!-- Lanceur du téléphone (0.60) : désactivé tant que l'utilisateur ne l'a pas demandé (HomeApps). -->
+        <activity-alias
+            android:name=".HomeLauncher"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+        <!-- Icône aux couleurs du thème (0.42.7) : une entrée de lanceur par thème, une seule activée. -->
+        <activity-alias
+            android:name=".IconCodec"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_codec"
+            android:roundIcon="@mipmap/ic_launcher_codec"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconArctique"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_arctique"
+            android:roundIcon="@mipmap/ic_launcher_arctique"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconEcarlate"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_ecarlate"
+            android:roundIcon="@mipmap/ic_launcher_ecarlate"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconSakura"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_sakura"
+            android:roundIcon="@mipmap/ic_launcher_sakura"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconAmbre"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_ambre"
+            android:roundIcon="@mipmap/ic_launcher_ambre"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity
+            android:name=".GameActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode" />
+        <!-- PS3 : processus à part (moteur GPL-2.0-only, jamais avec le cœur PS2 GPL-3). -->
+        <activity
+            android:name=".Ps3Activity"
+            android:exported="false"
+            android:process=":ps3"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode" />
+        <!-- Xbox 360 : processus à part (Xenia), sa mémoire est rendue à la sortie du jeu. -->
+        <activity
+            android:name=".X360Activity"
+            android:exported="false"
+            android:process=":x360"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode" />
+        <activity
+            android:name=".LayoutEditorActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode" />
+        <activity
+            android:name=".SetupActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode" />
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode" />
+        <activity
+            android:name=".ImportActivity"
+            android:exported="true"
+            android:label="Importer dans Origami"
+            android:theme="@style/AppTheme"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+        <provider
+            android:name=".SaveProvider"
+            android:authorities="com.hideo.foldplay.saves"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

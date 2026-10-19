@@ -1,0 +1,766 @@
+package com.hideo.foldplay;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/** Préférences : dossier de jeux, favoris, récents, émulateur choisi par console. */
+final class Store {
+    private static final int MAX_RECENTS = 20;
+
+    private final SharedPreferences prefs;
+
+    Store(Context ctx) {
+        prefs = ctx.getSharedPreferences("foldplay", Context.MODE_PRIVATE);
+    }
+
+    /** Assistant de démarrage terminé (ou ancienne installation qui avait déjà un dossier). */
+    boolean setupDone() {
+        return prefs.getBoolean("setup_done", treeUri() != null);
+    }
+
+    void setSetupDone(boolean on) {
+        prefs.edit().putBoolean("setup_done", on).apply();
+    }
+
+    /** Étape de l'assistant où l'on s'est arrêté : il y reprend après un passage dans une autre app. */
+    int setupStep() {
+        return prefs.getInt("setup_step", 0);
+    }
+
+    void setSetupStep(int step) {
+        prefs.edit().putInt("setup_step", step).apply();
+    }
+
+    String treeUri() {
+        return prefs.getString("tree", null);
+    }
+
+    void setTreeUri(String uri) {
+        prefs.edit().putString("tree", uri).apply();
+    }
+
+    /** Vue Flex partout (par défaut), ou vue liste/grille selon l'écran. */
+    boolean flexView() {
+        return prefs.getBoolean("flex_view", true);
+    }
+
+    void setFlexView(boolean on) {
+        prefs.edit().putBoolean("flex_view", on).apply();
+    }
+
+    /** Dispositions de manette enregistrées (vide = seulement la disposition classique). */
+    java.util.List<ControlLayout> layouts() {
+        java.util.List<ControlLayout> out = new ArrayList<ControlLayout>();
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray(prefs.getString("layouts", "[]"));
+            for (int i = 0; i < arr.length(); i++) out.add(ControlLayout.fromJson(arr.getJSONObject(i)));
+        } catch (org.json.JSONException ignored) {
+            // Données abîmées : on repart des dispositions par défaut.
+        }
+        // 0.42.5 : manettes redessinées (PadDesign), la 2D perd L1 et R1 ; on refait la migration
+        // pour que les dispositions d'origine jamais retouchées prennent le nouveau dessin.
+        if (!prefs.getBoolean("layouts_v0425", false)) {
+            migrateLayouts(out);
+            saveLayouts(out);
+            prefs.edit().putBoolean("layouts_v042", true).putBoolean("layouts_v0425", true).apply();
+        }
+        if (out.isEmpty()) out.addAll(ControlLayout.defaults());
+        if (!prefs.getBoolean("layouts_v0603", false)) {
+            migrateFlex(out);
+            saveLayouts(out);
+            prefs.edit().putBoolean("layouts_v0603", true).apply();
+        }
+        return out;
+    }
+
+    /**
+     * 0.60.3 : la Flex divisée laisse la place à la Flex par console (ConsolePad), en tête de liste ;
+     * ordre Flex, 2D, 3D, les tiennes, puis Mini (en chantier). La Flex devient la manette active,
+     * Mini ne l'est plus. Les retouches d'écran faites sur l'ancienne Flex sont oubliées.
+     */
+    private void migrateFlex(java.util.List<ControlLayout> list) {
+        ControlLayout flex = null, d2 = null, d3 = null, mini = null;
+        java.util.List<ControlLayout> own = new ArrayList<ControlLayout>();
+        for (ControlLayout l : list) {
+            if (l.stock && l.kind.equals("flex") && flex == null) flex = l.forSystem(null);
+            else if (l.stock && l.kind.equals("2d") && d2 == null) d2 = l;
+            else if (l.stock && l.kind.equals("3d") && d3 == null) d3 = l;
+            else if (l.stock && l.kind.equals("mini") && mini == null) mini = l;
+            else own.add(l);
+        }
+        list.clear();
+        list.add(flex != null ? flex : ControlLayout.flex());
+        list.add(d2 != null ? d2 : ControlLayout.arcade());
+        list.add(d3 != null ? d3 : ControlLayout.xbox());
+        list.addAll(own);
+        list.add(mini != null ? mini : ControlLayout.mini());
+        for (ControlLayout l : list) if (l.stock) l.name = l.kind.equals("flex") ? "Flex" : l.name;
+        setActiveLayout("Flex");
+        android.content.SharedPreferences.Editor e = prefs.edit();
+        for (String k : prefs.getAll().keySet()) {
+            if (!k.startsWith("slayout_")) continue;
+            String raw = prefs.getString(k, "");
+            if (raw.contains("\"kind\":\"flex\"")) e.remove(k);
+        }
+        e.apply();
+    }
+
+    /**
+     * 0.42 : quatre profils fournis, 2D (arcade), 3D (façon Xbox), Flex et Mini (flottante). Les dispositions d'origine
+     * jamais retouchées sont redessinées (la « Classique » devient « 3D », mêmes couleurs) ; celles
+     * que BOSS a modifiées restent telles quelles, et les profils manquants sont ajoutés.
+     */
+    private void migrateLayouts(java.util.List<ControlLayout> list) {
+        String active = activeLayout();
+        boolean has2d = false, has3d = false, hasFlex = false, hasMini = false;
+        for (int i = 0; i < list.size(); i++) {
+            ControlLayout l = list.get(i);
+            if (!l.stock) continue;
+            ControlLayout fresh = l.origin(0, 0);
+            if (l.name.equals("Classique")) {
+                if (active.equals("Classique")) active = fresh.name;
+            } else {
+                fresh.name = l.name;
+            }
+            fresh.deckColor = l.deckColor;
+            fresh.buttonColor = l.buttonColor;
+            fresh.accentColor = l.accentColor;
+            fresh.deckAlpha = l.deckAlpha;
+            fresh.buttonAlpha = l.buttonAlpha;
+            fresh.background = l.background;
+            fresh.bgX = l.bgX;
+            fresh.bgY = l.bgY;
+            fresh.bgScale = l.bgScale;
+            fresh.skin = l.skin;
+            list.set(i, fresh);
+        }
+        for (ControlLayout l : list) {
+            has2d |= l.name.equals("2D");
+            has3d |= l.name.equals("3D");
+            hasFlex |= l.name.equals("Flex");
+            hasMini |= l.name.equals("Mini");
+        }
+        if (!has2d) list.add(0, ControlLayout.arcade());
+        if (!has3d) list.add(Math.min(1, list.size()), ControlLayout.xbox());
+        if (!hasFlex) list.add(ControlLayout.flex());
+        if (!hasMini) list.add(ControlLayout.mini());
+        boolean found = false;
+        for (ControlLayout l : list) found |= l.name.equals(active);
+        setActiveLayout(found ? active : "3D");
+    }
+
+    void saveLayouts(java.util.List<ControlLayout> layouts) {
+        org.json.JSONArray arr = new org.json.JSONArray();
+        try {
+            for (ControlLayout l : layouts) arr.put(l.toJson());
+        } catch (org.json.JSONException ignored) {
+            return;
+        }
+        prefs.edit().putString("layouts", arr.toString()).apply();
+    }
+
+    /** Manette Flex en surimpression : décalage vertical choisi en jeu (fraction de la hauteur). */
+    float flexOffset() {
+        return prefs.getFloat("flex_dy", 0f);
+    }
+
+    void setFlexOffset(float f) {
+        prefs.edit().putFloat("flex_dy", f).apply();
+    }
+
+    /** Manette Mini : position (fractions de l'écran, coin haut-gauche) et côté en dp. */
+    float[] miniBox() {
+        return new float[] {prefs.getFloat("mini_x", -1f), prefs.getFloat("mini_y", -1f), prefs.getInt("mini_dp", 220)};
+    }
+
+    void setMiniBox(float x, float y, int sizeDp) {
+        prefs.edit().putFloat("mini_x", x).putFloat("mini_y", y).putInt("mini_dp", sizeDp).apply();
+    }
+
+    String activeLayout() {
+        String a = prefs.getString("layout_active", "Flex");
+        // Mini est en chantier (0.60.3) : on retombe sur la Flex.
+        return a.equals("Mini") ? "Flex" : a;
+    }
+
+    void setActiveLayout(String name) {
+        prefs.edit().putString("layout_active", name).apply();
+    }
+
+    /**
+     * Disposition retouchée sur le jeu pour une zone précise (écran, orientation et mode donnent
+     * chacun leur grille) : elle s'affiche telle quelle, sans réarrangement.
+     */
+    ControlLayout screenLayout(String name, int cols, int rows) {
+        String raw = prefs.getString("slayout_" + cols + "x" + rows, null);
+        if (raw == null) return null;
+        try {
+            ControlLayout l = ControlLayout.fromJson(new org.json.JSONObject(raw));
+            return name.equals(l.name) && l.refCols == cols && l.refRows == rows ? l : null;
+        } catch (org.json.JSONException e) {
+            return null;
+        }
+    }
+
+    void setScreenLayout(int cols, int rows, ControlLayout l) {
+        String key = "slayout_" + cols + "x" + rows;
+        if (l == null) {
+            prefs.edit().remove(key).apply();
+            return;
+        }
+        try {
+            prefs.edit().putString(key, l.toJson().toString()).apply();
+        } catch (org.json.JSONException ignored) {
+            // Rien d'enregistré : la disposition commune reste affichée.
+        }
+    }
+
+    /** La disposition active, ou la classique calée sur la zone donnée. */
+    ControlLayout currentLayout(int cols, int rows) {
+        String name = activeLayout();
+        ControlLayout own = screenLayout(name, cols, rows);
+        if (own != null) return own;
+        for (ControlLayout l : layouts()) if (l.name.equals(name)) return l;
+        return ControlLayout.classic(cols, rows);
+    }
+
+    // ------------------------------------------------------------------ moteur intégré
+
+    /** Options avancées choisies pour un cœur libretro (clé → valeur). */
+    java.util.Map<String, String> coreOptions(String core) {
+        java.util.Map<String, String> out = new java.util.HashMap<String, String>();
+        try {
+            org.json.JSONObject o = new org.json.JSONObject(prefs.getString("opts_" + core, "{}"));
+            java.util.Iterator<String> it = o.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                out.put(k, o.getString(k));
+            }
+        } catch (org.json.JSONException ignored) {
+            // Options abîmées : valeurs par défaut du cœur.
+        }
+        return out;
+    }
+
+    void setCoreOption(String core, String key, String value) {
+        java.util.Map<String, String> all = coreOptions(core);
+        all.put(key, value);
+        prefs.edit().putString("opts_" + core, new org.json.JSONObject(all).toString()).apply();
+    }
+
+    /** Oublie les choix de l'utilisateur sur ces clés (un profil vient de les reprendre). */
+    void clearCoreOptions(String core, java.util.Set<String> keys) {
+        java.util.Map<String, String> all = coreOptions(core);
+        if (!all.keySet().removeAll(keys)) return;
+        prefs.edit().putString("opts_" + core, new org.json.JSONObject(all).toString()).apply();
+    }
+
+    /** Identifiant stable d'un jeu pour ses préférences : son adresse, sinon son chemin. */
+    static String gameId(String uri, String path) {
+        return uri != null ? uri : String.valueOf(path);
+    }
+
+    /** Profil d'émulation par défaut : performance, balanced ou quality. */
+    String defaultProfile() {
+        return prefs.getString("profile_default", "balanced");
+    }
+
+    void setDefaultProfile(String id) {
+        prefs.edit().putString("profile_default", id).apply();
+    }
+
+    /** Profil choisi pour un jeu (sinon celui par défaut). */
+    String gameProfile(String game) {
+        return prefs.getString("gprof_" + game, defaultProfile());
+    }
+
+    void setGameProfile(String game, String id) {
+        prefs.edit().putString("gprof_" + game, id).apply();
+    }
+
+    /** Langue de l'app : « system » (celle du téléphone si l'app la connaît) ou un code (fr, en…). */
+    String language() {
+        return prefs.getString("lang", "system");
+    }
+
+    void setLanguage(String code) {
+        prefs.edit().putString("lang", code).apply();
+    }
+
+    boolean languageChosen() {
+        return prefs.contains("lang");
+    }
+
+    /** Rail des réglages et de l'éditeur déplié (noms visibles) ou replié (icônes seules). */
+    boolean railOpen() {
+        return prefs.getBoolean("rail_open", false);
+    }
+
+    void setRailOpen(boolean on) {
+        prefs.edit().putBoolean("rail_open", on).apply();
+    }
+
+    String coreVariant(String core) {
+        return prefs.getString("variant_" + core, core);
+    }
+
+    void setCoreVariant(String core, String variant) {
+        prefs.edit().putString("variant_" + core, variant).apply();
+    }
+
+    /** Réglages posés par le script d'installation (appliqués avant ceux de l'utilisateur). */
+    java.util.Map<String, String> coreProfile(String core) {
+        java.util.Map<String, String> out = new java.util.HashMap<String, String>();
+        try {
+            org.json.JSONObject o = new org.json.JSONObject(prefs.getString("prof_" + core, "{}"));
+            java.util.Iterator<String> it = o.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                out.put(k, o.getString(k));
+            }
+        } catch (org.json.JSONException ignored) {
+            // Profil abîmé : aucun.
+        }
+        return out;
+    }
+
+    void setCoreProfile(String core, java.util.Map<String, String> profile) {
+        prefs.edit().putString("prof_" + core, new org.json.JSONObject(profile).toString()).apply();
+    }
+
+    String coreInstallNote(String core) {
+        return prefs.getString("inote_" + core, null);
+    }
+
+    void setCoreInstallNote(String core, String note) {
+        prefs.edit().putString("inote_" + core, note).apply();
+    }
+
+    /** Liste des options d'un cœur (clé, spec, valeur) gardée au dernier lancement, pour les régler hors jeu. */
+    String[] coreSpecs(String core) {
+        try {
+            org.json.JSONArray a = new org.json.JSONArray(prefs.getString("specs_" + core, "[]"));
+            String[] out = new String[a.length()];
+            for (int i = 0; i < out.length; i++) out[i] = a.getString(i);
+            return out;
+        } catch (org.json.JSONException e) {
+            return new String[0];
+        }
+    }
+
+    void setCoreSpecs(String core, String[] vars) {
+        org.json.JSONArray a = new org.json.JSONArray();
+        for (String v : vars) a.put(v == null ? "" : v);
+        prefs.edit().putString("specs_" + core, a.toString()).apply();
+    }
+
+    void clearCoreOptions(String core) {
+        prefs.edit().remove("opts_" + core).apply();
+    }
+
+    /** Format d'affichage par console : core, 4:3, 16:9, stretch, integer. */
+    String displayMode(String system) {
+        return prefs.getString("display_" + system, "core");
+    }
+
+    void setDisplayMode(String system, String mode) {
+        prefs.edit().putString("display_" + system, mode).apply();
+    }
+
+    /** Lissage de l'image (sinon pixels nets). */
+    boolean smooth(String system) {
+        return prefs.getBoolean("smooth_" + system, true);
+    }
+
+    void setSmooth(String system, boolean on) {
+        prefs.edit().putBoolean("smooth_" + system, on).apply();
+    }
+
+    /** Pack d'icônes : « auto » suit le thème, sinon trait, givre, braise, petale, phosphore. */
+    String iconPack() {
+        // Les icônes suivent le thème tant que le store de thèmes communautaires n'est pas ouvert.
+        return "auto";
+    }
+
+    void setIconPack(String id) {
+        prefs.edit().putString("icon_pack", id).apply();
+    }
+
+    /** À l'ouverture du pliant (écran externe vers écran interne), passer en mode Tsuru. */
+    boolean tsuruOnOpen() {
+        return prefs.getBoolean("tsuru_on_open", true);
+    }
+
+    void setTsuruOnOpen(boolean on) {
+        prefs.edit().putBoolean("tsuru_on_open", on).apply();
+    }
+
+    boolean intro() {
+        return prefs.getBoolean("intro", true);
+    }
+
+    void setIntro(boolean on) {
+        prefs.edit().putBoolean("intro", on).apply();
+    }
+
+    boolean scanlines() {
+        return prefs.getBoolean("scanlines", true);
+    }
+
+    void setScanlines(boolean on) {
+        prefs.edit().putBoolean("scanlines", on).apply();
+    }
+
+    /** Plein écran (manette à l'écran masquée) dès qu'une manette physique est branchée. */
+    boolean padFullscreen() {
+        return prefs.getBoolean("pad_fullscreen", true);
+    }
+
+    void setPadFullscreen(boolean on) {
+        prefs.edit().putBoolean("pad_fullscreen", on).apply();
+    }
+
+    /** Thème de l'interface (Theme.THEMES), « codec » par défaut. */
+    String theme() {
+        return prefs.getString("ui_theme", "codec");
+    }
+
+    /** Icône du lanceur à poser quand l'app passera en arrière-plan (null : rien en attente). */
+    String pendingIcon() {
+        return prefs.getString("pending_icon", null);
+    }
+
+    void setPendingIcon(String id) {
+        prefs.edit().putString("pending_icon", id).apply();
+    }
+
+    void setTheme(String id) {
+        prefs.edit().putString("ui_theme", id).apply();
+    }
+
+    /** Couleur du logo (la grue) : 0 = celle du thème. */
+    int logoColor() {
+        return prefs.getInt("logo_color", 0);
+    }
+
+    void setLogoColor(int c) {
+        prefs.edit().putInt("logo_color", c).apply();
+    }
+
+    /**
+     * Les retouches faites sur un écran précis gardent leurs places mais prennent le style
+     * (couleurs, opacités, habillage) de la disposition commune du même nom.
+     */
+    void restyleScreenLayouts(ControlLayout src) {
+        android.content.SharedPreferences.Editor e = prefs.edit();
+        for (java.util.Map.Entry<String, ?> en : prefs.getAll().entrySet()) {
+            if (!en.getKey().startsWith("slayout_") || !(en.getValue() instanceof String)) continue;
+            try {
+                ControlLayout l = ControlLayout.fromJson(new org.json.JSONObject((String) en.getValue()));
+                if (!l.name.equals(src.name)) continue;
+                l.copyStyle(src);
+                e.putString(en.getKey(), l.toJson().toString());
+            } catch (org.json.JSONException ignored) {
+                // Retouche abîmée : laissée telle quelle.
+            }
+        }
+        e.apply();
+    }
+
+    /** Plein écran (barres d'état et de navigation masquées) hors jeu : désactivé par défaut. */
+    boolean appFullscreen() {
+        return prefs.getBoolean("app_fullscreen", false);
+    }
+
+    void setAppFullscreen(boolean on) {
+        prefs.edit().putBoolean("app_fullscreen", on).apply();
+    }
+
+    /** L'interface reprend les couleurs de la manette à l'écran. */
+    boolean syncUi() {
+        return prefs.getBoolean("sync_ui", false);
+    }
+
+    void setSyncUi(boolean on) {
+        prefs.edit().putBoolean("sync_ui", on).apply();
+    }
+
+    boolean menuSound() {
+        return prefs.getBoolean("menu_sound", true);
+    }
+
+    void setMenuSound(boolean on) {
+        prefs.edit().putBoolean("menu_sound", on).apply();
+    }
+
+    boolean haptics() {
+        return hapticLevel() > 0;
+    }
+
+    /** 0 coupée, 1 légère, 2 moyenne, 3 forte (l'ancien réglage oui/non donne 2 ou 0). */
+    int hapticLevel() {
+        return prefs.getInt("haptic_level", prefs.getBoolean("haptics", true) ? 2 : 0);
+    }
+
+    void setHapticLevel(int level) {
+        prefs.edit().putInt("haptic_level", level).putBoolean("haptics", level > 0).apply();
+    }
+
+    void setHaptics(boolean on) {
+        setHapticLevel(on ? 2 : 0);
+    }
+
+    /** Demande de rescan posée par la page Réglages, consommée par l'écran principal. */
+    boolean takeRescanRequest() {
+        boolean r = prefs.getBoolean("rescan", false);
+        if (r) prefs.edit().remove("rescan").apply();
+        return r;
+    }
+
+    void requestRescan() {
+        prefs.edit().putBoolean("rescan", true).apply();
+    }
+
+    /** Fiches de jeux (résumé, année) récupérées sur Wikipédia. */
+    boolean autoInfo() {
+        return prefs.getBoolean("auto_info", true);
+    }
+
+    void setAutoInfo(boolean on) {
+        prefs.edit().putBoolean("auto_info", on).apply();
+    }
+
+    /** Identifiants ScreenScraper : [devid, devpassword, ssid, sspassword], vides si non saisis. */
+    String[] screenScraper() {
+        return new String[] {prefs.getString("ss_devid", ""), prefs.getString("ss_devpw", ""),
+                prefs.getString("ss_id", ""), prefs.getString("ss_pw", "")};
+    }
+
+    void setScreenScraper(String devId, String devPw, String id, String pw) {
+        prefs.edit().putString("ss_devid", devId).putString("ss_devpw", devPw)
+                .putString("ss_id", id).putString("ss_pw", pw).apply();
+    }
+
+    /** ATH de monitoring en jeu : images/s, vitesse, processeur, mémoire, batterie, chauffe. */
+    boolean hud() {
+        return prefs.getBoolean("hud", false);
+    }
+
+    void setHud(boolean on) {
+        prefs.edit().putBoolean("hud", on).apply();
+    }
+
+    /** Style de l'ATH : "line" (une ligne en haut, façon RTSS, par défaut) ou "block" (encadré sur plusieurs lignes). */
+    String hudStyle() {
+        return prefs.getString("hud_style", "line");
+    }
+
+    void setHudStyle(String s) {
+        prefs.edit().putString("hud_style", s).apply();
+    }
+
+    /** Position de l'ATH en haut de l'écran : "left", "center" ou "right". */
+    String hudPos() {
+        return prefs.getString("hud_pos", "left");
+    }
+
+    void setHudPos(String s) {
+        prefs.edit().putString("hud_pos", s).apply();
+    }
+
+    /** Taille du texte de l'ATH : 0 petite, 1 moyenne, 2 grande. */
+    int hudSize() {
+        return prefs.getInt("hud_size", 0);
+    }
+
+    void setHudSize(int s) {
+        prefs.edit().putInt("hud_size", s).apply();
+    }
+
+    /** Couleur des libellés : "rtss" (orange), "codec" (vert) ou "white". */
+    String hudColor() {
+        return prefs.getString("hud_color", "rtss");
+    }
+
+    void setHudColor(String s) {
+        prefs.edit().putString("hud_color", s).apply();
+    }
+
+    /** Bandeau sombre derrière l'ATH (sinon texte seul, ombré). */
+    boolean hudBackground() {
+        return prefs.getBoolean("hud_bg", true);
+    }
+
+    void setHudBackground(boolean on) {
+        prefs.edit().putBoolean("hud_bg", on).apply();
+    }
+
+    /** Intervalle de mise à jour de l'ATH, en millisecondes. */
+    int hudRate() {
+        return prefs.getInt("hud_rate", 1000);
+    }
+
+    void setHudRate(int ms) {
+        prefs.edit().putInt("hud_rate", ms).apply();
+    }
+
+    /** Mesures affichées par l'ATH (clés de Hud.ITEMS). */
+    Set<String> hudItems() {
+        return new HashSet<String>(prefs.getStringSet("hud_items", Hud.defaults()));
+    }
+
+    void setHudItem(String key, boolean on) {
+        Set<String> s = hudItems();
+        if (on) s.add(key);
+        else s.remove(key);
+        prefs.edit().putStringSet("hud_items", s).apply();
+    }
+
+    /** Console d'une sauvegarde saves/<jeu>.srm, notée au lancement du jeu (pour l'export par console). */
+    String saveSystem(String fileBase) {
+        return prefs.getString("savesys:" + fileBase, null);
+    }
+
+    void setSaveSystem(String fileBase, String system) {
+        if (fileBase == null || system == null || system.equals(saveSystem(fileBase))) return;
+        prefs.edit().putString("savesys:" + fileBase, system).apply();
+    }
+
+    /** En paysage, la manette tactile : "overlay" (jeu en plein écran, manette par-dessus) ou "split" (séparée). */
+    String landscapeDeck() {
+        return prefs.getString("landscape_deck", "overlay");
+    }
+
+    void setLandscapeDeck(String s) {
+        prefs.edit().putString("landscape_deck", s).apply();
+    }
+
+    /** Opacité de la manette superposée, en %. */
+    int overlayOpacity() {
+        return prefs.getInt("overlay_opacity", 35);
+    }
+
+    void setOverlayOpacity(int v) {
+        prefs.edit().putInt("overlay_opacity", v).apply();
+    }
+
+    /** Sauvegarde, chargement rapides et ×2 gardés à l'écran quand une manette physique est branchée. */
+    boolean padQuickButtons() {
+        return prefs.getBoolean("pad_quick", true);
+    }
+
+    void setPadQuickButtons(boolean on) {
+        prefs.edit().putBoolean("pad_quick", on).apply();
+    }
+
+    /** Mode débogage : journal détaillé des moteurs, enregistré pour être partagé. */
+    boolean debug() {
+        return prefs.getBoolean("debug", false);
+    }
+
+    void setDebug(boolean on) {
+        prefs.edit().putBoolean("debug", on).apply();
+    }
+
+    boolean backdrops() {
+        return prefs.getBoolean("backdrops", true);
+    }
+
+    void setBackdrops(boolean on) {
+        prefs.edit().putBoolean("backdrops", on).apply();
+    }
+
+    boolean autoCovers() {
+        return prefs.getBoolean("auto_covers", true);
+    }
+
+    void setAutoCovers(boolean on) {
+        prefs.edit().putBoolean("auto_covers", on).apply();
+    }
+
+    /** Clients Remote Play ajoutés à la main (« paquet/activité »), en plus des clients connus. */
+    Set<String> remoteClients() {
+        return new HashSet<String>(prefs.getStringSet("remote_clients", new HashSet<String>()));
+    }
+
+    void setRemoteClient(String component, boolean on) {
+        Set<String> s = remoteClients();
+        if (on) s.add(component);
+        else s.remove(component);
+        prefs.edit().putStringSet("remote_clients", s).apply();
+    }
+
+    /** Lanceur d'apps (logo Origami) : grille par défaut, liste au choix. */
+    boolean appsGrid() {
+        return prefs.getBoolean("apps_grid", true);
+    }
+
+    void setAppsGrid(boolean on) {
+        prefs.edit().putBoolean("apps_grid", on).apply();
+    }
+
+    boolean isFavorite(Game g) {
+        return prefs.getStringSet("favs", new HashSet<String>()).contains(g.uri);
+    }
+
+    boolean toggleFavorite(Game g) {
+        Set<String> favs = new HashSet<String>(prefs.getStringSet("favs", new HashSet<String>()));
+        boolean now = !favs.remove(g.uri);
+        if (now) favs.add(g.uri);
+        prefs.edit().putStringSet("favs", favs).apply();
+        return now;
+    }
+
+    List<String> recents() {
+        String raw = prefs.getString("recents", "");
+        List<String> out = new ArrayList<String>();
+        if (!raw.isEmpty()) out.addAll(Arrays.asList(raw.split("\n")));
+        return out;
+    }
+
+    void addRecent(Game g) {
+        List<String> r = recents();
+        r.remove(g.uri);
+        r.add(0, g.uri);
+        while (r.size() > MAX_RECENTS) r.remove(r.size() - 1);
+        StringBuilder sb = new StringBuilder();
+        for (String s : r) {
+            if (sb.length() > 0) sb.append('\n');
+            sb.append(s);
+        }
+        prefs.edit().putString("recents", sb.toString()).apply();
+    }
+
+    /** Clé de l'émulateur choisi (« pkg:… » ou « retroarch:… »), ou null. */
+    String emulatorFor(SystemInfo s) {
+        return prefs.getString("emu_" + s.id, null);
+    }
+
+    void setEmulator(String systemId, String value) {
+        if (value == null) prefs.edit().remove("emu_" + systemId).apply();
+        else prefs.edit().putString("emu_" + systemId, value).apply();
+    }
+
+    /**
+     * Une fois, à l'arrivée du moteur intégré : on oublie les émulateurs externes choisis pour les
+     * consoles qu'il gère, pour qu'il devienne celui par défaut (on peut rechoisir depuis Maison).
+     */
+    void adoptBuiltinOnce() {
+        if (prefs.getBoolean("builtin_adopted", false)) return;
+        SharedPreferences.Editor e = prefs.edit();
+        for (SystemInfo s : SystemInfo.ALL) if (CoreManager.coreFor(s) != null) e.remove("emu_" + s.id);
+        e.putBoolean("builtin_adopted", true).apply();
+    }
+
+    void clearEmulators() {
+        SharedPreferences.Editor e = prefs.edit();
+        for (SystemInfo s : SystemInfo.ALL) e.remove("emu_" + s.id);
+        e.apply();
+    }
+}

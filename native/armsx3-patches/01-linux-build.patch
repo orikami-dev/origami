@@ -1,0 +1,25 @@
+diff --git a/rpcs3/Emu/RSX/VK/FrameGen/FrameGenTypes.h b/rpcs3/Emu/RSX/VK/FrameGen/FrameGenTypes.h
+index bc188ce..53050c7 100644
+--- a/rpcs3/Emu/RSX/VK/FrameGen/FrameGenTypes.h
++++ b/rpcs3/Emu/RSX/VK/FrameGen/FrameGenTypes.h
+@@ -23,7 +23,6 @@
+ 
+ #include "util/types.hpp"
+ #include "FrameGenConfig.h"
+-#include "Config.h"
+ 
+ #include <algorithm>
+ #include <cstddef>
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/sync.cpp b/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
+index f6c2ab0..51d16c9 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
+@@ -7,7 +7,7 @@
+ #include "shared.h"
+ 
+ #include "Emu/Cell/timers.hpp"
+-#include "Emu/system.h"
++#include "Emu/System.h"
+ #include "Utilities/Thread.h"
+ #include "Emu/RSX/rsx_profiler.h"
+ 
