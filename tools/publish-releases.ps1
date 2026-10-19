@@ -21,8 +21,8 @@ foreach ($a in $apks) {
   Write-Progress -Activity "Releases Origami" -Status "$tag ($i/$($apks.Count))" -PercentComplete (100 * $i / $apks.Count)
   if ($existing -contains $tag) { Write-Host "$tag déjà publiée"; continue }
   $notes = "main\docs\releases\$($a.Version).md"
-  $args = @($tag, $a.Path, "--repo", $Repo, "--title", "Origami $($a.Version)", "--notes-file", $notes, "--target", "main")
-  if ($a.Version -eq $latest) { $args += "--latest" } else { $args += "--latest=false" }
+  $ga = @($tag, $a.Path, "--repo", $Repo, "--title", "Origami $($a.Version)", "--notes-file", $notes, "--target", "main")
+  if ($a.Version -eq $latest) { $ga += "--latest" } else { $ga += "--latest=false" }
   gh release create @args
   Write-Host "$tag publiée"
 }
