@@ -81,6 +81,52 @@ final class Crane {
         int accent;
         /** 0 : pli du thème en cours. */
         int fold;
+        /** Position du reflet, de 0 à 1 (hors de cet intervalle : pas de reflet). */
+        float shine = -1f;
+        private final Paint gloss = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        {
+            gloss.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_ATOP));
+        }
+
+        /**
+         * Fait briller la grue de temps en temps pour montrer que c'est un bouton (0.62) : un reflet
+         * la traverse, puis une pause. S'arrête seul quand la vue quitte l'écran.
+         */
+        void animate(final android.view.View host, final long pauseMs) {
+            final android.animation.ValueAnimator a = android.animation.ValueAnimator.ofFloat(-0.2f, 1.2f);
+            a.setDuration(1100);
+            a.setStartDelay(600);
+            a.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+            a.addUpdateListener(new android.animation.ValueAnimator.AnimatorUpdateListener() {
+                public void onAnimationUpdate(android.animation.ValueAnimator v) {
+                    shine = (Float) v.getAnimatedValue();
+                    invalidateSelf();
+                    host.invalidate();
+                }
+            });
+            a.addListener(new android.animation.AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(android.animation.Animator anim) {
+                    shine = -1f;
+                    host.invalidate();
+                    if (host.isAttachedToWindow() && pauseMs > 0) {
+                        a.setStartDelay(pauseMs);
+                        a.start();
+                    }
+                }
+            });
+            host.addOnAttachStateChangeListener(new android.view.View.OnAttachStateChangeListener() {
+                public void onViewAttachedToWindow(android.view.View v) {
+                    if (!a.isStarted()) a.start();
+                }
+
+                public void onViewDetachedFromWindow(android.view.View v) {
+                    a.cancel();
+                }
+            });
+            if (host.isAttachedToWindow()) a.start();
+        }
 
         @Override
         public void draw(Canvas c) {
@@ -88,6 +134,7 @@ final class Crane {
             float s = Math.min(b.width(), b.height()) / SPAN;
             int[] sh = shades(accent != 0 ? accent : Theme.logo(Theme.CODEC));
             int save = c.saveLayerAlpha(b.left, b.top, b.right, b.bottom, alpha);
+            c.save();
             c.translate(b.exactCenterX() - FOLD * s, b.exactCenterY() - CY * s);
             c.scale(s, s);
             for (float[] f : WING_L) facet(c, path, paint, f, sh);
@@ -96,6 +143,16 @@ final class Crane {
             for (float[] f : RIGHT) facet(c, path, paint, f, sh);
             paint.setColor(fold != 0 ? fold : Theme.fold());
             c.drawRect(HINGE[0], HINGE[1], HINGE[2], HINGE[3], paint);
+            c.restore();
+            if (shine >= 0f && shine <= 1f) {
+                // Reflet qui traverse la grue en diagonale, posé seulement sur ses facettes.
+                float band = b.width() * 0.45f;
+                float x = b.left - band + (b.width() + 2 * band) * shine;
+                gloss.setShader(new android.graphics.LinearGradient(x - band / 2, b.top, x + band / 2, b.bottom,
+                        new int[] {0x00FFFFFF, 0xB0FFFFFF, 0x00FFFFFF}, new float[] {0f, 0.5f, 1f},
+                        android.graphics.Shader.TileMode.CLAMP));
+                c.drawRect(b, gloss);
+            }
             c.restoreToCount(save);
         }
 

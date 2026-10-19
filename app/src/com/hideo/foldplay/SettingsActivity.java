@@ -1203,37 +1203,7 @@ public class SettingsActivity extends Activity {
 
     /** Range chaque BIOS choisi (ou contenu dans un .zip) là où son émulateur le cherche (BiosImport). */
     private void importBios(Intent data) {
-        java.util.List<Uri> uris = new java.util.ArrayList<Uri>();
-        if (data.getClipData() != null) {
-            for (int i = 0; i < data.getClipData().getItemCount(); i++) uris.add(data.getClipData().getItemAt(i).getUri());
-        } else if (data.getData() != null) {
-            uris.add(data.getData());
-        }
-        File base = getExternalFilesDir(null);
-        File system = new File(base != null ? base : getFilesDir(), "system");
-        BiosImport.Report report = new BiosImport.Report();
-        for (Uri u : uris) {
-            String name = "bios.bin";
-            android.database.Cursor c = getContentResolver().query(u,
-                    new String[] {android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null);
-            if (c != null) {
-                try {
-                    if (c.moveToFirst() && c.getString(0) != null) name = new File(c.getString(0)).getName();
-                } finally {
-                    c.close();
-                }
-            }
-            try {
-                java.io.InputStream in = getContentResolver().openInputStream(u);
-                try {
-                    BiosImport.add(system, name, in, report);
-                } finally {
-                    in.close();
-                }
-            } catch (java.io.IOException | SecurityException e) {
-                report.skipped++;
-            }
-        }
+        BiosImport.Report report = BiosImport.fromIntent(this, data);
         toast(report.text());
         render();
     }

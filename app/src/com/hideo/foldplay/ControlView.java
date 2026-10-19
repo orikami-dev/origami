@@ -49,6 +49,8 @@ final class ControlView extends View {
         text.setTextAlign(Paint.Align.CENTER);
         ring.setStyle(Paint.Style.STROKE);
         setContentDescription(control.type);
+        // Home est un bouton : la grue brille régulièrement, dès le lancement du jeu (0.62).
+        if (control.type.equals("HOME")) logo.animate(this, 6000);
     }
 
     void setListener(Listener l, boolean haptics) {
@@ -324,7 +326,8 @@ final class ControlView extends View {
     private void drawHome(Canvas c, float w, float h) {
         float rad = Math.min(w, h) / 2f - 2 * dp;
         if (skin) rad = rad / 1.18f;
-        halo(c, w / 2, h / 2, rad, pressed ? 1f : 0.3f);
+        float glow = logo.shine >= 0f && logo.shine <= 1f ? (float) Math.sin(Math.PI * logo.shine) : 0f;
+        halo(c, w / 2, h / 2, rad, pressed ? 1f : 0.3f + 0.5f * glow);
         c.drawCircle(w / 2, h / 2, rad, body(pressed ? panelHi : Theme.BG, h / 2 - rad, h / 2 + rad));
         ring.setColor(accent);
         ring.setStrokeWidth(2 * dp);

@@ -77,6 +77,10 @@ final class SaveTransfer {
     }
 
     static void share(Activity a, List<SaveImport.Out> outs, String title) {
+        share(a, outs, title, "application/octet-stream");
+    }
+
+    static void share(Activity a, List<SaveImport.Out> outs, String title, String mime) {
         File dir = SaveProvider.dir(a);
         File[] old = dir.listFiles();
         if (old != null) for (File f : old) f.delete();
@@ -102,7 +106,7 @@ final class SaveTransfer {
         } else {
             send = new Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
         }
-        send.setType("application/octet-stream");
+        send.setType(mime);
         // La permission suit le ClipData jusqu'à l'app choisie.
         android.content.ClipData clip = android.content.ClipData.newRawUri(outs.get(0).name, uris.get(0));
         for (int i = 1; i < uris.size(); i++) clip.addItem(new android.content.ClipData.Item(uris.get(i)));

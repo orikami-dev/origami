@@ -515,6 +515,14 @@ final class Store {
     }
 
     /** Musique d'accueil en boucle (par thème). */
+    boolean setupAdvanced() {
+        return prefs.getBoolean("setup_advanced", false);
+    }
+
+    void setSetupAdvanced(boolean on) {
+        prefs.edit().putBoolean("setup_advanced", on).apply();
+    }
+
     boolean musicOn() {
         return prefs.getBoolean("music_on", true);
     }

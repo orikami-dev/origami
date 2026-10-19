@@ -74,10 +74,10 @@ final class EngineSettings {
             new Opt("Video@@Resolution Scale", "Définition interne", "En pourcentage de la définition du jeu (720p).",
                     "uint", new String[]{"100", "150", "200", "300"}, new String[]{"100 %", "150 %", "200 %", "300 %"}),
             new Opt("Video@@Shader Mode", "Préparation des shaders",
-                    "Avec interpréteur : le jeu s'affiche tout de suite pendant la préparation. Interpréteur seul : aucune attente, plus lent.",
+                    "En arrière-plan : recommandé, décors complets. Avec interpréteur : image plus tôt mais certains décors restent noirs (textures de sommets).",
                     "string",
-                    new String[]{"Async Recompiler with Shader Interpreter", "Async Recompiler (multi-threaded)", "Shader Interpreter only"},
-                    new String[]{"En arrière-plan avec interpréteur", "En arrière-plan", "Interpréteur seul"}),
+                    new String[]{"Async Recompiler (multi-threaded)", "Async Recompiler with Shader Interpreter", "Shader Interpreter only"},
+                    new String[]{"En arrière-plan", "En arrière-plan avec interpréteur", "Interpréteur seul"}),
             new Opt("Video@@Anisotropic Filter Override", "Filtrage anisotrope", "Netteté des textures vues de biais.",
                     "uint", new String[]{"0", "4", "8", "16"}, new String[]{"Jeu", "×4", "×8", "×16"}),
             new Opt("Video@@Output Scaling Mode", "Mise à l'échelle", "FSR : agrandissement net (AMD FidelityFX).",
@@ -94,15 +94,15 @@ final class EngineSettings {
     };
 
     private static final String[][][] PS3_PROFILES = {
-            {{"Video@@Resolution Scale", "100"}, {"Video@@Shader Mode", "Async Recompiler with Shader Interpreter"},
+            {{"Video@@Resolution Scale", "100"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "0"}, {"Video@@Output Scaling Mode", "Bilinear"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
-            {{"Video@@Resolution Scale", "150"}, {"Video@@Shader Mode", "Async Recompiler with Shader Interpreter"},
+            {{"Video@@Resolution Scale", "150"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "4"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution 1"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
-            {{"Video@@Resolution Scale", "200"}, {"Video@@Shader Mode", "Async Recompiler with Shader Interpreter"},
+            {{"Video@@Resolution Scale", "200"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "16"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution 1"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
@@ -171,6 +171,11 @@ final class EngineSettings {
             } catch (Throwable ignored) {
                 // Réglage inconnu de cette version du moteur : on garde le sien.
             }
+        }
+        // Sauvegardes rapides : sans ce mode, le moteur n'arrive pas à figer les SPU.
+        try {
+            Ps3Core.nativeSettingsSet("Savestate@@Compatible Savestate Mode", "true");
+        } catch (Throwable ignored) {
         }
     }
 

@@ -1859,7 +1859,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         logo.setTypeface(Fonts.logo(this));
         postureTag = text(postureText(), 11, Theme.MUTED, true);
         android.widget.ImageView mark = new android.widget.ImageView(this);
-        mark.setImageDrawable(new Crane.Logo());
+        Crane.Logo crane = new Crane.Logo();
+        mark.setImageDrawable(crane);
+        // Le logo est un bouton (applications) : un reflet le traverse régulièrement (0.62).
+        crane.animate(mark, 5000);
         LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(40), dp(40));
         mlp.rightMargin = dp(10);
         // Le logo ouvre les applications du téléphone (0.60.4, à la place du bouton « Applications »).
