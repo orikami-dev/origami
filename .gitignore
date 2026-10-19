@@ -1,0 +1,7 @@
+# APK : seulement dans les releases privées. Moteurs : refaits par native/build-*.sh.
+dist/
+archives/
+keystore/
+*.apk
+*.so
+*.zip
