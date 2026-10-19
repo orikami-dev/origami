@@ -57,6 +57,9 @@ public class X360Activity extends WindowedAppActivity {
     /** Images du jeu présentées depuis le lancement (moteur 0.60.12 et suivants). */
     static native long nativeFrames();
 
+    /** Étirer : le moteur remplit la surface au lieu de garder le rapport du jeu. */
+    static native void nativeSetFill(boolean fill);
+
     /** Le moteur Xenia est livré dans l'APK : sinon pas de Xbox 360 intégrée. */
     static boolean present(Context ctx) {
         return new File(ctx.getApplicationInfo().nativeLibraryDir, "libxenia-app.so").isFile();
@@ -180,6 +183,12 @@ public class X360Activity extends WindowedAppActivity {
         status.setPadding(p, p, p, p);
         stage.addView(status, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
         setContentView(stage);
+        stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                if (r - l != or - ol || b - t != ob - ot) applyFormat();
+            }
+        });
+        formatKey();
         // ATH : le moteur compte les images que le jeu présente.
         hud = new HudOverlay(this, stage, store, "xenia", new HudOverlay.Source() {
             public float fps(float seconds) {
@@ -228,6 +237,7 @@ public class X360Activity extends WindowedAppActivity {
         deck.setVisibility(pad ? View.GONE : View.VISIBLE);
         screen.setLayoutParams(sl);
         deck.setLayoutParams(dl);
+        applyFormat();
     }
 
     @Override
@@ -263,15 +273,58 @@ public class X360Activity extends WindowedAppActivity {
                 .show(stage);
     }
 
+
+    // ------------------------------------------------------------------ format d'image (touche FORMAT)
+
+    private ScreenFormat.Key formatKey;
+
+    private ScreenFormat.Key formatKey() {
+        if (formatKey == null) {
+            formatKey = new ScreenFormat.Key(store, "x360", ScreenFormat.KEYS, new ScreenFormat.Host() {
+                public void applyFormat() { applyFormat(); }
+
+                public void say(String text) {
+                    I18n.toast(X360Activity.this, text, android.widget.Toast.LENGTH_SHORT).show();
+                }
+
+                public void refreshKeys() { if (deck != null) deck.refreshKeys(); }
+            });
+        }
+        return formatKey;
+    }
+
+    /** Cadre la surface du moteur selon le format choisi (Auto, 16:9, 4:3 ou Étirer). */
+    private void applyFormat() {
+        if (stage == null || screen == null) return;
+        boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        boolean full = land || (pads != null && pads.any());
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int w = stage.getWidth() > 0 ? stage.getWidth() : dm.widthPixels;
+        int h = full ? (stage.getHeight() > 0 ? stage.getHeight() : dm.heightPixels) : dm.heightPixels / 2;
+        boolean fill = ScreenFormat.fit(screen, w, h, ScreenFormat.gravityFor(full), store.displayMode("x360"));
+        try { nativeSetFill(fill); } catch (Throwable ignored) { }
+    }
+
     // ------------------------------------------------------------------ manette
 
     /** Les touches Origami portent déjà les noms Xbox (A, B, X, Y) : correspondance directe. */
     private void press(String key, boolean down) {
+        if (key.equals("ASPECT")) {
+            formatKey().press(down);
+            return;
+        }
         if (key.equals("HOME")) {
             if (down) home();
             return;
         }
         int b = 0;
+        if (key.equals("QSAVE") || key.equals("QLOAD") || key.equals("FAST")) {
+            if (down) {
+                I18n.toast(this, "Pas de sauvegarde rapide ni d'accélération sur Xbox 360 : le moteur ne les offre pas.",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         if (key.equals("A")) b = A;
         else if (key.equals("B")) b = B;
         else if (key.equals("X")) b = X;

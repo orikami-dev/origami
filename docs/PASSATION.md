@@ -74,3 +74,38 @@ Dernière version livrée : **0.60.13** (`dist/origami-0.60.13-debug.apk`, ancie
 ## Règles d'installation (BOSS, 19/10)
 - « ORI » écrit par BOSS = lancer l'installation de la dernière version par adb (session du PC, commandes et barre de progression montrées).
 - À chaque installation, les versions précédentes vont tout de suite dans l'archive : dist/archive/ ici, FoldPlay\releases\archives sur le PC.
+
+## 0.61 en cours (arrêté le 19/10 soir, branche wip-0.61)
+
+Liste de BOSS du 19/10 22h12 (une seule grosse mise à jour, numéro 0.61.0). Le code compile (`bash app/build.sh`, VERSION 0.61.0-wip) mais n'a pas été essayé sur le Fold.
+
+### Fait dans le code (non testé sur l'appareil)
+- Menu Thème : doublon « Couleurs de la manette » retiré (MainActivity.themeMenu), il reste « Couleurs du logo et de la manette ».
+- Xbox 360 : profil joueur connecté d'office (patch Xenia profile_manager.cc, 02-origami-fixes.patch) pour supprimer la fenêtre « No gamer profile » qui bloquait DMC 4 ; JNI `nativeSetFill` (présentation étirée). libxenia-app.so reconstruit avec ces deux changements.
+- Touche FORMAT (type ASPECT) sur toutes les manettes sauf l'accueil : appui court = format suivant, appui long = verrouille. Classes ScreenFormat, ControlLayout.ensureAspect (migration layouts_v0610), PadDesign/ConsolePad.center, ControlView. Moteurs libretro : modes existants de GameActivity ; PS3/360 : Auto, 16:9, 4:3, Étirer (Ps3Activity/X360Activity.applyFormat ; PS3 passe par le réglage « Video@@Stretch To Display Area », effet en direct non vérifié).
+- Gâchettes en arc autour des joysticks (haricots inclinés, ConsolePad.arc/beans, Out.tilted, rotation de vue dans ControlDeckView) sauf GameCube et accueil ; Store.ergoTriggers() (par défaut oui). RESTE : l'interrupteur « Gâchettes d'origine » pour la Flex dans Réglages (le code lit déjà Store.ergoTriggers).
+- Save/Load/×2 : sur Xbox 360 et ×2 PS3, message clair « le moteur ne l'offre pas » (Xenia et RPCS3 n'ont ni état sauvegardé ni accélération). SAVE/LOAD PS3 appellent nativeSaveState : à vérifier sur appareil (BOSS dit qu'ils ne font rien).
+- Sons : tools/make-sounds.py a généré app/assets/sounds/<thème>/{move,select,back,open,launch}.ogg et app/assets/music/<thème>.ogg (64 s en boucle, 2,9 Mo). RESTE : le code qui les joue (remplacer CodecSound, lecture en boucle de la musique à l'accueil, volumes séparés dans Réglages), jamais écoutés.
+
+### Reste de la liste de BOSS
+1. PS3 : écran noir après la première cinémat. de Demon's Souls, son qui saccade, entrées reconnues. Demander le journal (Réglages > Débogage > Partager). Piste : vidéo en jeu / présentation du moteur.
+2. DMC 4 : image d'épilepsie, cinématique audio seule, écran-titre OK, Start sans réponse, fenêtre verte si on plie/déplie. Le correctif de profil devrait la supprimer ; à confirmer.
+3. Xbox 360 : écran bleu/noir et zones noires (voir ci-dessous).
+4. Menu codec PS3/360 encore plus pauvre que les autres plateformes : ajouter les mêmes entrées (format, ATH, manette, thèmes…).
+5. Jaquettes Xbox 360 absentes (PS3 OK) ; remplacer le bruit unique du codec par des bruits par thème + volume des sons d'interface.
+6. Remote Play : renommer PlayStation, XBOX, Steam ; au clic : solutions officielles (apps à télécharger), puis alternatives détectées sur le téléphone, puis « en choisir une à la main » (BOSS a PXPlay) ; montrer qu'un client de chaque plateforme sera intégré (choix grisé ou message).
+7. Cohérence de l'interface avec les thèmes, lignes qui se croisent, débordements, logo plus fluide.
+8. Logo et bouton Home de la manette (au lancement d'un jeu) qui brillent/scintillent pour montrer que ce sont des boutons.
+9. Refonte de l'assistant de démarrage : installation basique et avancée.
+10. RetroAchievements.
+11. Musiques en boucle par thème (fichiers faits), harmoniser les menus, tri du code mort à la toute fin.
+12. Shaders PS3 très longs à compiler au premier lancement (BOSS : à optimiser). Le moteur PS3 recompilé avec la sauvegarde périodique du cache (prebuilt/armsx3, 19:44) n'est PAS encore dans un APK livré : l'inclure dans la 0.61.0.
+
+### Pistes Xbox 360 (écran bleu DMC 4, zones noires Skyrim)
+- Format du swapchain Android = R8G8B8A8 (format 37), pas de souci d'échange rouge/bleu trouvé dans vulkan_presenter.cc.
+- Soupçon principal : pipelines « placeholder » du hot-swap asynchrone (shader pixel qui écrit du noir transparent) quand le vrai pipeline échoue ou tarde ; réglage « Shaders en arrière-plan » (async_shader_compilation) à décocher pour tester. Autre piste : chemin de rendu FBO/FSI sur Adreno (réglage « Rendu des cibles »).
+- Il faut le journal de DMC 4 (logcat-x360.txt) pour voir les erreurs « Failed to create Vulkan pipeline » et les fonctions d'extension manquantes.
+
+### Outils
+- Ghidra : non installable dans ce fil (github.com bloqué par le réseau). BOSS a changé l'environnement du projet ; le nouveau fil doit réessayer (release officielle NSA, JDK 21, `analyzeHeadless`). En attendant radare2 est installé (apt).
+- Le journal du build Xenia est dans ~/x360/build.log, les sources dans ~/x360/src (patch regénéré par `git diff b323729`).

@@ -19,7 +19,7 @@ final class ControlLayout {
 
     /** Types de touches disponibles, dans l'ordre du menu « Ajouter ». */
     static final String[] TYPES = {"DPAD", "STICK_L", "STICK_R", "A", "B", "X", "Y", "L", "R", "L2", "R2",
-        "L3", "R3", "SELECT", "START", "HOME", "TOUCHPAD", "FAST", "QSAVE", "QLOAD"};
+        "L3", "R3", "SELECT", "START", "HOME", "TOUCHPAD", "FAST", "QSAVE", "QLOAD", "ASPECT"};
 
     /** Nom affiché dans le menu « Ajouter ». */
     static String label(String type) {
@@ -35,6 +35,7 @@ final class ControlLayout {
         if (type.equals("FAST")) return "Accélérer le jeu";
         if (type.equals("QSAVE")) return "Sauvegarde rapide";
         if (type.equals("QLOAD")) return "Chargement rapide";
+        if (type.equals("ASPECT")) return "Format d'image (appui long : verrouiller)";
         return type;
     }
 
@@ -166,6 +167,7 @@ final class ControlLayout {
         l.add("SELECT", 12, 4, 5, 2, c, r);
         l.add("HOME", 19, 1, 6, 6, c, r);
         l.add("FAST", 19, 8, 6, 2, c, r);
+        l.add("ASPECT", 19, 11, 6, 2, c, r);
         l.add("QLOAD", 26, 1, 5, 2, c, r);
         l.add("START", 26, 4, 5, 2, c, r);
         l.add("STICK_L", 2, 9, 9, 9, c, r);
@@ -195,6 +197,7 @@ final class ControlLayout {
         l.add("SELECT", 7, 1, 5, 2, c, r);
         l.add("HOME", 19, 1, 6, 6, c, r);
         l.add("FAST", 19, 8, 6, 2, c, r);
+        l.add("ASPECT", 19, 11, 6, 2, c, r);
         l.add("START", 31, 1, 5, 2, c, r);
         l.add("QLOAD", 37, 1, 5, 2, c, r);
         l.add("STICK_L", 3, 11, 10, 10, c, r);
@@ -739,7 +742,7 @@ final class ControlLayout {
         if (t.equals("STICK_L")) return R_STL;
         if (t.equals("STICK_R")) return R_STR;
         if (t.equals("SELECT") || t.equals("START") || t.equals("HOME") || t.equals("FAST")
-                || t.equals("QSAVE") || t.equals("QLOAD")) return R_TOP;
+                || t.equals("QSAVE") || t.equals("QLOAD") || t.equals("ASPECT")) return R_TOP;
         return R_OTHER;
     }
 
@@ -782,6 +785,13 @@ final class ControlLayout {
         }
     }
 
+    /** Ajoute la touche FORMAT (0.61) si la disposition ne l'a pas : sous Accélérer, au centre. */
+    void ensureAspect() {
+        for (Control c : controls) if (c.type.equals("ASPECT")) return;
+        int cols = refCols > 0 ? refCols : 43, rows = refRows > 0 ? refRows : 28;
+        add("ASPECT", Math.max(0, cols / 2 - 3), Math.min(rows - 2, rows * 11 / 28), 6, 2, cols, rows);
+    }
+
     Control add(String type, int cx, int cy, int w, int h, int cols, int rows) {
         Control c = new Control(type, (float) cx / cols, (float) cy / rows, w, h);
         controls.add(c);
@@ -790,7 +800,7 @@ final class ControlLayout {
 
     static boolean pill(String type) {
         return type.equals("SELECT") || type.equals("START") || type.equals("FAST") || type.equals("QSAVE")
-                || type.equals("QLOAD");
+                || type.equals("QLOAD") || type.equals("ASPECT");
     }
 
     static boolean shoulder(String type) {

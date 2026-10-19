@@ -156,6 +156,11 @@ final class ControlDeckView extends ViewGroup {
         tour.run();
     }
 
+    /** Redessine les touches dont le texte change (FORMAT). */
+    void refreshKeys() {
+        for (int i = 0; i < getChildCount(); i++) getChildAt(i).invalidate();
+    }
+
     void stopTour() {
         if (tour != null) removeCallbacks(tour);
         tour = null;
@@ -430,6 +435,7 @@ final class ControlDeckView extends ViewGroup {
         layout.viewW = getWidth() / cell;
         layout.viewH = getHeight() / cell;
         layout.viewBottomCenter = overlay;
+        if (source != null) ConsolePad.ergo = source.ergoTriggers();
     }
 
     private float[] box(float[][] all, ControlLayout.Control c) {
@@ -462,6 +468,7 @@ final class ControlDeckView extends ViewGroup {
             int x = Math.round(ox + bx[0] * cell);
             int y = Math.round(oy + bx[1] * cell);
             v.layout(x, y, x + Math.round(bx[2] * cell), y + Math.round(bx[3] * cell));
+            v.setRotation(bx.length > 4 ? bx[4] : 0f);
         }
     }
 

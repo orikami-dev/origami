@@ -204,6 +204,7 @@ final class ControlView extends View {
         if (t.equals("FAST")) return "≫ ×2";
         if (t.equals("QSAVE")) return "SAVE";
         if (t.equals("QLOAD")) return "LOAD";
+        if (t.equals("ASPECT")) return ScreenFormat.caption;
         return t;
     }
 

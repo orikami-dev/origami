@@ -197,6 +197,7 @@ public class GameActivity extends Activity {
 
         deck = new ControlDeckView(this);
         deck.setSystem(system);
+        formatKey();
         deck.setSource(store);
         deck.setKeyListener(new ControlView.Listener() {
             @Override
@@ -861,6 +862,21 @@ public class GameActivity extends Activity {
 
     // ------------------------------------------------------------------ touches
 
+    private ScreenFormat.Key formatKey;
+
+    private ScreenFormat.Key formatKey() {
+        if (formatKey == null) {
+            formatKey = new ScreenFormat.Key(store, system, DISPLAY_KEYS, new ScreenFormat.Host() {
+                public void applyFormat() { applyDisplay(); }
+
+                public void say(String text) { toastUi(text); }
+
+                public void refreshKeys() { if (deck != null) deck.refreshKeys(); }
+            });
+        }
+        return formatKey;
+    }
+
     private void press(String key, boolean down) {
         CodecMenu open = CodecMenu.find(stage);
         if (open != null) {
@@ -870,6 +886,10 @@ public class GameActivity extends Activity {
         }
         if (key.equals("HOME")) {
             if (down) homePressed();
+            return;
+        }
+        if (key.equals("ASPECT")) {
+            formatKey().press(down);
             return;
         }
         if (key.equals("FAST")) {

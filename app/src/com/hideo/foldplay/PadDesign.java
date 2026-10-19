@@ -175,6 +175,7 @@ final class PadDesign {
         o.box("FAST", w / 2 - pw / 2, rowY, pw, ph);
         o.box("QSAVE", w / 2 - sideX - pw / 2, rowY, pw, ph);
         o.box("QLOAD", w / 2 + sideX - pw / 2, rowY, pw, ph);
+        o.box("ASPECT", w / 2 - pw / 2, bottom ? rowY - g - ph : rowY + ph + g, pw, ph);
     }
 
     /**
@@ -193,7 +194,7 @@ final class PadDesign {
     }
 
     private static float centerHeight() {
-        return HOME + G + PILL_H;
+        return HOME + 2 * G + 2 * PILL_H;
     }
 
     /**
@@ -263,6 +264,16 @@ final class PadDesign {
             for (int i = 0; i < keys.size(); i++) {
                 if (boxes[i] == null && keys.get(i).type.equals(type)) {
                     boxes[i] = new float[] {x, y, w, h};
+                    return;
+                }
+            }
+        }
+
+        /** Comme box, avec une rotation (degrés) autour du centre : gâchettes en arc. */
+        void tilted(String type, float x, float y, float w, float h, float deg) {
+            for (int i = 0; i < keys.size(); i++) {
+                if (boxes[i] == null && keys.get(i).type.equals(type)) {
+                    boxes[i] = new float[] {x, y, w, h, deg};
                     return;
                 }
             }

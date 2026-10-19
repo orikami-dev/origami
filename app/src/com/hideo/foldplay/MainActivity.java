@@ -1847,7 +1847,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         return bar;
     }
 
-    /** Les cinq thèmes, et l'interface aux couleurs de la manette en dernier choix. */
+    /** Les cinq thèmes, puis les couleurs du logo et de la manette (un seul panneau, 0.61). */
     private void themeMenu() {
         CodecMenu m = new CodecMenu(this).title("Thème", "COULEURS DE L'INTERFACE");
         final boolean sync = store.syncUi();
@@ -1864,16 +1864,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
             });
         }
-        m.radio("Couleurs de la manette", "Menus, titres, logo et emblèmes reprennent les couleurs de la manette active ; "
-                + "elles se règlent en direct", sync, new Runnable() {
-                    public void run() {
-                        store.setSyncUi(true);
-                        CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));
-                        if (open != null) open.dismiss();
-                        if (Theme.sync(MainActivity.this)) rebuild();
-                        ColorSheet.show(MainActivity.this, MainActivity.this, false, sheetHeight());
-                    }
-                });
         m.sub("Couleurs du logo et de la manette", store.logoColor() == 0 ? "Logo : suit le thème" : "Logo : couleur perso", new Runnable() {
             public void run() {
                 CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));

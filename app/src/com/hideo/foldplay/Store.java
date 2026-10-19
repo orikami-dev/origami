@@ -76,6 +76,12 @@ final class Store {
             saveLayouts(out);
             prefs.edit().putBoolean("layouts_v0603", true).apply();
         }
+        if (!prefs.getBoolean("layouts_v0610", false)) {
+            // 0.61 : touche FORMAT ajoutée à toutes les manettes.
+            for (ControlLayout l : out) l.ensureAspect();
+            saveLayouts(out);
+            prefs.edit().putBoolean("layouts_v0610", true).apply();
+        }
         return out;
     }
 
@@ -545,6 +551,24 @@ final class Store {
     void setScreenScraper(String devId, String devPw, String id, String pw) {
         prefs.edit().putString("ss_devid", devId).putString("ss_devpw", devPw)
                 .putString("ss_id", id).putString("ss_pw", pw).apply();
+    }
+
+    /** Gâchettes de la Flex : en arc autour des joysticks (par défaut) ou à leur place d'origine. */
+    boolean ergoTriggers() {
+        return prefs.getBoolean("ergo_triggers", true);
+    }
+
+    void setErgoTriggers(boolean on) {
+        prefs.edit().putBoolean("ergo_triggers", on).apply();
+    }
+
+    /** Touche FORMAT verrouillée : plus de changement par un appui involontaire. */
+    boolean formatLocked() {
+        return prefs.getBoolean("format_locked", false);
+    }
+
+    void setFormatLocked(boolean on) {
+        prefs.edit().putBoolean("format_locked", on).apply();
     }
 
     /** ATH de monitoring en jeu : images/s, vitesse, processeur, mémoire, batterie, chauffe. */

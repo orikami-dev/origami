@@ -225,6 +225,30 @@ index db65075..cd3cf92 100644
      size_t map_length = length;
      if (!length) {
        map_length = size_t(file_size);
+diff --git a/src/xenia/kernel/xam/profile_manager.cc b/src/xenia/kernel/xam/profile_manager.cc
+index 33bb264..3224e24 100644
+--- a/src/xenia/kernel/xam/profile_manager.cc
++++ b/src/xenia/kernel/xam/profile_manager.cc
+@@ -128,6 +128,19 @@ ProfileManager::ProfileManager(KernelState* kernel_state,
+               cvars::logged_profile_slot_3_xuid, true),
+           3);
+   }
++
++#if XE_PLATFORM_ANDROID
++  // Origami : sans profil connecté, certains jeux (DMC 4) ouvrent une fenêtre
++  // « No gamer profile selected » qui bloque le menu titre. On connecte le
++  // premier profil trouvé, ou on en crée un.
++  if (logged_profiles_.empty()) {
++    if (accounts_.empty()) {
++      CreateProfile("Origami", true, false);
++    } else {
++      Login(accounts_.begin()->first, 0, false);
++    }
++  }
++#endif
+ }
+ 
+ void ProfileManager::ReloadProfile(const uint64_t xuid) {
 diff --git a/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc b/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc
 index bed9436..82abcf2 100644
 --- a/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc
@@ -261,7 +285,7 @@ index 19be6a6..956ad8f 100644
  
    if (thread_state_) {
 diff --git a/src/xenia/ui/presenter.cc b/src/xenia/ui/presenter.cc
-index d53a081..5a472dd 100644
+index d53a081..803229a 100644
 --- a/src/xenia/ui/presenter.cc
 +++ b/src/xenia/ui/presenter.cc
 @@ -9,6 +9,8 @@
@@ -288,7 +312,7 @@ index d53a081..5a472dd 100644
    GuestOutputProperties& writable_properties =
        guest_output_properties_[guest_output_mailbox_writable_];
    writable_properties.frontbuffer_width = frontbuffer_width;
-@@ -1447,3 +1453,11 @@ void Presenter::DXGIUITickThread() {
+@@ -1447,3 +1453,18 @@ void Presenter::DXGIUITickThread() {
  
  }  // namespace ui
  }  // namespace xe
@@ -298,5 +322,12 @@ index d53a081..5a472dd 100644
 +extern "C" JNIEXPORT jlong JNICALL
 +Java_com_hideo_foldplay_X360Activity_nativeFrames(JNIEnv*, jclass) {
 +  return jlong(xe::ui::origami_guest_frames.load(std::memory_order_relaxed));
++}
++
++// Origami : « Étirer » remplit la surface au lieu de garder le rapport du jeu.
++extern "C" JNIEXPORT void JNICALL
++Java_com_hideo_foldplay_X360Activity_nativeSetFill(JNIEnv*, jclass,
++                                                   jboolean fill) {
++  cvars::present_letterbox = !fill;
 +}
 +#endif

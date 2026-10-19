@@ -11,8 +11,8 @@ ROOT="$(cd "$HERE/.." && pwd)"
 JAR="${ANDROID_JAR:-$HOME/sdk/android-34.jar}"
 BT="${BUILD_TOOLS:-/usr/lib/android-sdk/build-tools/debian}"
 OUT="${BUILD_DIR:-$HOME/foldplay-build}"
-VERSION=0.60.14
-VERSION_CODE=72
+VERSION=0.61.0-wip
+VERSION_CODE=73
 # Clé debug gardée dans le projet pour que chaque build s'installe par-dessus le précédent.
 KEYSTORE="${KEYSTORE:-$ROOT/keystore/foldplay-debug.jks}"
 

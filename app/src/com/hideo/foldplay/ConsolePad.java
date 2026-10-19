@@ -89,6 +89,9 @@ final class ConsolePad {
         }
     }
 
+    /** Gâchettes en arc autour des commandes des pouces (réglé par le deck depuis Store.ergoTriggers). */
+    static boolean ergo = true;
+
     /** Valeur par défaut hors jeu (accueil, éditeur) : une manette moderne neutre. */
     static final String GENERIC = "generic";
     /** Manette réservée à l'écran d'accueil. */
@@ -272,6 +275,7 @@ final class ConsolePad {
         if (!s.nav) {
             l.add("QSAVE", 12, 1, 5, 2, c, r);
             l.add("FAST", 19, 8, 6, 2, c, r);
+            l.add("ASPECT", 19, 11, 6, 2, c, r);
             l.add("QLOAD", 26, 1, 5, 2, c, r);
         }
         l.kind = "flex";
@@ -307,18 +311,62 @@ final class ConsolePad {
         if (bottom && solve(s, w, h, true) < 0.85f && solve(s, w, h, false) > solve(s, w, h, true) + 0.02f) bottom = false;
         float k = solve(s, w, h, bottom);
         float m = M * k, g = G * k;
-        // Gâchettes empilées dans les coins du haut.
         float sw = SH_W * k, sh = SH_H * k;
-        for (int i = 0; i < s.shL.size(); i++) o.box(s.shL.get(i)[0], m, m + i * (sh + g), sw, sh);
-        for (int i = 0; i < s.shR.size(); i++) o.box(s.shR.get(i)[0], w - m - sw, m + i * (sh + g), sw, sh);
         float[] left = side(s, w, h, k, size(s.leftOut, s) * k / 2, size(s.leftIn, s) * k / 2);
         float[] right = side(s, w, h, k, faceRadius(s) * k, size(s.rightIn, s) * k / 2);
+        if (arc(s)) {
+            float[][] bl = beans(s.shL, left[0], left[1], size(s.leftOut, s) * k / 2, true, k);
+            float[][] br = beans(s.shR, w - right[0], right[1], faceRadius(s) * k, false, k);
+            for (int i = 0; i < bl.length; i++) o.tilted(s.shL.get(i)[0], bl[i][0], bl[i][1], bl[i][2], bl[i][3], bl[i][4]);
+            for (int i = 0; i < br.length; i++) o.tilted(s.shR.get(i)[0], br[i][0], br[i][1], br[i][2], br[i][3], br[i][4]);
+        } else {
+            // Gâchettes empilées dans les coins du haut (disposition d'origine de la manette).
+            for (int i = 0; i < s.shL.size(); i++) o.box(s.shL.get(i)[0], m, m + i * (sh + g), sw, sh);
+            for (int i = 0; i < s.shR.size(); i++) o.box(s.shR.get(i)[0], w - m - sw, m + i * (sh + g), sw, sh);
+        }
         if (s.leftOut != null) o.circle(s.leftOut, left[0], left[1], size(s.leftOut, s) * k / 2);
         if (s.leftIn != null) o.circle(s.leftIn, left[2], left[3], size(s.leftIn, s) * k / 2);
         float fx = w - right[0], fy = right[1];
         for (Key key : s.face) o.circle(key.type, fx + key.x * FACE * k, fy + key.y * FACE * k, key.size * FACE * k / 2);
         if (s.rightIn != null) o.circle(s.rightIn, w - right[2], right[3], size(s.rightIn, s) * k / 2);
         center(o, w, h, k, bottom);
+    }
+
+    /** Gâchettes en arc : pour toutes les consoles sauf la GameCube, dont les gâchettes sont déjà basses. */
+    private static boolean arc(Spec s) {
+        return ergo && !s.family.equals("gc") && !s.family.equals(HOME_PAD) && (!s.shL.isEmpty() || !s.shR.isEmpty())
+                && (s.leftOut != null || s.leftIn != null);
+    }
+
+    /**
+     * Gâchettes en haricots, comme les touches X et Y de la manette GameCube autour de leur gros
+     * bouton : posées sur un arc au-dessus du groupe (centre cx, cy, rayon r), tangentes à l'arc.
+     * Les premières de la liste sont les plus proches du bord de l'écran. Renvoie [x, y, l, h, degrés].
+     */
+    private static float[][] beans(List<String[]> list, float cx, float cy, float r, boolean left, float k) {
+        int n = list.size();
+        float[][] out = new float[n][];
+        float bw = SH_W * k, bh = SH_H * k;
+        float rad = r + G * k + bh / 2;
+        float step = n > 1 ? 32f : 0f;
+        for (int i = 0; i < n; i++) {
+            float deg = n > 1 ? (left ? -step + 2 * step * i : step - 2 * step * i) : 0f;
+            double a = Math.toRadians(deg);
+            float x = cx + (float) (rad * Math.sin(a)), y = cy - (float) (rad * Math.cos(a));
+            out[i] = new float[] {x - bw / 2, y - bh / 2, bw, bh, deg};
+        }
+        return out;
+    }
+
+    /** Une gâchette tournée tient-elle dans la zone et hors de la rangée du centre ? */
+    private static boolean beanFits(float[] b, float w, float ch, float cBottom, float g) {
+        double a = Math.toRadians(b[4]);
+        float ex = (float) (Math.abs(b[2] * Math.cos(a)) + Math.abs(b[3] * Math.sin(a))) / 2;
+        float ey = (float) (Math.abs(b[2] * Math.sin(a)) + Math.abs(b[3] * Math.cos(a))) / 2;
+        float cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
+        if (cx - ex < 0 || cx + ex > w || cy - ey < 0) return false;
+        boolean beside = cx + ex <= w / 2 - ch - g || cx - ex >= w / 2 + ch + g;
+        return beside || cy - ey >= cBottom + g;
     }
 
     /**
@@ -352,6 +400,7 @@ final class ConsolePad {
         o.box("FAST", w / 2 - pw / 2, rowY, pw, ph);
         o.box("QSAVE", w / 2 - sideX - pw / 2, rowY, pw, ph);
         o.box("QLOAD", w / 2 + sideX - pw / 2, rowY, pw, ph);
+        o.box("ASPECT", w / 2 - pw / 2, bottom ? rowY - g - ph : rowY + ph + g, pw, ph);
     }
 
     /** La plus grande échelle (0,45 à 1,15, 1,35 en rétro) à laquelle tout tient sans chevauchement. */
@@ -369,8 +418,9 @@ final class ConsolePad {
 
     private static boolean fits(Spec s, float w, float h, float k, boolean bottom) {
         float m = M * k, g = G * k;
-        float ch = (HOME / 2 + G + PILL_W) * k, cH = (HOME + G + PILL_H) * k;
-        int stack = Math.max(s.shL.size(), s.shR.size());
+        float ch = (HOME / 2 + G + PILL_W) * k, cH = (HOME + 2 * G + 2 * PILL_H) * k;
+        boolean arc = arc(s);
+        int stack = arc ? 0 : Math.max(s.shL.size(), s.shR.size());
         float shBottom = stack == 0 ? 0 : m + stack * SH_H * k + (stack - 1) * g;
         if (stack > 0 && !bottom && m + SH_W * k + g > w / 2 - ch) return false;
         float cTop = bottom ? h - m - cH : m, cBottom = bottom ? h - m : m + cH;
@@ -386,6 +436,11 @@ final class ConsolePad {
             if (rIn[i] > 0) {
                 if (p[2] + rIn[i] > w / 2 - g / 2) return false;
                 if (!clear(p[2], p[3], rIn[i], w, ch, cTop, cBottom, g)) return false;
+            }
+            if (arc && rOut[i] > 0) {
+                float[][] bs = i == 0 ? beans(s.shL, p[0], p[1], rOut[i], true, k)
+                        : beans(s.shR, w - p[0], p[1], rOut[i], false, k);
+                for (float[] b : bs) if (!beanFits(b, w, ch, cBottom, g)) return false;
             }
         }
         return true;

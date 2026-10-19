@@ -148,6 +148,12 @@ public class Ps3Activity extends Activity {
         status.setPadding(p, p, p, p);
         stage.addView(status, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
         setContentView(stage);
+        stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                if (r - l != or - ol || b - t != ob - ot) applyFormat();
+            }
+        });
+        formatKey();
         // ATH : le moteur donne la durée de sa dernière image.
         hud = new HudOverlay(this, stage, store, "armsx3", new HudOverlay.Source() {
             public float fps(float seconds) {
@@ -199,6 +205,7 @@ public class Ps3Activity extends Activity {
         deck.setVisibility(pad ? View.GONE : View.VISIBLE);
         screen.setLayoutParams(sl);
         deck.setLayoutParams(dl);
+        applyFormat();
     }
 
     @Override
@@ -387,10 +394,46 @@ public class Ps3Activity extends Activity {
         }, "ps3-firmware").start();
     }
 
+
+    // ------------------------------------------------------------------ format d'image (touche FORMAT)
+
+    private ScreenFormat.Key formatKey;
+
+    private ScreenFormat.Key formatKey() {
+        if (formatKey == null) {
+            formatKey = new ScreenFormat.Key(store, "ps3", ScreenFormat.KEYS, new ScreenFormat.Host() {
+                public void applyFormat() { applyFormat(); }
+
+                public void say(String text) {
+                    I18n.toast(Ps3Activity.this, text, android.widget.Toast.LENGTH_SHORT).show();
+                }
+
+                public void refreshKeys() { if (deck != null) deck.refreshKeys(); }
+            });
+        }
+        return formatKey;
+    }
+
+    /** Cadre la surface du moteur selon le format choisi (Auto, 16:9, 4:3 ou Étirer). */
+    private void applyFormat() {
+        if (stage == null || screen == null) return;
+        boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        boolean full = land || (pads != null && pads.any());
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int w = stage.getWidth() > 0 ? stage.getWidth() : dm.widthPixels;
+        int h = full ? (stage.getHeight() > 0 ? stage.getHeight() : dm.heightPixels) : dm.heightPixels / 2;
+        boolean fill = ScreenFormat.fit(screen, w, h, ScreenFormat.gravityFor(full), store.displayMode("ps3"));
+        try { Ps3Core.nativeSettingsSet("Video@@Stretch To Display Area", String.valueOf(fill)); } catch (Throwable ignored) { }
+    }
+
     // ------------------------------------------------------------------ manette
 
     /** Touches Origami vers la manette PS3, par position : A = Croix, B = Rond, X = Carré, Y = Triangle. */
     private void press(String key, boolean down) {
+        if (key.equals("ASPECT")) {
+            formatKey().press(down);
+            return;
+        }
         if (key.equals("HOME")) {
             if (down) home();
             return;
@@ -417,6 +460,12 @@ public class Ps3Activity extends Activity {
             return;
         } else if (key.equals("QLOAD")) {
             if (down) quickLoad();
+            return;
+        } else if (key.equals("FAST")) {
+            if (down) {
+                I18n.toast(this, "Pas d'accélération sur PlayStation 3 : le moteur ne l'offre pas.",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
             return;
         } else return;
         if (down) {
