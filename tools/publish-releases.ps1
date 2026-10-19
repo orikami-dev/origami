@@ -1,4 +1,4 @@
-# Publie les releases privées d'Origami avec gh (connecté au compte du dépôt).
+﻿# Publie les releases privées d'Origami avec gh (connecté au compte du dépôt).
 # Usage : powershell -ExecutionPolicy Bypass -File publish-releases.ps1 -Work <dossier de travail>
 # Lit les APK de la branche temporaire apk-transfer et les notes de docs/releases (branche main).
 # Une release déjà publiée est sautée. À la fin, la branche apk-transfer est supprimée.
@@ -15,6 +15,7 @@ $apks = Get-ChildItem "apk\*.apk" | ForEach-Object {
 } | Sort-Object Key
 $latest = ($apks | Select-Object -Last 1).Version
 $i = 0
+$failed = @()
 foreach ($a in $apks) {
   $i++
   $tag = "v$($a.Version)"
@@ -23,9 +24,14 @@ foreach ($a in $apks) {
   $notes = "main\docs\releases\$($a.Version).md"
   $ga = @($tag, $a.Path, "--repo", $Repo, "--title", "Origami $($a.Version)", "--notes-file", $notes, "--target", "main")
   if ($a.Version -eq $latest) { $ga += "--latest" } else { $ga += "--latest=false" }
-  gh release create @args
-  Write-Host "$tag publiée"
+  gh release create @ga
+  if ($LASTEXITCODE -ne 0) { $failed += $tag; Write-Host "$tag ÉCHEC" } else { Write-Host "$tag publiée" }
 }
 gh repo edit $Repo --description "Origami par KAMI-WORKS : émulation et jeux réunis pour téléphones pliants. Déplie. Joue." --enable-wiki=false
-git -C main push origin --delete apk-transfer
-Write-Host "Terminé : $($apks.Count) versions, dernière $latest"
+if ($failed.Count -eq 0) {
+  git -C main push origin --delete apk-transfer
+  Write-Host "Terminé : $($apks.Count) versions, dernière $latest"
+} else {
+  Write-Host "Échecs : $($failed -join ', ') (branche apk-transfer gardée, relancer le script)"
+  exit 1
+}
