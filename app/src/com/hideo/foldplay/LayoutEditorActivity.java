@@ -79,10 +79,17 @@ public class LayoutEditorActivity extends Activity {
                 finish();
             }
         });
-        bar.addView(back);
         TextView title = text("MANETTE", 20, Theme.CODEC);
         title.setTypeface(Fonts.logo(this));
-        bar.addView(title);
+        title.setPadding(dp(6), 0, dp(6), 0);
+        if (Theme.RIGHT_HANDED) {
+            // Droitier : flèche et titre depuis le bord droit, sous le pouce (0.65).
+            bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            title.setTextDirection(View.TEXT_DIRECTION_LTR);
+            back.setText("→");
+        }
+        bar.addView(back);
+        bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
         tools.addView(bar);
 
         // Rangée qui passe à la ligne, remplie à chaque renderChips (une copie détachée perdait les manettes).

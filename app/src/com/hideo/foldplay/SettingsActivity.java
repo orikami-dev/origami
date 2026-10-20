@@ -107,16 +107,15 @@ public class SettingsActivity extends Activity {
             }
             TextView title = text(sectionTitle(section).toUpperCase(), 20, Theme.CODEC);
             title.setTypeface(Fonts.logo(this));
-            if (!twoPane && Theme.RIGHT_HANDED && bar.getChildCount() > 0) {
-                // Droitier : la flèche retour passe à droite du titre.
-                View back = bar.getChildAt(0);
-                bar.removeView(back);
-                bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
-                ((TextView) back).setText("→");
-                bar.addView(back);
-            } else {
-                bar.addView(title);
+            title.setPadding(dp(6), 0, dp(6), 0);
+            if (Theme.RIGHT_HANDED) {
+                // Droitier : flèche et titre se lisent depuis le bord droit, sous le pouce (0.65).
+                bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+                title.setTextDirection(View.TEXT_DIRECTION_LTR);
+                if (bar.getChildCount() > 0) ((TextView) bar.getChildAt(0)).setText("→");
             }
+            bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
+            if (Theme.RIGHT_HANDED) bar.setGravity(Gravity.CENTER_VERTICAL);
             main.addView(bar);
             body = vertical();
             body.setPadding(dp(twoPane ? 20 : 16), dp(8), dp(twoPane ? 24 : 16), dp(32));
@@ -165,10 +164,17 @@ public class SettingsActivity extends Activity {
         back.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { finish(); }
         });
-        bar.addView(back);
         TextView title = text("RÉGLAGES", 20, Theme.CODEC);
         title.setTypeface(Fonts.logo(this));
-        bar.addView(title);
+        title.setPadding(dp(6), 0, dp(6), 0);
+        if (Theme.RIGHT_HANDED) {
+            // Droitier : flèche et titre depuis le bord droit (0.65).
+            bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            title.setTextDirection(View.TEXT_DIRECTION_LTR);
+            back.setText("→");
+        }
+        bar.addView(back);
+        bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
         col.addView(bar);
 
         LinearLayout card = vertical();
