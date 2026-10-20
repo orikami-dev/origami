@@ -62,16 +62,16 @@ final class EngineSettings {
             // FBO partout : le chemin FSI demande une extension absente des puces Adreno.
             {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "0"}, {"gpu_allow_invalid_fetch_constants", "true"},
-                    {"async_shader_compilation", "true"}, {"vsync", "true"}},
+                    {"async_shader_compilation", "false"}, {"vsync", "true"}},
             // balanced
             {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "-1"}, {"gpu_allow_invalid_fetch_constants", "true"},
-                    {"async_shader_compilation", "true"}, {"vsync", "true"}},
+                    {"async_shader_compilation", "false"}, {"vsync", "true"}},
             // quality
             // Qualité : ×8 (et non ×16) pour ménager la bande passante mémoire de l'Adreno.
             {{"draw_resolution_scale", "2"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "8"}, {"gpu_allow_invalid_fetch_constants", "true"},
-                    {"async_shader_compilation", "true"}, {"vsync", "true"}},
+                    {"async_shader_compilation", "false"}, {"vsync", "true"}},
     };
 
     private static final Opt[] PS3_OPTS = {
