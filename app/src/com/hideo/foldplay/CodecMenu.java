@@ -301,6 +301,7 @@ final class CodecMenu extends FrameLayout {
     }
 
     void dismiss() {
+        if (!UiSound.playedRecently(150)) UiSound.play(getContext(), UiSound.CLOSE);
         if (host != null) host.removeView(this);
         host = null;
         if (listener != null) listener.onClosed();
@@ -759,8 +760,8 @@ final class CodecMenu extends FrameLayout {
     private void activate(int i) {
         if (i < 0 || i >= items.size()) return;
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-        UiSound.play(getContext(), UiSound.SELECT);
         Item it = items.get(i);
+        UiSound.play(getContext(), it.keepOpen && it.mark == 2 ? UiSound.ON : it.keepOpen && it.mark == 1 ? UiSound.OFF : UiSound.SELECT);
         if (!it.keepOpen) {
             // On ferme d'abord : l'action peut ouvrir un autre menu à la place.
             Listener l = listener;

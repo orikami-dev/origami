@@ -399,7 +399,45 @@ def probe(p):
                                     capture_output=True, text=True).stdout)
     except Exception: return float('nan')
 
+
+# ---------- sons d'actions supplémentaires (0.65.24) : suivant, onglet, activé, désactivé, erreur, terminé, fermer ----------
+EXTRA = dict(next=.2, tab=.1, on=.2, off=.2, error=.34, done=.7, close=.2)
+EXTRA_LIKE = dict(next='select', tab='move', on='select', off='select', error='back', done='open', close='back')
+
+def voice_of(th, r):
+    if th == 'codec':
+        return lambda m, d: filt(pulse(mf(m), d, .4), hi=4500) * ad(int(d * SR), .002, d * .4)
+    if th == 'arctique': return lambda m, d: bell(mf(m), d, d * .5)
+    if th == 'ecarlate': return lambda m, d: pluck(mf(m), d, r, .12)
+    if th == 'sakura': return lambda m, d: box(mf(m), d, d * .5)
+    return lambda m, d: rhodes(mf(m), d, .7, d * .6)
+
+def sfx_extra(th, r):
+    v = voice_of(th, r)
+    base = dict(codec=84, arctique=84, ecarlate=67, sakura=84, ambre=72)[th]
+    n = lambda k: int(EXTRA[k] * SR)
+    o = {}
+    o['next'] = mixl(n('next'), [(0, v(base, .1), 1), (.06, v(base + 5, .12), 1)])
+    o['tab'] = mixl(n('tab'), [(0, v(base - 5, .08), 1)])
+    o['on'] = mixl(n('on'), [(0, v(base, .1), 1), (.07, v(base + 7, .12), 1)])
+    o['off'] = mixl(n('off'), [(0, v(base + 7, .1), 1), (.07, v(base, .12), .9)])
+    o['error'] = mixl(n('error'), [(0, v(base - 12, .14), 1), (.12, v(base - 13, .2), 1)])
+    o['done'] = mixl(n('done'), [(.09 * i, v(base - 12 + m, .4), .9) for i, m in enumerate((0, 4, 7, 12))])
+    o['close'] = mixl(n('close'), [(0, v(base + 3, .1), .9), (.06, v(base - 4, .12), 1)])
+    return o
+
+def build_extra():
+    for ti, th in enumerate(THEMES):
+        for k, x in sfx_extra(th, np.random.default_rng(3000 + ti)).items():
+            like = EXTRA_LIKE[k]
+            y = stereo_ui(fin(body(x, like), EXTRA[k]), like, 400 + ti)
+            encode(f"{ROOT}/sounds/{th}/{k}.ogg", y, 2, 6)
+            print(th, k)
+
 if __name__ == "__main__":
+    import sys
+    if sys.argv[1:] == ["extra"]:
+        build_extra(); sys.exit(0)
     rows = []
     for ti, th in enumerate(THEMES):
         for k, x in SFX[th](np.random.default_rng(1000 + ti)).items():

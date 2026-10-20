@@ -567,7 +567,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     private void cycleFilter(int dir) {
         List<String> keys = filterKeys();
         int i = keys.indexOf(filter);
-        UiSound.play(this, UiSound.MOVE);
+        UiSound.play(this, UiSound.TAB);
         switchFilter(keys.get(((i < 0 ? 0 : i) + dir + keys.size()) % keys.size()), dir);
     }
 

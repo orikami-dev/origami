@@ -2,6 +2,9 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.24
+- Sons système propres à chaque thème pour les actions : suivant, changement d'onglet, option activée ou désactivée, erreur, opération terminée, fermeture d'un menu.
+
 ## 0.65.23
 - Mises à jour : le bouton et sa barre de progression sont pleine largeur, texte centré.
 

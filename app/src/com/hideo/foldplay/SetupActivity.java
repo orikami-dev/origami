@@ -104,7 +104,10 @@ public class SetupActivity extends Activity {
         next.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (step == steps().length - 1) finishSetup();
-                else go(step + 1);
+                else {
+                    UiSound.play(SetupActivity.this, UiSound.NEXT);
+                    go(step + 1);
+                }
             }
         });
         nav.addView(next);
@@ -378,7 +381,7 @@ public class SetupActivity extends Activity {
         row((sound ? "■  " : "□  ") + "Bruits de l'interface", "Déplacement, validation, lancement d'un jeu", new Runnable() {
             public void run() {
                 store.setMenuSound(!sound);
-                UiSound.play(SetupActivity.this, UiSound.SELECT);
+                UiSound.play(SetupActivity.this, sound ? UiSound.OFF : UiSound.ON);
                 go(step);
             }
         });

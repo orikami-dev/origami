@@ -1173,6 +1173,7 @@ public class SettingsActivity extends Activity {
                                         }
 
                                         public void done(boolean ok) {
+                                            UiSound.play(SettingsActivity.this, ok ? UiSound.DONE : UiSound.ERROR);
                                             goBtn.setText(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android"
                                                     : "Échec du téléchargement"));
                                         }
@@ -1582,6 +1583,7 @@ public class SettingsActivity extends Activity {
                 box.setText(on[0] ? "■" : "□");
                 box.setTextColor(on[0] ? Theme.CODEC : Theme.MUTED);
                 t.set(on[0]);
+                UiSound.play(SettingsActivity.this, on[0] ? UiSound.ON : UiSound.OFF);
             }
         });
     }
@@ -1730,6 +1732,7 @@ public class SettingsActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     public void run() {
                         dialog.dismiss();
+                        UiSound.play(SettingsActivity.this, failed.length() == 0 ? UiSound.DONE : UiSound.ERROR);
                         toast(failed.length() == 0 ? (list.size() > 1 ? "Cœurs retéléchargés." : "Cœur retéléchargé.")
                                 : "Échec pour : " + failed + ". Vérifie la connexion et réessaie.");
                         render();

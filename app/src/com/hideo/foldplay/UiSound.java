@@ -11,8 +11,9 @@ import android.media.SoundPool;
  * Réglages > Son ; « Son des menus » coupe les bruits, « Musique » coupe la musique.
  */
 final class UiSound {
-    static final String MOVE = "move", SELECT = "select", BACK = "back", OPEN = "open", LAUNCH = "launch";
-    private static final String[] NAMES = {MOVE, SELECT, BACK, OPEN, LAUNCH};
+    static final String MOVE = "move", SELECT = "select", BACK = "back", OPEN = "open", LAUNCH = "launch",
+            NEXT = "next", TAB = "tab", ON = "on", OFF = "off", ERROR = "error", DONE = "done", CLOSE = "close";
+    private static final String[] NAMES = {MOVE, SELECT, BACK, OPEN, LAUNCH, NEXT, TAB, ON, OFF, ERROR, DONE, CLOSE};
 
     private static SoundPool pool;
     private static String poolTheme;
@@ -37,7 +38,7 @@ final class UiSound {
         if (!store.menuSound() || !ringing(ctx)) return;
         float vol = store.uiVolume() / 100f;
         if (vol <= 0f) return;
-        if (MOVE.equals(name)) {
+        if (MOVE.equals(name) || TAB.equals(name)) {
             // Défilement rapide : un seul tic toutes les 45 ms.
             long now = android.os.SystemClock.uptimeMillis();
             if (now - lastMove < 45) return;
