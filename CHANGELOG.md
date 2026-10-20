@@ -2,6 +2,9 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.26
+- Réglages > Débogage : nouveau bouton « Copier le journal », un clic pour copier la fin du journal et la coller dans une conversation.
+
 ## 0.65.25
 - Gâchettes à bascule : elles marchent aussi avec L et R des jeux 2D.
 - Andon : la lumière suit l'image réelle du jeu et se reforme selon le format (rotation, pliage), sans couper l'interface.

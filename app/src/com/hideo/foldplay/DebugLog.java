@@ -325,6 +325,38 @@ final class DebugLog {
         SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain");
     }
 
+    /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */
+    private static final int CLIP = 60 * 1024;
+
+    /**
+     * Un clic : la fiche de l'appareil et la fin du journal le plus récent partent dans le presse-papiers,
+     * prêtes à coller dans le chat (Claude ne reçoit pas les envois d'Android).
+     */
+    static void copy(Activity a) {
+        try {
+            StringBuilder all = new StringBuilder(info(a)).append('\n');
+            File[] fs = dir(a).listFiles();
+            File last = null;
+            if (fs != null) {
+                for (File f : fs) {
+                    if (f.getName().endsWith(".pb")) continue;
+                    if (last == null || f.lastModified() > last.lastModified()) last = f;
+                }
+            }
+            if (last != null) {
+                byte[] b = read(last);
+                int from = Math.max(0, b.length - CLIP);
+                all.append("\n===== ").append(last.getName()).append(" (fin, ").append(CLIP / 1024).append(" Ko) =====\n")
+                        .append(new String(b, from, b.length - from, "UTF-8"));
+            }
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) a.getSystemService(Context.CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("journal Origami", all.toString()));
+            I18n.toast(a, "Journal copié : colle-le dans le chat", android.widget.Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            I18n.toast(a, "Copie du journal impossible : " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
     private static byte[] read(File f) throws IOException {
         InputStream in = new FileInputStream(f);
         try {

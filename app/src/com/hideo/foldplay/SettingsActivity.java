@@ -1253,6 +1253,12 @@ public class SettingsActivity extends Activity {
                     DebugLog.share(SettingsActivity.this);
                 }
             });
+            action("Copier le journal", "Un clic : la fin du journal part dans le presse-papiers, à coller dans le chat",
+                    new Runnable() {
+                public void run() {
+                    DebugLog.copy(SettingsActivity.this);
+                }
+            });
             action("Effacer le journal", "Supprime les journaux et rapports enregistrés", new Runnable() {
                 public void run() {
                     boolean on = store.debug();
