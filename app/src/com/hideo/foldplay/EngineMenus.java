@@ -59,7 +59,7 @@ final class EngineMenus {
                 String cur = store.activeLayout();
                 for (final ControlLayout l : store.layouts()) {
                     if (l.floating()) {
-                        p.soon(null, l.name, "🚧🏗️");
+                        p.soon(null, l.name, "👷‍♂️🚧");
                         continue;
                     }
                     p.radio(l.name, l.kind.equals("flex") && !l.split ? "La manette de la console du jeu" : null,

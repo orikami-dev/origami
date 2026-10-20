@@ -1169,7 +1169,7 @@ public class GameActivity extends Activity {
                 for (final ControlLayout l : store.layouts()) {
                     // Mini : en construction, visible mais pas sélectionnable (0.60.3).
                     if (l.floating()) {
-                        p.soon(null, l.name, "🚧🏗️");
+                        p.soon(null, l.name, "👷‍♂️🚧");
                         continue;
                     }
                     p.radio(l.name, l.kind.equals("flex") && !l.split ? "La manette de la console du jeu" : null, l.name.equals(cur), new Runnable() {

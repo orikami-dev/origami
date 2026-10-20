@@ -119,7 +119,7 @@ Liste de BOSS du 19/10 22h12 (une seule grosse mise à jour, numéro 0.61.0). Le
 À appliquer dans le prochain fil, ouvert seulement quand BOSS le dit.
 - Sens de la main (droitier/gaucher) sur toute la navigation des menus et sous-menus, pas seulement les flèches retour.
 - Manette 2D manquante dans les puces de l'éditeur (seules Flex, 3D, Mini apparaissent) : la remettre.
-- Remplacer partout les mentions « en chantier » par deux emoji (🚧🏗️).
+- Remplacer partout les mentions « en chantier » par deux emoji (👷‍♂️🚧).
 - Ambre : la nouvelle image de la manette Ambre (soleil art déco) devient le fond de l'écran du haut ; recréer une nouvelle manette Ambre.
 - Le dépôt devient public : la mise à jour depuis les Réglages (Updater) doit marcher dans la prochaine version.
 - Sortir tout le monitoring (ATH/RTSS) des réglages d'Affichage vers sa propre catégorie.

@@ -252,7 +252,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         m.sub("En choisir une manuellement…", "N'importe quelle app installée, par exemple PXPlay", new Runnable() {
             public void run() { addClientMenu(group); }
         });
-        m.soon(null, "Client intégré à Origami", "🚧🏗️ " + MobileApps.builtinName(group)
+        m.soon(null, "Client intégré à Origami", "👷‍♂️🚧 " + MobileApps.builtinName(group)
                 + " sera intégré directement dans l'app, avec ta manette Origami");
         m.show(menuHost());
     }
@@ -1952,9 +1952,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         });
         // Choix du pack à part : rouvert avec le store de thèmes communautaires (décision BOSS,
         // 0.60.6). D'ici là, les icônes suivent le thème (iconPackMenu reste prêt).
-        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "🚧🏗️ Arrive avec le store de thèmes. Les icônes suivent le thème.");
+        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "👷‍♂️🚧 Arrive avec le store de thèmes. Les icônes suivent le thème.");
         // Partage de thèmes entre joueurs : annoncé, pas encore ouvert.
-        m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "🚧🏗️ Partager et récupérer des thèmes");
+        m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "👷‍♂️🚧 Partager et récupérer des thèmes");
         m.show(CodecMenu.hostFor(this));
     }
 

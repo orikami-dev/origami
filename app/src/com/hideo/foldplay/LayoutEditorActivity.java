@@ -207,8 +207,8 @@ public class LayoutEditorActivity extends Activity {
         for (final ControlLayout l : layouts) {
             // Mini : en construction (0.60.3), ni ouverte ni modifiable.
             if (l.floating()) {
-                chips.addView(chip(l.name + " · 🚧🏗️", false, new Runnable() {
-                    public void run() { toast("La manette Mini : 🚧🏗️"); }
+                chips.addView(chip(l.name + " · 👷‍♂️🚧", false, new Runnable() {
+                    public void run() { toast("La manette Mini : 👷‍♂️🚧"); }
                 }));
                 continue;
             }
