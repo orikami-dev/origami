@@ -247,18 +247,17 @@ public class Ps3Activity extends Activity {
         FrameLayout.LayoutParams sl = (FrameLayout.LayoutParams) screen.getLayoutParams();
         FrameLayout.LayoutParams dl = (FrameLayout.LayoutParams) deck.getLayoutParams();
         int h = getResources().getDisplayMetrics().heightPixels;
+        int strip = 0;
         if (land || pad) {
-            sl.height = -1;
-            sl.gravity = Gravity.TOP;
-            dl.height = -1;
-            dl.gravity = Gravity.BOTTOM;
+            GameLayout.full(sl, dl);
             deck.setOverlay(true, store.overlayOpacity());
         } else {
-            sl.height = h / 2;
-            sl.gravity = Gravity.TOP;
-            dl.height = h / 2;
-            dl.gravity = Gravity.BOTTOM;
+            strip = GameLayout.portrait(this, sl, dl);
             deck.setOverlay(false, store.overlayOpacity());
+        }
+        if (hud != null) {
+            hud.setStrip(strip);
+            hud.apply();
         }
         deck.setVisibility(pad ? View.GONE : View.VISIBLE);
         screen.setLayoutParams(sl);
@@ -268,6 +267,7 @@ public class Ps3Activity extends Activity {
         if (status != null) {
             FrameLayout.LayoutParams tl = (FrameLayout.LayoutParams) status.getLayoutParams();
             tl.height = sl.height;
+            tl.topMargin = sl.topMargin;
             tl.gravity = Gravity.TOP;
             status.setLayoutParams(tl);
         }

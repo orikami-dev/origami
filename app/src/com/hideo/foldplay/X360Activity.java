@@ -263,17 +263,18 @@ public class X360Activity extends WindowedAppActivity {
         FrameLayout.LayoutParams sl = (FrameLayout.LayoutParams) screen.getLayoutParams();
         FrameLayout.LayoutParams dl = (FrameLayout.LayoutParams) deck.getLayoutParams();
         int h = getResources().getDisplayMetrics().heightPixels;
+        int strip = 0;
         if (land || pad) {
-            sl.height = -1;
-            dl.height = -1;
+            GameLayout.full(sl, dl);
             deck.setOverlay(true, store.overlayOpacity());
         } else {
-            sl.height = h / 2;
-            dl.height = h / 2;
+            strip = GameLayout.portrait(this, sl, dl);
             deck.setOverlay(false, store.overlayOpacity());
         }
-        sl.gravity = Gravity.TOP;
-        dl.gravity = Gravity.BOTTOM;
+        if (hud != null) {
+            hud.setStrip(strip);
+            hud.apply();
+        }
         deck.setVisibility(pad ? View.GONE : View.VISIBLE);
         screen.setLayoutParams(sl);
         deck.setLayoutParams(dl);
@@ -282,6 +283,7 @@ public class X360Activity extends WindowedAppActivity {
         if (status != null) {
             FrameLayout.LayoutParams tl = (FrameLayout.LayoutParams) status.getLayoutParams();
             tl.height = sl.height;
+            tl.topMargin = sl.topMargin;
             tl.gravity = Gravity.TOP;
             status.setLayoutParams(tl);
         }

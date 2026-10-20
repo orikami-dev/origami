@@ -61,6 +61,13 @@ final class HudOverlay {
         return Math.round(v * activity.getResources().getDisplayMetrics().density);
     }
 
+    /** Hauteur de la bande « barre d'état » réservée en haut (portrait en jeu) : l'ATH s'y centre. */
+    private int strip;
+
+    void setStrip(int px) {
+        strip = px;
+    }
+
     /** Affiche ou cache l'ATH selon les réglages. */
     void apply() {
         boolean on = store.hud();
@@ -79,9 +86,17 @@ final class HudOverlay {
                 : "right".equals(pos) ? Gravity.END : Gravity.START);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, gravity);
         int m = line ? dp(6) : dp(20);
-        lp.setMargins(m, m, m, 0);
+        lp.setMargins(m, strip > 0 ? 0 : m, m, 0);
         hud.setLayoutParams(lp);
         hud.setTranslationY(0);
+        if (strip > 0) {
+            // À la place de la barre d'état : centré dans la bande, rien sur l'image du jeu.
+            hud.post(new Runnable() {
+                public void run() {
+                    if (hud != null && strip > 0) hud.setTranslationY(Math.max(0, (strip - hud.getHeight()) / 2f));
+                }
+            });
+        }
         Hud.avoidCutout(hud, m);
         hud.setTextSize(Hud.SIZES[Math.max(0, Math.min(2, store.hudSize()))]);
         hud.setSingleLine(line);

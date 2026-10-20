@@ -381,6 +381,21 @@ final class Theme {
         return new ThemeBackdrop(THEME_ID, BG, CODEC, radius).squareTop(true);
     }
 
+    /** Hauteur de la barre d'état et de la barre de navigation du téléphone, même cachées (plein écran). */
+    static int statusBarPx(android.content.Context c) {
+        return systemBarPx(c, "status_bar_height", 24);
+    }
+
+    static int navBarPx(android.content.Context c) {
+        return systemBarPx(c, "navigation_bar_height", 20);
+    }
+
+    private static int systemBarPx(android.content.Context c, String name, int fallbackDp) {
+        int id = c.getResources().getIdentifier(name, "dimen", "android");
+        int px = id > 0 ? c.getResources().getDimensionPixelSize(id) : 0;
+        return px > 0 ? px : Math.round(fallbackDp * c.getResources().getDisplayMetrics().density);
+    }
+
     /** Hauteur des barres système (gauche, haut, droite, bas) mesurée par la fenêtre classique. */
     static final int[] INSETS = new int[4];
     /** Vrai en Tsuru : le contenu passe sous les barres, c'est lui qui se marge (pas la racine). */
