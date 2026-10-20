@@ -469,6 +469,7 @@ final class ControlDeckView extends ViewGroup {
             int y = Math.round(oy + bx[1] * cell);
             v.layout(x, y, x + Math.round(bx[2] * cell), y + Math.round(bx[3] * cell));
             v.setRotation(bx.length > 4 ? bx[4] : 0f);
+            v.setBean(bx.length > 7 ? bx[5] : 0f, bx.length > 7 ? bx[6] : 0f, bx.length > 7 ? bx[7] : 0f);
         }
     }
 

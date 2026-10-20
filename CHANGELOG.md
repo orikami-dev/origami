@@ -44,6 +44,7 @@ Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la 
 
 ⭐ = mise à jour majeure.
 
+- [**0.62.3**](https://github.com/orikami-dev/origami/releases/tag/v0.62.3) : gâchettes en haricots façon GameCube, Format et ×2 en icônes de coin, musique dès le choix du thème, sonar sans ligne fixe, éditeur de manette allégé.
 - [**0.62.2**](https://github.com/orikami-dev/origami/releases/tag/v0.62.2) : moteurs PS3/360 qui plantaient au lancement, sons seulement en mode sonnerie, curseurs de volume, fonds animés.
 - [**0.62.1**](https://github.com/orikami-dev/origami/releases/tag/v0.62.1) : fenêtres 360 validées seules (DMC 4), jaquettes 360, taille de manette corrigée, catégorie Son, flèche retour, musique sans coupure, nouvelle musique Écarlate, emblèmes Remote Play.
 - ⭐ [**0.62.0**](https://github.com/orikami-dev/origami/releases/tag/v0.62.0) : sons et musique par thème, assistant simple ou avancé, logo animé, Remote Play par plateforme, jaquettes 360, gâchettes en arc, touche FORMAT, menus Home PS3/360 enrichis, sauvegarde rapide PS3, décors PS3 sans interpréteur, profil joueur 360 (DMC 4), journal en un seul fichier.

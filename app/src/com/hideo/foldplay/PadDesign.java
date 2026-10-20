@@ -73,15 +73,17 @@ final class PadDesign {
         float[] right = stagger(w, h, m, g, rF, rS, s);
         // Gâchettes en arc au-dessus du joystick gauche et du losange (0.62, façon X et Y de la
         // GameCube), sinon empilées dans les coins du haut (disposition d'origine).
-        float[][] bl = arc(left[0], left[1], rS, true, s);
-        float[][] br = arc(w - right[0], right[1], rF, false, s);
+        float[][] bl = arc(left[0], left[1], rS, true, s, left[0]);
+        float[][] br = arc(w - right[0], right[1], rF, false, s, right[0]);
         if (ConsolePad.ergo && inside(bl, w, h, s) && inside(br, w, h, s)) {
-            o.tilted("L2", bl[0][0], bl[0][1], bl[0][2], bl[0][3], bl[0][4]);
-            o.tilted("L", bl[1][0], bl[1][1], bl[1][2], bl[1][3], bl[1][4]);
-            o.tilted("R2", br[0][0], br[0][1], br[0][2], br[0][3], br[0][4]);
-            o.tilted("R", br[1][0], br[1][1], br[1][2], br[1][3], br[1][4]);
+            o.bean("L2", bl[0]);
+            o.bean("L", bl[1]);
+            o.bean("R2", br[0]);
+            o.bean("R", br[1]);
+            ConsolePad.corners(o, w, s, 0);
         } else {
             shoulders(o, w, s, "L2", "L", "R2", "R");
+            ConsolePad.cornersBeside(o, w, s);
         }
         o.circle("STICK_L", left[0], left[1], rS);
         o.circle("DPAD", left[2], left[3], rD);
@@ -129,6 +131,7 @@ final class PadDesign {
         float oy = Math.min(h - m - rL - 0.35f * p, h - m - b / 2 - p);
         for (int i = 0; i < 4; i++) o.circle(keys[i], ox + at[i][0], oy + at[i][1], b / 2);
         center(o, w, h, s, bottom);
+        ConsolePad.corners(o, w, s, 0);
     }
 
     // ------------------------------------------------------------------ Mini
@@ -165,19 +168,8 @@ final class PadDesign {
      * Deux gâchettes en haricots posées sur un arc au-dessus d'un groupe (centre cx, cy, rayon r) :
      * la 2 côté bord de l'écran, la 1 côté centre. Renvoie [x, y, l, h, degrés] pour chacune.
      */
-    private static float[][] arc(float cx, float cy, float r, boolean left, float s) {
-        float bw = SH_W * s, bh = SH_H * s;
-        float rad = r + G * s + bh / 2;
-        float[][] out = new float[2][];
-        for (int i = 0; i < 2; i++) {
-            // La 2 juste au-dessus du joystick, la 1 plus bas vers le centre, comme Y puis X
-            // autour du A de la GameCube : rien ne dépasse vers le bord de l'écran (0.62.1).
-            float deg = (left ? 1 : -1) * (i == 0 ? 8f : 48f);
-            double a = Math.toRadians(deg);
-            float x = cx + (float) (rad * Math.sin(a)), y = cy - (float) (rad * Math.cos(a));
-            out[i] = new float[] {x - bw / 2, y - bh / 2, bw, bh, deg};
-        }
-        return out;
+    private static float[][] arc(float cx, float cy, float r, boolean left, float s, float room) {
+        return ConsolePad.beanArc(2, cx, cy, r, left, s, G * s, room);
     }
 
     /** Les gâchettes tournées restent-elles dans la zone, hors de la rangée du centre ? */
@@ -190,6 +182,7 @@ final class PadDesign {
             float ey = (float) (Math.abs(b[2] * Math.sin(a)) + Math.abs(b[3] * Math.cos(a))) / 2;
             float cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
             if (cx - ex < mg || cx + ex > w - mg || cy - ey < mg || cy + ey > h) return false;
+            if (!ConsolePad.cornerClear(cx, cy, ex, ey, w, s)) return false;
             if (Math.abs(cx - w / 2) < ex + ch) return false;
         }
         return true;
@@ -206,7 +199,7 @@ final class PadDesign {
 
     /**
      * Rangée du centre : Maison exactement au milieu ; Select et Start de chaque côté, à sa hauteur ;
-     * Accélérer, sauvegarde et chargement rapides sur la rangée voisine, dans le même ordre.
+     * sauvegarde et chargement rapides sur la rangée voisine. Format et Accélérer sont dans les coins.
      */
     private static void center(Out o, float w, float h, float s, boolean bottom) {
         float m = M * s, g = G * s, hm = HOME * s, pw = PILL_W * s, ph = PILL_H * s;
@@ -217,10 +210,8 @@ final class PadDesign {
         o.box("SELECT", w / 2 - sideX - pw / 2, cy - ph / 2, pw, ph);
         o.box("START", w / 2 + sideX - pw / 2, cy - ph / 2, pw, ph);
         float rowY = bottom ? homeY - g - ph : homeY + hm + g;
-        o.box("FAST", w / 2 - pw / 2, rowY, pw, ph);
-        o.box("QSAVE", w / 2 - sideX - pw / 2, rowY, pw, ph);
-        o.box("QLOAD", w / 2 + sideX - pw / 2, rowY, pw, ph);
-        o.box("ASPECT", w / 2 - pw / 2, bottom ? rowY - g - ph : rowY + ph + g, pw, ph);
+        o.box("QSAVE", w / 2 - g / 2 - pw, rowY, pw, ph);
+        o.box("QLOAD", w / 2 + g / 2, rowY, pw, ph);
     }
 
     /**
@@ -262,7 +253,7 @@ final class PadDesign {
         float ch = centerHalf() * s, cH = centerHeight() * s;
         // Haut de la zone libre pour les pouces, sous les gâchettes (ou la rangée du centre).
         float shBottom = xbox ? m + 2 * SH_H * s + g : 0;
-        if (xbox && m + SH_W * s + g > w / 2 - ch && !bottom) return false;
+        if (xbox && m + SH_W * s + g + ConsolePad.ICON * s + g > w / 2 - ch && !bottom) return false;
         float cTop = bottom ? h - m - cH : m, cBottom = bottom ? h - m : m + cH;
         if (xbox) {
             float rS = STICK * s / 2, rD = DPAD * s / 2, rF = faceRadius(FACE * s);
@@ -283,6 +274,8 @@ final class PadDesign {
         if (2 * m + 2 * rL + panelW + 2 * g > w) return false;
         if (h - 2 * m < Math.max(2 * rL, panelH)) return false;
         if (!clear(m + rL, h - m - rL, rL, w, ch, cTop, cBottom, g)) return false;
+        if (!ConsolePad.cornerClear(m + rL, h - m - rL, rL, s, 0)) return false;
+        if (h - m - panelH < ConsolePad.cornerBottom(s, 0)) return false;
         float px = w - m - panelW, pyTop = h - m - panelH;
         // Le panneau de boutons ne doit pas passer sous la rangée du centre.
         return px > w / 2 + ch + g || pyTop > cBottom + g || h - m < cTop - g;
@@ -314,7 +307,16 @@ final class PadDesign {
             }
         }
 
-        /** Comme box, avec une rotation (degrés) autour du centre : gâchettes en arc. */
+        /** Haricot : la boîte tournée et sa courbure (ConsolePad.bean). */
+        void bean(String type, float[] b) {
+            for (int i = 0; i < keys.size(); i++) {
+                if (boxes[i] == null && keys.get(i).type.equals(type)) {
+                    boxes[i] = b.clone();
+                    return;
+                }
+            }
+        }
+
         void tilted(String type, float x, float y, float w, float h, float deg) {
             for (int i = 0; i < keys.size(); i++) {
                 if (boxes[i] == null && keys.get(i).type.equals(type)) {

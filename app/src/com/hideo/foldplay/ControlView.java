@@ -162,6 +162,7 @@ final class ControlView extends View {
         }
         else if (t.startsWith("STICK")) drawStick(c, w, h);
         else if (t.equals("TOUCHPAD")) drawPad(c, w, h);
+        else if (t.equals("FAST") || t.equals("ASPECT")) drawCornerKey(c, w, h, t);
         else if (ControlLayout.pill(t)) drawPill(c, w, h, control.cap != null ? pillCap(control.cap) : pillLabel(t));
         else drawShoulder(c, w, h, t);
 
@@ -356,7 +357,98 @@ final class ControlView extends View {
         c.drawText(t, w / 2, h / 2 - (text.descent() + text.ascent()) / 2, text);
     }
 
+    /**
+     * Format d'image et Accélérer (0.62.3) : petite touche ronde à icône, sans texte, pour un coin
+     * de l'écran. Accélérer : deux flèches d'avance rapide ; Format : un cadre aux quatre angles.
+     */
+    private void drawCornerKey(Canvas c, float w, float h, String t) {
+        r.set(dp, dp, w - dp, h - dp);
+        RectF box = new RectF(r);
+        float rad = Math.min(r.width(), r.height()) / 2;
+        c.drawRoundRect(r, rad, rad, body(pressed ? steel : panelHi, r.top, r.bottom));
+        rimRect(c, box, rad);
+        float u = Math.min(w, h) * 0.26f, cx = w / 2, cy = h / 2;
+        plain(Theme.MUTED);
+        path.reset();
+        if (t.equals("FAST")) {
+            for (int i = 0; i < 2; i++) {
+                float x0 = cx - u + i * u;
+                path.moveTo(x0, cy - u * 0.8f);
+                path.lineTo(x0 + u, cy);
+                path.lineTo(x0, cy + u * 0.8f);
+                path.close();
+            }
+            c.drawPath(path, fill);
+        } else {
+            ring.setColor(Theme.MUTED);
+            ring.setStrokeWidth(Math.max(1.5f * dp, u * 0.22f));
+            float a = u * 1.05f, b = u * 0.75f, l = u * 0.5f;
+            for (int sx = -1; sx <= 1; sx += 2) {
+                for (int sy = -1; sy <= 1; sy += 2) {
+                    path.moveTo(cx + sx * a, cy + sy * (b - l));
+                    path.lineTo(cx + sx * a, cy + sy * b);
+                    path.lineTo(cx + sx * (a - l), cy + sy * b);
+                }
+            }
+            c.drawPath(path, ring);
+        }
+    }
+
+    /** Haricot (0.62.3) : rayon de courbure et épaisseur en fractions de la largeur, demi-angle en degrés. */
+    private float beanR, beanTh, beanPhi;
+    private final android.graphics.RectF arcBox = new android.graphics.RectF();
+
+    void setBean(float rOverW, float thOverW, float phiDeg) {
+        if (rOverW == beanR && thOverW == beanTh && phiDeg == beanPhi) return;
+        beanR = rOverW;
+        beanTh = thOverW;
+        beanPhi = phiDeg;
+        invalidate();
+    }
+
+    /** Gâchette en haricot, façon X et Y de la GameCube : une bande incurvée aux bouts arrondis. */
+    private void drawBean(Canvas c, float w, float h, String t) {
+        float R = beanR * w, th = beanTh * w, phi = beanPhi;
+        float ro = R + th / 2, ri = R - th / 2;
+        float cx = w / 2, cy = ro;                              // centre du groupe, sous la bande
+        path.reset();
+        arcBox.set(cx - ro, cy - ro, cx + ro, cy + ro);
+        path.arcTo(arcBox, -90 - phi, 2 * phi, true);
+        double e = Math.toRadians(-90 + phi);
+        float ex = cx + (float) (R * Math.cos(e)), ey = cy + (float) (R * Math.sin(e));
+        arcBox.set(ex - th / 2, ey - th / 2, ex + th / 2, ey + th / 2);
+        path.arcTo(arcBox, -90 + phi, 180, false);
+        arcBox.set(cx - ri, cy - ri, cx + ri, cy + ri);
+        path.arcTo(arcBox, -90 + phi, -2 * phi, false);
+        double sA = Math.toRadians(-90 - phi);
+        float sx = cx + (float) (R * Math.cos(sA)), sy = cy + (float) (R * Math.sin(sA));
+        arcBox.set(sx - th / 2, sy - th / 2, sx + th / 2, sy + th / 2);
+        path.arcTo(arcBox, 90 - phi, 180, false);
+        path.close();
+        body(pressed ? Theme.lighten(steel, 0.25f) : steel, 0, h);
+        c.drawPath(path, fill);
+        ring.setShader(null);
+        ring.setStrokeWidth(1.2f * dp);
+        ring.setColor(pressed ? accent : 0x30FFFFFF);
+        if (skin) {
+            c.save();
+            c.clipRect(0, 0, w, th * 0.45f);
+            c.drawPath(path, ring);
+            c.restore();
+        }
+        text.setTypeface(Fonts.logo(getContext()));
+        text.setTextSize(Math.min(th * 0.5f, 17 * dp));
+        text.setColor(Theme.TEXT);
+        String cap = control.cap != null ? control.cap
+                : t.equals("L") ? (triggers ? "L1" : "L") : t.equals("R") ? (triggers ? "R1" : "R") : t;
+        c.drawText(cap, cx, th / 2 - (text.descent() + text.ascent()) / 2, text);
+    }
+
     private void drawShoulder(Canvas c, float w, float h, String t) {
+        if (beanR > 0) {
+            drawBean(c, w, h, t);
+            return;
+        }
         body(pressed ? Theme.lighten(steel, 0.25f) : steel, dp, h - dp);
         boolean leftSide = t.startsWith("L");
         float big = Math.min(h * 0.6f, 22 * dp);
