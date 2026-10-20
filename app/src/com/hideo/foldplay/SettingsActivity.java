@@ -17,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Page de réglages, une section à la fois, ouverte directement par l'engrenage. */
@@ -30,9 +31,11 @@ public class SettingsActivity extends Activity {
     static final String[][] SECTIONS = {
         {"library", "Bibliothèque"},
         {"emulators", "Émulateurs"},
-        {"cores", "Cœurs"},
-        {"covers", "Jaquettes et fiches"},
         {"display", "Affichage"},
+        {"monitoring", "Monitoring"},
+        {"sound", "Son"},
+        {"a11y", "Accessibilité"},
+        {"updates", "Mises à jour"},
         {"about", "À propos"},
     };
 
@@ -52,6 +55,7 @@ public class SettingsActivity extends Activity {
         // Ouvert sans catégorie précise sur un écran étroit : la liste d'abord.
         listOnly = section == null && getResources().getConfiguration().screenWidthDp < 600;
         if (section == null) section = "library";
+        if (section.equals("cores")) section = "emulators"; // ancienne catégorie fusionnée
         nav = new PadNav(this).hooks(new PadNav.Hooks() {
             public boolean onKey(String k) { return sectionKey(k); }
         });
@@ -78,9 +82,13 @@ public class SettingsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.HORIZONTAL);
         root.setBackground(Theme.backdrop(0));
+        // Droitier : la liste des catégories passe à droite, sous le pouce (Réglages > Accessibilité).
+        boolean listRight = twoPane && Theme.RIGHT_HANDED;
+        View list = null;
+        int listW = twoPane ? Math.max(240, Math.min(340, Math.round(wDp * 0.32f))) : -1;
         if (twoPane || listOnly) {
-            int listW = twoPane ? Math.max(240, Math.min(340, Math.round(wDp * 0.32f))) : -1;
-            root.addView(categories(twoPane), new LinearLayout.LayoutParams(listW < 0 ? -1 : dp(listW), -1));
+            list = categories(twoPane);
+            if (!listRight) root.addView(list, new LinearLayout.LayoutParams(listW < 0 ? -1 : dp(listW), -1));
         }
         if (!listOnly) {
             LinearLayout main = vertical();
@@ -99,7 +107,16 @@ public class SettingsActivity extends Activity {
             }
             TextView title = text(sectionTitle(section).toUpperCase(), 20, Theme.CODEC);
             title.setTypeface(Fonts.logo(this));
-            bar.addView(title);
+            title.setPadding(dp(6), 0, dp(6), 0);
+            if (Theme.RIGHT_HANDED) {
+                // Droitier : flèche et titre se lisent depuis le bord droit, sous le pouce (0.65).
+                bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+                title.setTextDirection(View.TEXT_DIRECTION_LTR);
+                if (bar.getChildCount() > 0) ((TextView) bar.getChildAt(0)).setText("→");
+            }
+            bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
+            if (Theme.RIGHT_HANDED) bar.setGravity(Gravity.CENTER_VERTICAL);
+            Theme.mirror(main);
             main.addView(bar);
             body = vertical();
             body.setPadding(dp(twoPane ? 20 : 16), dp(8), dp(twoPane ? 24 : 16), dp(32));
@@ -107,12 +124,15 @@ public class SettingsActivity extends Activity {
             sv.addView(body);
             main.addView(sv, new LinearLayout.LayoutParams(-1, 0, 1f));
             root.addView(main, new LinearLayout.LayoutParams(0, -1, 1f));
+            if (listRight && list != null) root.addView(list, new LinearLayout.LayoutParams(dp(listW), -1));
 
             if (section.equals("library")) library();
             else if (section.equals("emulators")) emulators();
-            else if (section.equals("cores")) cores();
-            else if (section.equals("covers")) covers();
             else if (section.equals("display")) display();
+            else if (section.equals("monitoring")) monitoring();
+            else if (section.equals("sound")) sound();
+            else if (section.equals("a11y")) accessibility();
+            else if (section.equals("updates")) updates();
             else if (section.equals("pads")) pads();
             else about();
         }
@@ -144,11 +164,19 @@ public class SettingsActivity extends Activity {
         back.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { finish(); }
         });
-        bar.addView(back);
         TextView title = text("RÉGLAGES", 20, Theme.CODEC);
         title.setTypeface(Fonts.logo(this));
-        bar.addView(title);
+        title.setPadding(dp(6), 0, dp(6), 0);
+        if (Theme.RIGHT_HANDED) {
+            // Droitier : flèche et titre depuis le bord droit (0.65).
+            bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            title.setTextDirection(View.TEXT_DIRECTION_LTR);
+            back.setText("→");
+        }
+        bar.addView(back);
+        bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
         col.addView(bar);
+        Theme.mirror(col);
 
         LinearLayout card = vertical();
         card.setPadding(dp(6), dp(6), dp(6), dp(6));
@@ -240,10 +268,10 @@ public class SettingsActivity extends Activity {
             }
         });
         if (tree != null) {
-            action("Rescanner la bibliothèque", "Relit le dossier et range les jeux par console", new Runnable() {
+            action("Rescanner la bibliothèque", "Cherche les nouveaux jeux dans ton dossier", new Runnable() {
                 public void run() {
                     store.requestRescan();
-                    toast("La bibliothèque sera relue en revenant à l'accueil.");
+                    toast("Bibliothèque relue au retour à l'accueil.");
                 }
             });
             action("Oublier ce dossier", "Origami n'aura plus accès à ce dossier", new Runnable() {
@@ -254,26 +282,35 @@ public class SettingsActivity extends Activity {
                 }
             });
         }
-        note("Astuce : range tes jeux par console (ps2/, gamecube/, switch/…). Les .iso, .chd et .rvz "
-                + "sont aussi reconnus par leur contenu.");
     }
 
     private void emulators() {
-        if (!Libretro.available()) note("Le moteur intégré demande un appareil 64 bits (arm64).");
+        if (!Libretro.available()) note("Demande un appareil 64 bits (arm64).");
         final CoreManager cores = new CoreManager(this);
         final Launcher launcher = new Launcher(this, store);
 
         // 1. Une ligne par console : tout ce qui la concerne s'ouvre dans son menu.
+        // Une case par console (un cœur = une console) : nom, cœur installé ou aucun, taille.
         header("Consoles");
+        gridStart();
         for (final SystemInfo s : SystemInfo.ALL) {
-            String summary = consoleSummary(s, cores, launcher);
-            if (summary == null) continue;
-            action(s.name, summary, new Runnable() {
+            if (consoleSummary(s, cores, launcher) == null) continue;
+            String core = Libretro.available() ? CoreManager.coreFor(s) : null;
+            String line2 = "aucun", line3 = "";
+            if (core != null && (CoreManager.bundled(core) || cores.installed(core))) {
+                line2 = CoreCatalog.name(core);
+                File f = cores.file(core);
+                line3 = f != null && f.exists() ? String.format(java.util.Locale.ROOT, "%.1f Mo", f.length() / 1048576f)
+                        : "livré";
+            }
+            tile(s.name, line2 + (line3.length() > 0 ? "\n" + line3 : ""), new Runnable() {
                 public void run() { consoleMenu(s, cores, launcher); }
             });
         }
+        gridEnd();
+        coreNote();
 
-        // 2. Fichiers communs à toutes les consoles.
+        // 3. Fichiers communs à toutes les consoles.
         header("BIOS et sauvegardes");
         final boolean ps2 = Libretro.available() && cores.hasPs2Bios();
         action("Importer un BIOS", (ps2 ? "BIOS PS2 présent ✓ · " : "") + "PS1, PS2, Saturn, Dreamcast, GBA, DS, Mega-CD, PC Engine CD, Neo Geo… fichiers ou .zip tirés de ta console",
@@ -286,43 +323,34 @@ public class SettingsActivity extends Activity {
                         public void run() { pickPs3Firmware(); }
                     });
         }
-        action("Importer des sauvegardes", "Depuis un autre émulateur, converties au bon format", new Runnable() {
+        action("Importer des sauvegardes", "Depuis un autre émulateur", new Runnable() {
             public void run() { pickSaveSystem(); }
         });
-        action("Exporter des sauvegardes", "Vers une autre app, Quick Share, un PC ou un dossier", new Runnable() {
+        action("Exporter des sauvegardes", "Vers une autre app, un PC ou un dossier", new Runnable() {
             public void run() { pickExportSystem(); }
         });
         note("Origami est aussi dans le menu Partager d'Android : envoie-lui des sauvegardes depuis une autre app "
                 + "pour les importer. Le fichier porte le nom du jeu (Zelda.sav pour Zelda.z64).");
 
-        // 3. Les cœurs : une page chacun dans l'onglet Cœurs.
-        header("Cœurs");
-        action("Catalogue des cœurs", "Téléchargement, réglages, licence et code source de chaque cœur", new Runnable() {
-            public void run() {
-                section = "cores";
-                render();
-            }
-        });
-
         // 4. Entretien.
         header("Entretien");
         if (Libretro.available()) {
-            action("Retélécharger les cœurs", "Dernière version de libretro, un cœur ou tous", new Runnable() {
+            action("Retélécharger les cœurs", "Réinstalle un émulateur ou tous, en cas de souci", new Runnable() {
                 public void run() { pickRedownload(cores); }
             });
             action("Supprimer les cœurs téléchargés", (cores.installedSize() / (1024 * 1024)) + " Mo utilisés",
                     new Runnable() {
                         public void run() {
                             deleteRecursive(new File(getFilesDir(), "cores"));
-                            toast("Cœurs supprimés, ils reviendront au prochain lancement.");
+                            toast("Cœurs supprimés, retéléchargés au prochain lancement.");
                             render();
                         }
                     });
         }
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             boolean all = android.os.Environment.isExternalStorageManager();
-            action("Accès à tous les fichiers", all ? "Accordé : .cue/.bin et gros disques lus directement"
-                    : "Nécessaire pour les jeux en plusieurs fichiers (.cue + .bin)", new Runnable() {
+            action("Accès à tous les fichiers", all ? "Accordé : .cue/.bin lus directement"
+                    : "Pour les jeux multi-fichiers (.cue + .bin)", new Runnable() {
                 public void run() {
                     try {
                         startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
@@ -366,7 +394,9 @@ public class SettingsActivity extends Activity {
         if (core != null) {
             boolean b = bundled(core);
             m.item("Moteur intégré : " + CoreCatalog.name(core), b ? "Livré avec l'app" : cores.installed(core) ? "Installé ✓"
-                    : "Se télécharge au premier lancement d'un jeu", null);
+                    : "Se télécharge au premier lancement d'un jeu", new Runnable() {
+                        public void run() { corePage(core, back); }
+                    });
             if (!b) m.item(cores.installed(core) ? "Retélécharger le cœur" : "Télécharger le cœur maintenant",
                     "Dernière version de libretro", new Runnable() {
                         public void run() { redownload(cores, java.util.Collections.singletonList(core)); }
@@ -432,25 +462,25 @@ public class SettingsActivity extends Activity {
 
     // ------------------------------------------------------------------ cœurs
 
-    private void cores() {
-        if (!Libretro.available()) {
-            note("Les cœurs demandent un appareil 64 bits (arm64).");
-            return;
-        }
-        final CoreManager cores = new CoreManager(this);
-        note("Les émulateurs d'Origami : chacun tourne dans l'app, se télécharge depuis sa source officielle "
-                + "et se règle ici. Touche un cœur pour sa page.");
-        header("Pris en charge");
+    /** Les cœurs intégrés, une ligne chacun : leur page s'ouvre au toucher. */
+    private void coreNote() {
+        if (Libretro.available()) note("Switch : Eden, intégré comme les autres cœurs, bientôt.");
+    }
+
+    private void coreList(final CoreManager cores) {
+        if (!Libretro.available()) return;
+        header("Cœurs");
+        gridStart();
         for (final CoreCatalog.Info i : CoreCatalog.ALL) {
             String v = store.coreVariant(i.core);
-            action(i.name + (v.equals(i.core) ? "" : " → " + CoreCatalog.variantLabel(i.core, v))
-                    + (cores.installed(i.core) ? "  ✓" : ""), CoreManager.systemsOf(i.core) + " · "
+            tile(i.name + (v.equals(i.core) ? "" : " → " + CoreCatalog.variantLabel(i.core, v))
+                    + (cores.installed(i.core) ? "  ✓" : ""), CoreManager.systemsOf(i.core) + "\n"
                     + coreState(cores, i.core), new Runnable() {
                 public void run() { corePage(i.core, null); }
             });
         }
-        header("Bientôt");
-        note("Switch : Eden, intégré comme les autres cœurs.");
+        gridEnd();
+        note("Switch : Eden, bientôt.");
     }
 
     private String coreState(CoreManager cores, String core) {
@@ -475,7 +505,7 @@ public class SettingsActivity extends Activity {
                     new Runnable() {
                         public void run() { redownload(cores, java.util.Collections.singletonList(core)); }
                     });
-            if (cores.installed(core)) m.item("Supprimer", "Il reviendra au prochain lancement d'un jeu", new Runnable() {
+            if (cores.installed(core)) m.item("Supprimer", "Retire l'émulateur ; il se réinstalle au prochain jeu", new Runnable() {
                 public void run() {
                     cores.delete(core);
                     toast(CoreCatalog.name(core) + " supprimé.");
@@ -510,11 +540,11 @@ public class SettingsActivity extends Activity {
                     public void run() { runInstaller(core, self); }
                 });
         final String[] specs = store.coreSpecs(core);
-        m.sub("Réglages du cœur", specs.length == 0 ? "Lance un jeu une fois pour les voir apparaître"
+        m.sub("Réglages du cœur", specs.length == 0 ? "Lance un jeu pour les voir"
                 : (specs.length / 3) + " réglages · appliqués au prochain lancement", new Runnable() {
             public void run() {
                 if (specs.length == 0) {
-                    toast("Lance un jeu de cette console une fois : ses réglages apparaîtront ici.");
+                    toast("Lance un jeu de cette console pour voir ses réglages.");
                     self.run();
                 } else {
                     coreOptions(core, specs, self);
@@ -643,47 +673,47 @@ public class SettingsActivity extends Activity {
     }
 
     private void covers() {
-        toggle("Jaquettes automatiques", "Télécharge les jaquettes manquantes après chaque scan",
+        toggle("Jaquettes automatiques", "Jaquettes manquantes après chaque scan",
                 store.autoCovers(), new Toggle() {
                     public void set(boolean on) {
                         store.setAutoCovers(on);
                     }
                 });
-        toggle("Fiches de jeux", "Synopsis et année de sortie depuis Wikipédia, affichés dans le mode Tsuru",
+        toggle("Fiches de jeux", "Résumé et année de sortie de chaque jeu, sur l'accueil",
                 store.autoInfo(), new Toggle() {
                     public void set(boolean on) {
                         store.setAutoInfo(on);
                     }
                 });
-        toggle("Illustrations de fond", "Quand le curseur s'arrête sur un jeu, l'accueil affiche une image du jeu "
-                + "derrière : illustration large ScreenScraper (compte requis), sinon les couleurs floutées de sa jaquette", store.backdrops(), new Toggle() {
+        toggle("Illustrations de fond", "L'accueil affiche une image du jeu sélectionné "
+                + "derrière : ScreenScraper (compte requis), sinon sa jaquette floutée", store.backdrops(), new Toggle() {
             public void set(boolean on) {
                 store.setBackdrops(on);
             }
         });
         String[] ss = store.screenScraper();
         action("Compte ScreenScraper", ss[0].isEmpty()
-                ? "Pour les synopsis officiels en français : identifiants développeur et compte"
+                ? "Synopsis officiels : identifiants développeur et compte"
                 : "Saisi · synopsis officiels activés", new Runnable() {
             public void run() {
                 screenScraperDialog();
             }
         });
-        action("Retélécharger les fiches", "Efface les fiches gardées, elles reviendront à la sélection", new Runnable() {
+        action("Retélécharger les fiches", "Efface les résumés enregistrés et les récupère à nouveau", new Runnable() {
             public void run() {
                 new GameInfo(SettingsActivity.this).clear();
                 toast("Fiches effacées.");
             }
         });
-        action("Retélécharger toutes les jaquettes", "Jaquettes et illustrations de fond : efface le cache puis relance la récupération", new Runnable() {
+        action("Retélécharger toutes les jaquettes", "Efface le cache puis relance la récupération", new Runnable() {
             public void run() {
                 deleteRecursive(new File(getFilesDir(), "covers"));
                 deleteRecursive(new File(getFilesDir(), "backdrops"));
                 store.requestRescan();
-                toast("Cache vidé. Les jaquettes reviendront au prochain passage à l'accueil.");
+                toast("Cache vidé. Les jaquettes reviendront à l'accueil.");
             }
         });
-        note("Source : base communautaire libretro-thumbnails. Les jaquettes appartiennent à leurs éditeurs "
+        note("Source : libretro-thumbnails. Les jaquettes appartiennent à leurs éditeurs "
                 + "et restent sur ton appareil.");
     }
 
@@ -694,8 +724,8 @@ public class SettingsActivity extends Activity {
 
     private void pads() {
         if (pads == null) pads = new Pads(this);
-        toggle("Plein écran avec une manette", "Dès qu'une manette est branchée, le jeu prend tout l'écran "
-                + "et la manette à l'écran disparaît", store.padFullscreen(), new Toggle() {
+        toggle("Plein écran avec une manette", "Dès qu'une manette est branchée, jeu plein écran "
+                + "et manette à l'écran masquée", store.padFullscreen(), new Toggle() {
             public void set(boolean on) {
                 store.setPadFullscreen(on);
             }
@@ -703,10 +733,10 @@ public class SettingsActivity extends Activity {
         header("Connectées");
         List<android.view.InputDevice> now = pads.connected();
         java.util.Set<String> seen = new java.util.HashSet<String>();
-        if (now.isEmpty()) note("Aucune manette pour l'instant. Associe-la en Bluetooth dans les réglages Android : "
-                + "elle apparaîtra ici toute seule.");
-        else note("Appuie sur les touches pour les tester : ici la manette ne pilote pas l'app. "
-                + "Pour quitter, touche l'écran ou appuie sur Select et Start ensemble.");
+        if (now.isEmpty()) note("Aucune manette. Associe-la en Bluetooth dans les réglages Android : "
+                + "elle apparaîtra ici.");
+        else note("Teste les touches : la manette ne pilote pas l'app. "
+                + "Pour quitter : touche l'écran ou Select + Start.");
         padViews.clear();
         for (final android.view.InputDevice d : now) {
             final Pads.Profile p = pads.profile(d);
@@ -737,9 +767,9 @@ public class SettingsActivity extends Activity {
                 }
             });
         }
-        note("Mappage automatique : Android reconnaît les manettes Xbox, PlayStation, 8BitDo et la plupart des "
-                + "manettes Bluetooth ; les manettes Nintendo sont détectées et leurs A/B remis à leur place. "
-                + "Jusqu'à 4 joueurs : la première manette est le joueur 1 (avec la manette à l'écran).");
+        note("Mappage auto : Android reconnaît Xbox, PlayStation, 8BitDo et la plupart des "
+                + "manettes Bluetooth ; Nintendo détectées, A/B corrigés. "
+                + "Jusqu'à 4 joueurs : la première manette est le joueur 1.");
     }
 
     private void padMenu(final android.view.InputDevice d, final Pads.Profile p) {
@@ -824,7 +854,7 @@ public class SettingsActivity extends Activity {
         new CodecMenu(this).title("Touche " + ControlLayout.label(f), wizard.name + " · " + (wizardStep + 1) + "/"
                 + Pads.FUNCTIONS.length)
                 .message("Appuie sur la touche de la manette qui doit servir de « " + ControlLayout.label(f) + " ».")
-                .sub("Passer", "Garder la touche automatique", new Runnable() {
+                .sub("Passer", "Garde l'attribution d'origine pour cette touche", new Runnable() {
                     public void run() {
                         wizardStep++;
                         wizardPrompt();
@@ -904,12 +934,14 @@ public class SettingsActivity extends Activity {
         super.onResume();
         if (pads == null) pads = new Pads(this);
         pads.input().registerInputDeviceListener(padListener, null);
+        UiSound.musicStart(this);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         pads.input().unregisterInputDeviceListener(padListener);
+        UiSound.musicPause();
     }
 
     private void display() {
@@ -927,16 +959,66 @@ public class SettingsActivity extends Activity {
                 });
             }
         });
-        header("Plein écran");
-        toggle("Plein écran hors jeu", "Masque les barres d'état et de navigation dans les menus (les jeux sont toujours en plein écran)",
+        header("Interface");
+        toggle("Plein écran hors jeu", "Masque les barres système dans les menus",
                 store.appFullscreen(), new Toggle() {
                     public void set(boolean on) {
                         store.setAppFullscreen(on);
                         Theme.fullscreen(SettingsActivity.this);
                     }
                 });
-        header("ATH de monitoring");
-        toggle("ATH de monitoring en jeu", "Mesures en direct, sur une ligne en haut de l'écran façon RTSS",
+        toggle("Pastilles", "Coins arrondis autour de l'écran du jeu, de la manette et de la barre du haut.",
+                store.pills(), new Toggle() {
+                    public void set(boolean on) {
+                        store.setPills(on);
+                    }
+                });
+        toggle("Mode Tsuru par défaut", "Écran interne ; sinon Washi. "
+                + "L'écran externe ouvre toujours Washi", store.flexView(), new Toggle() {
+            public void set(boolean on) {
+                store.setFlexView(on);
+            }
+        });
+        toggle("Mode Tsuru à l'ouverture", "Déplier le pliant dans Origami passe en mode jeu",
+                store.tsuruOnOpen(), new Toggle() {
+            public void set(boolean on) {
+                store.setTsuruOnOpen(on);
+            }
+        });
+        action("Origami comme lanceur par défaut", HomeApps.isDefault(this)
+                ? "Déjà le lanceur du téléphone. Touche pour changer"
+                : "Le bouton Accueil du téléphone ouvre Origami ; tes applis restent dans le menu Applications",
+                new Runnable() {
+            public void run() {
+                HomeApps.askDefault(SettingsActivity.this);
+            }
+        });
+        toggle("Écran titre au démarrage", "L'animation de la grue au lancement", store.intro(), new Toggle() {
+            public void set(boolean on) {
+                store.setIntro(on);
+            }
+        });
+        toggle("Fonds animés", "Le décor de chaque thème bouge doucement, en boucle", store.animatedBackdrop(), new Toggle() {
+            public void set(boolean on) {
+                store.setAnimatedBackdrop(on);
+                Theme.ANIMATE = on;
+                render();
+            }
+        });
+        toggle("Effet cathodique", "Lignes de balayage façon vieux téléviseur sur l'écran du haut", store.scanlines(), new Toggle() {
+            public void set(boolean on) {
+                store.setScanlines(on);
+            }
+        });
+        note("Manettes et vibrations : icône manette de l'accueil.");
+            header("Jaquettes et fiches");
+        covers();
+}
+
+    /** Monitoring : l'ATH en jeu façon RTSS, son style et les mesures affichées. */
+    private void monitoring() {
+        header("ATH en jeu");
+        toggle("ATH de monitoring en jeu", "Mesures en direct, façon RTSS",
                 store.hud(), new Toggle() {
                     public void set(boolean on) {
                         store.setHud(on);
@@ -963,6 +1045,11 @@ public class SettingsActivity extends Activity {
                 store.setHudColor(Hud.COLOR_KEYS[i]);
             }
         });
+        choice("Unité de température", Hud.UNIT_LABELS, Hud.index(Hud.UNIT_KEYS, store.tempUnit()), new Choice() {
+            public void set(int i) {
+                store.setTempUnit(Hud.UNIT_KEYS[i]);
+            }
+        });
         int rate = 1;
         for (int i = 0; i < Hud.RATES.length; i++) if (Hud.RATES[i] == store.hudRate()) rate = i;
         choice("Mise à jour", Hud.RATE_LABELS, rate, new Choice() {
@@ -970,7 +1057,7 @@ public class SettingsActivity extends Activity {
                 store.setHudRate(Hud.RATES[i]);
             }
         });
-        toggle("Bandeau sombre", "Sinon le texte seul, ombré, directement sur le jeu", store.hudBackground(),
+        toggle("Bandeau sombre", "Fond sombre derrière l'ATH ; sinon texte ombré sur l'image", store.hudBackground(),
                 new Toggle() {
                     public void set(boolean on) {
                         store.setHudBackground(on);
@@ -985,43 +1072,163 @@ public class SettingsActivity extends Activity {
                 }
             });
         }
-        header("Interface");
-        toggle("Mode Tsuru par défaut", "Sur l'écran interne ; sinon le mode Washi (liste ou grille). "
-                + "L'écran externe d'un pliant ouvre toujours Washi", store.flexView(), new Toggle() {
-            public void set(boolean on) {
-                store.setFlexView(on);
+    }
+
+    /** Son (0.62.1) : sa propre catégorie, demandée par BOSS. */
+    /**
+     * Accessibilité (0.62.5) : tenue à une main (droitier ou gaucher), textes, contraste,
+     * animations, et aides de jeu pour qui a du mal à maintenir un appui ou à faire de grands gestes.
+     */
+    private void accessibility() {
+        header("Lecture");
+        choice("Taille des textes", new String[] {"Normale", "Grande", "Très grande"}, store.a11yText(), new Choice() {
+            public void set(int i) {
+                store.setA11yText(i);
+                a11yChanged();
             }
         });
-        toggle("Mode Tsuru à l'ouverture", "Déplier le pliant pendant qu'Origami est à l'écran passe directement en mode jeu",
-                store.tsuruOnOpen(), new Toggle() {
+        toggle("Contraste élevé", "Textes secondaires plus clairs, plus faciles à lire", store.highContrast(), new Toggle() {
             public void set(boolean on) {
-                store.setTsuruOnOpen(on);
+                store.setHighContrast(on);
+                a11yChanged();
             }
         });
-        action("Origami comme lanceur par défaut", HomeApps.isDefault(this)
-                ? "Déjà le lanceur du téléphone. Touche pour changer"
-                : "Le bouton Accueil du téléphone ouvre Origami ; tes applis restent dans le menu Applications",
-                new Runnable() {
+        toggle("Réduire les animations", "Fonds et contour de la manette immobiles", store.reduceMotion(), new Toggle() {
+            public void set(boolean on) {
+                store.setReduceMotion(on);
+                a11yChanged();
+            }
+        });
+        header("En jeu");
+        toggle("Gâchettes à bascule", "L, R, L2 et R2 : un appui les enfonce, le suivant les relâche, sans garder le doigt dessus",
+                store.latchTriggers(), new Toggle() {
+                    public void set(boolean on) {
+                        store.setLatchTriggers(on);
+                        Theme.sync(SettingsActivity.this);
+                    }
+                });
+        choice("Course des joysticks", new String[] {"Normale", "Courte", "Très courte"}, store.stickReach(), new Choice() {
+            public void set(int i) {
+                store.setStickReach(i);
+                Theme.sync(SettingsActivity.this);
+            }
+        });
+        note("Une course courte pousse le joystick à fond avec un petit geste du pouce.");
+        toggle("Vibrations renforcées", "Retour plus fort et plus long à chaque appui sur la manette", store.strongHaptics(),
+                new Toggle() {
+                    public void set(boolean on) {
+                        store.setStrongHaptics(on);
+                        Theme.sync(SettingsActivity.this);
+                    }
+                });
+    }
+
+    private void a11yChanged() {
+        Theme.sync(this);
+        Theme.textScale(this);
+        render();
+    }
+
+    /** Mises à jour (0.62.5) : version installée, recherche, téléchargement et installation. */
+    private void updates() {
+        header("Version installée");
+        note("Origami " + Updater.installed(this));
+        toggle("Rechercher automatiquement", "Vérifie au démarrage et prévient par une notification",
+                store.autoUpdates(), new Toggle() {
+                    public void set(boolean on) {
+                        store.setAutoUpdates(on);
+                        if (on && android.os.Build.VERSION.SDK_INT >= 33) {
+                            requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, 62);
+                        }
+                    }
+                });
+        toggle("Préversions", "Reçois aussi les builds de test et les corrections rapides avant la version stable",
+                store.previewUpdates(), new Toggle() {
+                    public void set(boolean on) {
+                        store.setPreviewUpdates(on);
+                    }
+                });
+        final LinearLayout result = vertical();
+        action("Rechercher une mise à jour", "Compare avec la dernière version publiée", new Runnable() {
             public void run() {
-                HomeApps.askDefault(SettingsActivity.this);
+                result.removeAllViews();
+                result.addView(text(I18n.tr("Recherche…"), 14, Theme.MUTED));
+                Updater.check(SettingsActivity.this, new Updater.Done() {
+                    public void done(final Updater.Release r) {
+                        result.removeAllViews();
+                        if (r.error != null) {
+                            result.addView(text(I18n.tr(r.error), 14, Theme.MUTED));
+                        } else if (!r.newer) {
+                            result.addView(text(I18n.tr("Origami est à jour."), 14, Theme.TEXT));
+                        } else {
+                            result.addView(text("Origami " + r.version, 18, Theme.CODEC));
+                            if (r.summary != null && !r.summary.isEmpty()) result.addView(text(r.summary, 14, Theme.TEXT));
+                            TextView go = text(I18n.tr("Télécharger et installer"), 16, Theme.BG);
+                            go.setBackground(Theme.pill(Theme.CODEC, dp(20)));
+                            go.setPadding(dp(18), dp(10), dp(18), dp(10));
+                            final TextView goBtn = go;
+                            go.setOnClickListener(new View.OnClickListener() {
+                                public void onClick(View v) {
+                                    goBtn.setOnClickListener(null);
+                                    goBtn.setTextColor(Theme.TEXT);
+                                    goBtn.setText(I18n.tr("Téléchargement… 0 %"));
+                                    Updater.install(SettingsActivity.this, r, new Updater.Progress() {
+                                        public void progress(int pct) {
+                                            goBtn.setText(I18n.tr("Téléchargement…") + " " + pct + " %");
+                                            goBtn.setBackground(Theme.progressPill(pct / 100f, dp(20)));
+                                        }
+
+                                        public void done(boolean ok) {
+                                            UiSound.play(SettingsActivity.this, ok ? UiSound.DONE : UiSound.ERROR);
+                                            goBtn.setText(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android"
+                                                    : "Échec du téléchargement"));
+                                        }
+                                    });
+                                }
+                            });
+                            // Barre pleine largeur, texte centré (20/10).
+                            go.setGravity(Gravity.CENTER);
+                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+                            lp.topMargin = dp(12);
+                            result.addView(go, lp);
+                        }
+                    }
+                });
             }
         });
-        toggle("Écran titre au démarrage", "L'animation de la grue au lancement", store.intro(), new Toggle() {
-            public void set(boolean on) {
-                store.setIntro(on);
-            }
-        });
-        toggle("Effet cathodique", "Lignes de balayage sur la moitié haute", store.scanlines(), new Toggle() {
-            public void set(boolean on) {
-                store.setScanlines(on);
-            }
-        });
-        note("Manette tactile, manettes physiques et vibrations : icône manette en haut de l'accueil.");
-        toggle("Son des menus", "Petit signal d'appel à l'ouverture d'un menu", store.menuSound(), new Toggle() {
+        body.addView(result);
+    }
+
+    private void sound() {
+        header("Interface");
+        toggle("Bruits de l'interface", "Déplacement, validation, retour, lancement d'un jeu, "
+                + "propres à chaque thème", store.menuSound(), new Toggle() {
             public void set(boolean on) {
                 store.setMenuSound(on);
+                UiSound.play(SettingsActivity.this, UiSound.SELECT);
             }
         });
+        slider("Volume des bruits", store.uiVolume(), new Choice() {
+            public void set(int v) {
+                store.setUiVolume(v);
+                UiSound.play(SettingsActivity.this, UiSound.SELECT);
+            }
+        });
+        header("Musique");
+        toggle("Musique d'accueil", "Une boucle par thème, coupée pendant les parties", store.musicOn(), new Toggle() {
+            public void set(boolean on) {
+                store.setMusicOn(on);
+                if (on) UiSound.musicStart(SettingsActivity.this);
+                else UiSound.musicPause();
+            }
+        });
+        slider("Volume de la musique", store.musicVolume(), new Choice() {
+            public void set(int v) {
+                store.setMusicVolume(v);
+                UiSound.musicStart(SettingsActivity.this);
+            }
+        });
+        note("Musique et bruits ne jouent qu'en mode sonnerie : rien en vibreur ou en silencieux.");
     }
 
     private void about() {
@@ -1037,8 +1244,8 @@ public class SettingsActivity extends Activity {
             // Version inconnue.
         }
         header("Débogage");
-        toggle("Mode débogage", "Journal détaillé (messages des cœurs compris) et rapport de plantage, "
-                + "à partager pour un retour de bug", store.debug(), new Toggle() {
+        toggle("Mode débogage", "Journal détaillé et rapport de plantage, "
+                + "à partager en cas de bug", store.debug(), new Toggle() {
             public void set(boolean on) {
                 store.setDebug(on);
                 DebugLog.sync(SettingsActivity.this);
@@ -1050,6 +1257,12 @@ public class SettingsActivity extends Activity {
                     + " · fiche de l'appareil comprise", new Runnable() {
                 public void run() {
                     DebugLog.share(SettingsActivity.this);
+                }
+            });
+            action("Copier le journal", "Un clic : la fin du journal part dans le presse-papiers, à coller dans le chat",
+                    new Runnable() {
+                public void run() {
+                    DebugLog.copy(SettingsActivity.this);
                 }
             });
             action("Effacer le journal", "Supprime les journaux et rapports enregistrés", new Runnable() {
@@ -1074,7 +1287,7 @@ public class SettingsActivity extends Activity {
         note("Origami n'est affilié à aucun fabricant de consoles ni éditeur de jeux. Les noms de "
                 + "consoles cités servent uniquement à indiquer la compatibilité et appartiennent à leurs "
                 + "propriétaires respectifs.");
-        note("Origami ne fournit aucun jeu, BIOS ni clé. Utilise uniquement des copies de jeux que tu possèdes.");
+        note("Origami ne fournit ni jeu, ni BIOS, ni clé. Utilise tes propres copies.");
         note("Polices : Black Ops One et Michroma, sous licence SIL Open Font License 1.1.");
         note("Moteur PS2 : ARMSX2 (dérivé de PCSX2), cœur libretro sous licence GNU GPL 3.0, livré avec l'app "
                 + "et compilé depuis le code source publié ci-dessous, avec un petit correctif Origami pour "
@@ -1178,37 +1391,7 @@ public class SettingsActivity extends Activity {
 
     /** Range chaque BIOS choisi (ou contenu dans un .zip) là où son émulateur le cherche (BiosImport). */
     private void importBios(Intent data) {
-        java.util.List<Uri> uris = new java.util.ArrayList<Uri>();
-        if (data.getClipData() != null) {
-            for (int i = 0; i < data.getClipData().getItemCount(); i++) uris.add(data.getClipData().getItemAt(i).getUri());
-        } else if (data.getData() != null) {
-            uris.add(data.getData());
-        }
-        File base = getExternalFilesDir(null);
-        File system = new File(base != null ? base : getFilesDir(), "system");
-        BiosImport.Report report = new BiosImport.Report();
-        for (Uri u : uris) {
-            String name = "bios.bin";
-            android.database.Cursor c = getContentResolver().query(u,
-                    new String[] {android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null);
-            if (c != null) {
-                try {
-                    if (c.moveToFirst() && c.getString(0) != null) name = new File(c.getString(0)).getName();
-                } finally {
-                    c.close();
-                }
-            }
-            try {
-                java.io.InputStream in = getContentResolver().openInputStream(u);
-                try {
-                    BiosImport.add(system, name, in, report);
-                } finally {
-                    in.close();
-                }
-            } catch (java.io.IOException | SecurityException e) {
-                report.skipped++;
-            }
-        }
+        BiosImport.Report report = BiosImport.fromIntent(this, data);
         toast(report.text());
         render();
     }
@@ -1237,6 +1420,43 @@ public class SettingsActivity extends Activity {
                 at[0] = (at[0] + 1) % labels.length;
                 v.setText(labels[at[0]]);
                 c.set(at[0]);
+            }
+        });
+    }
+
+    /** Curseur de volume par paliers de 20 % (0.62.2) ; c reçoit le pourcentage. */
+    private void slider(String title, int value, final Choice c) {
+        LinearLayout row = row(title, null);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setGravity(Gravity.NO_GRAVITY);
+        View texts = row.getChildAt(0);
+        texts.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout line = new LinearLayout(this);
+        line.setGravity(Gravity.CENTER_VERTICAL);
+        final android.widget.SeekBar bar = new android.widget.SeekBar(this);
+        bar.setMax(5);
+        bar.setProgress(Math.max(0, Math.min(5, Math.round(value / 20f))));
+        android.content.res.ColorStateList tint = android.content.res.ColorStateList.valueOf(Theme.CODEC);
+        bar.setProgressTintList(tint);
+        bar.setThumbTintList(tint);
+        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Theme.alpha(Theme.CODEC, 0x44)));
+        bar.setTickMark(null);
+        final TextView v = text(bar.getProgress() * 20 + " %", 14, Theme.CODEC);
+        v.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+        v.setGravity(Gravity.END);
+        line.addView(bar, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        line.addView(v, new LinearLayout.LayoutParams(dp(60), -2));
+        row.addView(line, new LinearLayout.LayoutParams(-1, -2));
+        bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(android.widget.SeekBar sb, int p, boolean fromUser) {
+                v.setText(p * 20 + " %");
+                if (fromUser) c.set(p * 20);
+            }
+
+            public void onStartTrackingTouch(android.widget.SeekBar sb) {
+            }
+
+            public void onStopTrackingTouch(android.widget.SeekBar sb) {
             }
         });
     }
@@ -1286,6 +1506,71 @@ public class SettingsActivity extends Activity {
         return row;
     }
 
+    // ------------------------------------------------------------------ grille condensée (0.65)
+
+    private final List<View> gridTiles = new ArrayList<View>();
+
+    private void gridStart() {
+        gridTiles.clear();
+    }
+
+    /** Résumé court pour une case : « Intégré · » et « · au premier lancement » ne servent plus en grille. */
+    private static String condensed(String summary) {
+        return summary.replace("Intégré · ", "").replace(" · au premier lancement", " · à télécharger")
+                .replace(" · livré", " · livré ✓").replace(" · ", "\n");
+    }
+
+    /** Une case : nom en gras, puis une à trois lignes d'état serrées. */
+    private void tile(String title, String info, final Runnable run) {
+        LinearLayout t = vertical();
+        t.setPadding(dp(12), dp(10), dp(12), dp(10));
+        t.setMinimumHeight(dp(64));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(16));
+        bg.setColor(0xF2121419);
+        bg.setStroke(Math.round(dp(1)), Theme.alpha(Theme.CODEC, 0x33));
+        android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
+        GradientDrawable pressed = new GradientDrawable();
+        pressed.setCornerRadius(dp(16));
+        pressed.setColor(Theme.alpha(Theme.CODEC, 0x33));
+        pressed.setStroke(Math.round(dp(1.5f)), Theme.CODEC);
+        states.addState(new int[] {android.R.attr.state_pressed}, pressed);
+        states.addState(new int[0], bg);
+        t.setBackground(states);
+        TextView n = text(title, 14, Theme.TEXT);
+        n.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+        n.setMaxLines(2);
+        t.addView(n);
+        if (info != null) {
+            TextView i = text(info, 11, Theme.MUTED);
+            i.setLineSpacing(0, 1.05f);
+            i.setMaxLines(3);
+            t.addView(i);
+        }
+        t.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { run.run(); }
+        });
+        gridTiles.add(t);
+    }
+
+    /** Pose les cases en lignes de N colonnes égales ; N suit la largeur (2 à 4), donc la rotation et le pli. */
+    private void gridEnd() {
+        int wDp = getResources().getConfiguration().screenWidthDp;
+        int avail = wDp >= 600 ? Math.round(wDp * 0.68f) : wDp;
+        int cols = Math.max(2, Math.min(4, avail / 170));
+        for (int i = 0; i < gridTiles.size(); i += cols) {
+            LinearLayout line = new LinearLayout(this);
+            for (int k = i; k < i + cols; k++) {
+                View cell = k < gridTiles.size() ? gridTiles.get(k) : new View(this);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -1, 1f);
+                lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+                line.addView(cell, lp);
+            }
+            body.addView(line, new LinearLayout.LayoutParams(-1, -2));
+        }
+        gridTiles.clear();
+    }
+
     private void action(String title, String subtitle, final Runnable run) {
         LinearLayout row = row(title, subtitle);
         row.setOnClickListener(new View.OnClickListener() {
@@ -1298,18 +1583,19 @@ public class SettingsActivity extends Activity {
 
     private void toggle(String title, String subtitle, boolean value, final Toggle t) {
         LinearLayout row = row(title, subtitle);
-        // Case façon codec plutôt qu'un interrupteur Android.
-        final TextView box = text(value ? "■" : "□", 22, value ? Theme.CODEC : Theme.MUTED);
-        box.setPadding(dp(12), 0, dp(4), 0);
-        row.addView(box);
+        // Interrupteur maison (ThemeSwitch), aux couleurs du thème.
+        final ThemeSwitch box = new ThemeSwitch(this, value);
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(48), dp(48));
+        bp.setMargins(dp(8), 0, 0, 0);
+        row.addView(box, bp);
         final boolean[] on = {value};
         row.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 on[0] = !on[0];
-                box.setText(on[0] ? "■" : "□");
-                box.setTextColor(on[0] ? Theme.CODEC : Theme.MUTED);
+                box.setOn(on[0]);
                 t.set(on[0]);
+                UiSound.play(SettingsActivity.this, on[0] ? UiSound.ON : UiSound.OFF);
             }
         });
     }
@@ -1458,6 +1744,7 @@ public class SettingsActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     public void run() {
                         dialog.dismiss();
+                        UiSound.play(SettingsActivity.this, failed.length() == 0 ? UiSound.DONE : UiSound.ERROR);
                         toast(failed.length() == 0 ? (list.size() > 1 ? "Cœurs retéléchargés." : "Cœur retéléchargé.")
                                 : "Échec pour : " + failed + ". Vérifie la connexion et réessaie.");
                         render();
@@ -1484,6 +1771,7 @@ public class SettingsActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
         // Rotation, pli ou écran externe : les volets se recalculent pour la nouvelle largeur.
         if (c.screenWidthDp != lastWidthDp && wizard == null) render();

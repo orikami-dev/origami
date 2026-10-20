@@ -75,7 +75,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Catégories d'applications du XMB (0.60.5) : jeux Android installés, clients Remote Play. */
     private final List<Game> mobile = new ArrayList<Game>();
     private final List<Game> remote = new ArrayList<Game>();
-    private final Game refreshItem = MobileApps.refreshItem();
     private String appsSig = "";
     private String filter = "all";
     private int selected;
@@ -107,6 +106,27 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     private LinearLayout cats;
     private LinearLayout carousel;
 
+    /** Intention d'un jeu à relancer (« Redémarrer la console ») une fois son moteur arrêté. */
+    static final String EXTRA_RESTART = "origami.restart";
+
+    @Override
+    protected void onNewIntent(Intent in) {
+        super.onNewIntent(in);
+        setIntent(in);
+        final Intent again = in.getParcelableExtra(EXTRA_RESTART);
+        if (again == null) return;
+        in.removeExtra(EXTRA_RESTART);
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+            public void run() {
+                try {
+                    startActivity(again);
+                } catch (Exception ignored) {
+                    // Le jeu reste lançable depuis la bibliothèque.
+                }
+            }
+        }, 1200);
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -118,6 +138,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         DebugLog.sync(this);
         store = new Store(this);
         if (!store.setupDone()) startActivity(new Intent(this, SetupActivity.class));
+        Updater.cleanup(this);
+        Updater.autoCheck(this);
         if (Libretro.available()) store.adoptBuiltinOnce();
         launcher = new Launcher(this, store);
         covers = new CoverLoader(getContentResolver(), getPackageManager());
@@ -147,6 +169,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         super.onResume();
         resumed = true;
         Theme.orientation(this);
+        UiSound.musicStart(this);
         // Couleurs de la manette changées dans l'éditeur : l'interface suit.
         if (Theme.sync(this) && root != null && posture != null) rebuild();
         // Manette changée dans l'éditeur : Mini et Flex font passer l'accueil en plein écran.
@@ -189,11 +212,11 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         new Thread(new Runnable() {
             public void run() {
                 final List<Game> m = MobileApps.games(ctx, custom);
-                final List<Game> r = MobileApps.remote(ctx, custom);
+                final List<Game> r = MobileApps.remote(ctx, store);
                 StringBuilder sig = new StringBuilder();
                 for (Game g : m) sig.append(g.uri).append('|');
                 sig.append('#');
-                for (Game g : r) sig.append(g.uri).append('|');
+                for (Game g : r) sig.append(g.uri).append(g.note).append('|');
                 final String now = sig.toString();
                 runOnUiThread(new Runnable() {
                     public void run() {
@@ -212,6 +235,61 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     /**
+     * Menu d'une plateforme de Remote Play (0.62) : l'app préférée en tête, les solutions officielles
+     * (ouvrir ou télécharger), les alternatives trouvées sur le téléphone, le choix manuel, puis le
+     * client libre qu'Origami intégrera (grisé tant qu'il n'est pas prêt).
+     */
+    private void remoteMenu(final String group) {
+        final Runnable self = new Runnable() { public void run() { remoteMenu(group); } };
+        String name = MobileApps.groupName(group);
+        CodecMenu m = new CodecMenu(this).title(name, "REMOTE PLAY");
+        int px = dp(32);
+        android.content.pm.PackageManager pm = getPackageManager();
+        final MobileApps.Client pref = MobileApps.preferred(this, store, group);
+        if (pref != null) {
+            m.item(appIcon(pm, pref.uri, px), "Lancer " + pref.label, "Ton app préférée pour " + name, new Runnable() {
+                public void run() { MobileApps.open(MainActivity.this, store, pref.game()); }
+            });
+        }
+        boolean anyAlt = false;
+        for (final MobileApps.Client c : MobileApps.clients(this, store, group)) {
+            if (!c.official) anyAlt = true;
+            String kind = c.official ? (c.installed ? "Officielle" : "Officielle · à télécharger sur le Play Store")
+                    : c.custom ? "Choisie par toi" : "Alternative détectée sur le téléphone";
+            boolean isPref = pref != null && pref.uri.equals(c.uri);
+            m.item(c.installed ? appIcon(pm, c.uri, px) : null, (isPref ? "★ " : "") + c.label, kind + " · " + c.note,
+                    new Runnable() {
+                public void run() {
+                    if (c.installed) {
+                        store.setRemotePreferred(group, c.uri);
+                        appsSig = "";
+                        loadApps();
+                    }
+                    MobileApps.open(MainActivity.this, store, c.game());
+                }
+            });
+        }
+        if (!anyAlt) m.item("Aucune alternative détectée", "Aucun client non officiel trouvé sur le téléphone", null);
+        m.sub("En choisir une manuellement…", "N'importe quelle app installée, par exemple PXPlay", new Runnable() {
+            public void run() { addClientMenu(group); }
+        });
+        m.soon(null, "Client intégré à Origami", "👷‍♂️🚧 " + MobileApps.builtinName(group)
+                + " sera intégré directement dans l'app, avec ta manette Origami");
+        m.show(menuHost());
+    }
+
+    private android.graphics.drawable.Drawable appIcon(android.content.pm.PackageManager pm, String uri, int px) {
+        try {
+            android.content.ComponentName cn = android.content.ComponentName.unflattenFromString(uri.substring(4));
+            android.graphics.drawable.Drawable d = pm.getActivityIcon(cn);
+            d.setBounds(0, 0, px, px);
+            return d;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * « Ajouter un client… » d'une section de Remote Play : n'importe quelle app installée, pour
      * utiliser un client non officiel (chiaki-ng, Greenlight, …) à la place de celui du constructeur.
      */
@@ -219,7 +297,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         CodecMenu m = new CodecMenu(this).title("Ajouter un client", "REMOTE PLAY · " + MobileApps.groupName(group).toUpperCase());
         int px = dp(32);
         java.util.Set<String> taken = new java.util.HashSet<String>();
-        for (Game g : remote) if (g.uri.startsWith("app:")) taken.add(g.uri);
+        for (MobileApps.Client c : MobileApps.clients(this, store, group)) if (c.installed) taken.add(c.uri);
         List<HomeApps.App> apps = HomeApps.apps(this);
         // Un client libre déjà installé (chiaki-ng…) passe en tête de liste.
         List<HomeApps.App> first = new ArrayList<HomeApps.App>(), rest = new ArrayList<HomeApps.App>();
@@ -236,7 +314,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             m.item(d, app.label, null, new Runnable() {
                 public void run() {
                     store.setRemoteClient(MobileApps.customKey(group, uri), true);
-                    toast(app.label + " ajouté à Remote Play.");
+                    store.setRemotePreferred(group, uri);
+                    toast(app.label + " : app préférée pour " + MobileApps.groupName(group) + ".");
                     appsSig = "";
                     loadApps();
                 }
@@ -251,15 +330,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     /** Ⓐ sur une entrée : jeu (émulateur), application, client à installer ou action. */
     private void open(Game g) {
-        if (g.uri.equals("action:rescan")) {
-            if (store.treeUri() == null) {
-                pickFolder();
-                return;
-            }
-            if (scanning) return;
-            announceScan = true;
-            toast("Actualisation de la bibliothèque…");
-            scan(Uri.parse(store.treeUri()));
+        if (g.uri.startsWith("action:remote:")) {
+            remoteMenu(g.group);
         } else if (g.uri.startsWith("action:addclient:")) {
             addClientMenu(g.group);
         } else if (g.isApp()) {
@@ -273,6 +345,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     protected void onPause() {
         super.onPause();
         resumed = false;
+        UiSound.musicPause();
         if (hinge != null) sensors.unregisterListener(this);
         if (pads != null) pads.input().unregisterInputDeviceListener(padListener);
     }
@@ -280,6 +353,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     @Override
     public void onConfigurationChanged(Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
         boolean cover = c.smallestScreenWidthDp < 600;
         if (hinge != null && cover != wasCover) {
@@ -385,7 +459,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         }
                         announceScan = false;
                         if (found.isEmpty()) {
-                            toast("Aucun jeu reconnu dans ce dossier. Range-les par console (snes/, gba/…) ou garde leurs extensions d'origine.");
+                            toast("Aucun jeu reconnu. Range-les par console (snes/, gba/…).");
                         }
                         library.clear();
                         library.addAll(found);
@@ -447,8 +521,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 for (Game g : mobile) if (store.isFavorite(g)) shown.add(g);
                 for (Game g : remote) if (store.isFavorite(g)) shown.add(g);
             }
-            // « Tous » se termine par l'entrée qui relit le dossier (ex-bouton de la barre du haut).
-            if (filter.equals("all") && !library.isEmpty()) shown.add(refreshItem);
         }
         if (selected >= shown.size()) selected = Math.max(0, shown.size() - 1);
     }
@@ -483,6 +555,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     private void cycleFilter(int dir) {
         List<String> keys = filterKeys();
         int i = keys.indexOf(filter);
+        UiSound.play(this, UiSound.TAB);
         switchFilter(keys.get(((i < 0 ? 0 : i) + dir + keys.size()) % keys.size()), dir);
     }
 
@@ -493,6 +566,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
      * de l'app et l'équipe. Un appui passe l'animation.
      */
     private void showSplash() {
+        Theme.barsBackground(this, true);
         FrameLayout splash = new FrameLayout(this);
         splash.setBackgroundColor(Theme.BG);
         final OrigamiSplash crane = new OrigamiSplash(this);
@@ -523,6 +597,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             public void run() {
                 if (splashDone) return;
                 splashDone = true;
+                Theme.barsBackground(MainActivity.this, false);
                 rebuild();
                 root.setAlpha(0f);
                 root.animate().alpha(1f).setDuration(260).start();
@@ -539,11 +614,100 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         });
     }
 
+    private LinearLayout homeStageCol;
+
+    /**
+     * Apparition de la bulle du synopsis selon le thème (20/10) : Codec, signal qui s'allume en
+     * balayage ; Arctique, givre qui descend ; Écarlate, éventail qui s'ouvre ; Sakura, pétale qui éclot ;
+     * Ambre, lampe qui scintille. Animations réduites : simple fondu.
+     */
+    private void sheetEffect(final View v) {
+        v.animate().cancel();
+        v.setTranslationX(0);
+        v.setTranslationY(0);
+        v.setScaleX(1);
+        v.setScaleY(1);
+        v.setRotation(0);
+        if (store.reduceMotion()) {
+            v.setAlpha(0.4f);
+            v.animate().alpha(1f).setDuration(160).start();
+            return;
+        }
+        android.view.animation.Interpolator ease = new android.view.animation.DecelerateInterpolator(2f);
+        switch (Theme.THEME_ID) {
+            case "codec":
+                v.setPivotY(0);
+                v.setScaleY(0.04f);
+                v.setAlpha(0.6f);
+                v.animate().scaleY(1f).alpha(1f).setDuration(220).setInterpolator(ease).start();
+                break;
+            case "arctique":
+                v.setAlpha(0f);
+                v.setTranslationY(-dp(14));
+                v.animate().alpha(1f).translationY(0).setDuration(260).setInterpolator(ease).start();
+                break;
+            case "ecarlate":
+                v.setPivotX(v.getWidth());
+                v.setPivotY(v.getHeight());
+                v.setRotation(6f);
+                v.setAlpha(0.3f);
+                v.animate().rotation(0).alpha(1f).setDuration(240).setInterpolator(ease).start();
+                break;
+            case "sakura":
+                v.setPivotX(v.getWidth() / 2f);
+                v.setPivotY(v.getHeight() / 2f);
+                v.setScaleX(0.92f);
+                v.setScaleY(0.92f);
+                v.setAlpha(0f);
+                v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(280)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.6f)).start();
+                break;
+            case "ambre": {
+                android.animation.ObjectAnimator f = android.animation.ObjectAnimator.ofFloat(v, "alpha",
+                        0.2f, 0.9f, 0.5f, 1f, 0.75f, 1f);
+                f.setDuration(320);
+                f.start();
+                break;
+            }
+            default:
+                v.setAlpha(0.4f);
+                v.animate().alpha(1f).setDuration(160).start();
+        }
+    }
+
+    /** Tsuru : l'écran du haut passe sous la barre d'état et la manette sous la barre de navigation. */
+    private void applyBleed() {
+        int t = Theme.bleed ? Theme.INSETS[1] : 0, b = Theme.bleed ? Theme.INSETS[3] : 0;
+        // Portrait : la pastille du haut garde ses coins ronds et commence sous la barre d'état (BOSS, 20/10).
+        if (homeStageCol != null) homeStageCol.setPadding(0, 0, 0, 0);
+        if (homeDeckView != null) homeDeckView.setBottomInset(b);
+        if (homeCol != null && homeDeck != null && homeDeck.getVisibility() == View.VISIBLE) {
+            homeCol.setPadding(homeCol.getPaddingLeft(), t, homeCol.getPaddingRight(), 0);
+        }
+        if (homeStage != null && homeDeck != null && homeDeck.getVisibility() == View.VISIBLE) {
+            homeStage.setBackground(Theme.backdrop(Theme.pillR(this, dp(28))));
+        }
+    }
+
     private void rebuild() {
+        Posture before = posture;
         posture = computePosture();
         refilter();
-        root.removeAllViews();
-        root.setBackground(Theme.backdrop(0));
+        View outgoing = (before != null && before != posture && splashDone && root.getChildCount() == 1)
+                ? root.getChildAt(0) : null;
+        if (outgoing == null) root.removeAllViews();
+        // Deux pastilles (Tsuru) : entre elles et sous les barres, la couleur de séparation du thème,
+        // pas un morceau du fond d'écran.
+        root.setBackground(posture == Posture.FLEX ? Theme.gap() : Theme.backdrop(0));
+        boolean flush = posture == Posture.FLEX && !store.appFullscreen();
+        if (Theme.bleed != flush) {
+            Theme.bleed = flush;
+            View content = findViewById(android.R.id.content);
+            if (content != null) content.requestApplyInsets();
+        }
+        Theme.insetsHook = new Runnable() {
+            public void run() { applyBleed(); }
+        };
         homeCol = null;
         homeDeck = null;
         homeDeckView = null;
@@ -562,6 +726,48 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         else if (posture == Posture.OPEN) v = buildOpen();
         else v = buildCover();
         root.addView(v, new FrameLayout.LayoutParams(-1, -1));
+        if (outgoing != null) transition(outgoing, v, posture == Posture.FLEX);
+    }
+
+    /** Passage Washi / Tsuru : l'ancien écran s'efface, le nouveau arrive, au rythme du thème. */
+    private void transition(final View out, View in, boolean toTsuru) {
+        float w = root.getWidth(), h = root.getHeight();
+        float dir = toTsuru ? 1f : -1f;
+        long ms = 420;
+        float inX = 0, inY = 0, inScale = 1f, outX = 0, outY = 0, outScale = 1f;
+        android.animation.TimeInterpolator ip = new android.view.animation.DecelerateInterpolator(1.6f);
+        String t = Theme.THEME_ID;
+        if ("arctique".equals(t)) {          // banquise : glissement vertical, glacé
+            inY = h * 0.08f * dir; outY = -h * 0.08f * dir; ms = 480;
+        } else if ("ecarlate".equals(t)) {   // éventail : le nouvel écran s'ouvre depuis le centre
+            inScale = toTsuru ? 0.88f : 1.12f; outScale = toTsuru ? 1.12f : 0.88f; ms = 460;
+            ip = new android.view.animation.OvershootInterpolator(0.8f);
+        } else if ("sakura".equals(t)) {     // pétales : dérive latérale douce
+            inX = w * 0.10f * dir; outX = -w * 0.10f * dir; ms = 520;
+            ip = new android.view.animation.AccelerateDecelerateInterpolator();
+        } else if ("ambre".equals(t)) {      // oscilloscope : bref scintillement
+            ms = 300; ip = new android.view.animation.CycleInterpolator(2.5f);
+        } else {                             // codec : balayage radio, léger zoom
+            inScale = 1.04f; ms = 380;
+        }
+        in.setAlpha(0f);
+        in.setTranslationX(inX);
+        in.setTranslationY(inY);
+        in.setScaleX(inScale);
+        in.setScaleY(inScale);
+        if ("ambre".equals(t)) {
+            in.setTranslationX(0); in.setScaleX(1f); in.setScaleY(1f);
+            in.animate().alpha(1f).setDuration(ms + 120).setInterpolator(new android.view.animation.LinearInterpolator()).start();
+            out.animate().alpha(0f).setDuration(ms).withEndAction(new Runnable() {
+                public void run() { root.removeView(out); }
+            }).start();
+            return;
+        }
+        in.animate().alpha(1f).translationX(0).translationY(0).scaleX(1f).scaleY(1f)
+                .setDuration(ms).setInterpolator(ip).start();
+        out.animate().alpha(0f).translationX(outX).translationY(outY).scaleX(outScale).scaleY(outScale)
+                .setDuration(ms * 3 / 4).setInterpolator(new android.view.animation.AccelerateInterpolator())
+                .withEndAction(new Runnable() { public void run() { root.removeView(out); } }).start();
     }
 
     private View buildCover() {
@@ -580,8 +786,19 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         list.setAdapter(adapter);
         wireClicks(list, adapter);
         list.setSelection(selected);
-        col.addView(list, new LinearLayout.LayoutParams(-1, 0, 1f));
+        col.addView(new PullRefresh(this, list, pullScan()), new LinearLayout.LayoutParams(-1, 0, 1f));
         return col;
+    }
+
+    /** Geste « tirer pour actualiser » : relit le dossier de jeux et annonce le résultat. */
+    private Runnable pullScan() {
+        return new Runnable() {
+            public void run() {
+                if (scanning || store.treeUri() == null) return;
+                announceScan = true;
+                scan(Uri.parse(store.treeUri()));
+            }
+        };
     }
 
     private View buildOpen() {
@@ -604,12 +821,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             grid.setAdapter(adapter);
             wireClicks(grid, adapter);
             grid.setSelection(selected);
-            row.addView(grid, new LinearLayout.LayoutParams(0, -1, 1f));
+            row.addView(new PullRefresh(this, grid, pullScan()), new LinearLayout.LayoutParams(0, -1, 1f));
         }
         col.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
-        TextView tip = text("Astuce : plie l'écran à moitié en paysage, ou touche l'icône en haut, pour passer en mode Tsuru.", 12, Theme.MUTED, false);
-        tip.setPadding(dp(16), dp(6), dp(16), dp(10));
-        col.addView(tip);
         return col;
     }
 
@@ -635,6 +849,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         stage.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
         backdropGame = null;
         LinearLayout stageCol = vertical();
+        homeStageCol = stageCol;
         stageCol.addView(topBar());
         // Façon XMB : les catégories (Tous, Favoris, Récents, consoles) en ligne, ◀ ▶ pour en
         // changer ; les jeux en colonne sous la catégorie choisie, ▲ ▼ ; la fiche du jeu à droite.
@@ -684,9 +899,14 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         heroSheet.addView(sheetMeta);
         sheetSummary = text("", 13 * s, Theme.MUTED, false);
         sheetSummary.setLineSpacing(0, 1.15f);
-        sheetSummary.setMaxLines(14);
-        sheetSummary.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        heroSheet.addView(sheetSummary, new LinearLayout.LayoutParams(-1, 0, 1f));
+        // Bulle dynamique (20/10) : elle prend la hauteur du texte, sans dépasser la zone ; au-delà,
+        // le synopsis défile dans la bulle.
+        ScrollView summaryScroll = new ScrollView(this);
+        summaryScroll.setVerticalScrollBarEnabled(false);
+        summaryScroll.setVerticalFadingEdgeEnabled(true);
+        summaryScroll.setFadingEdgeLength(dp(18));
+        summaryScroll.addView(sheetSummary);
+        heroSheet.addView(summaryScroll, new LinearLayout.LayoutParams(-1, -2, 1f));
         sheetSource = text("", 10 * s, Theme.MUTED, false);
         sheetSource.setAlpha(0.7f);
         sheetSource.setPadding(0, dp(4), 0, 0);
@@ -698,7 +918,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         for (TextView t : new TextView[] {sheetTitle, sheetMeta, sheetSummary, sheetSource, heroSystem, heroTitle, heroMeta}) {
             t.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
         }
-        art.addView(heroSheet, new FrameLayout.LayoutParams(-1, -1));
+        art.addView(heroSheet, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(0, -1, 0.56f);
         ap.setMargins(dp(16 * s), 0, 0, 0);
         body.addView(art, ap);
@@ -710,13 +930,13 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         stage.addView(stageCol, new FrameLayout.LayoutParams(-1, -1));
         if (store.scanlines()) stage.addView(new Scanlines(), new FrameLayout.LayoutParams(-1, -1));
         // Deux « pilules » aux coins arrondis, séparées par un mince filet au niveau de la charnière.
-        col.setBackgroundColor(Theme.GAP);
-        col.setPadding(dp(4), dp(4), dp(4), dp(4));
-        stage.setBackground(Theme.backdrop(dp(28)));
+        col.setBackground(Theme.gap());
+        col.setPadding(Theme.pillGap(this, dp(4)), 0, Theme.pillGap(this, dp(4)), 0);
+        stage.setBackground(Theme.backdrop(Theme.pillR(this, dp(28))));
         stage.setClipToOutline(true);
         col.addView(stage, new LinearLayout.LayoutParams(-1, 0, 1f));
         View gap = new View(this);
-        col.addView(gap, new LinearLayout.LayoutParams(-1, dp(4)));
+        col.addView(gap, new LinearLayout.LayoutParams(-1, Theme.pillGap(this, dp(4))));
 
         // Moitié basse : la manette, selon la disposition active (modifiable avec l'icône manette).
         FrameLayout deckBox = new FrameLayout(this);
@@ -753,6 +973,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         homeWrap = wrap;
         homeLayoutName = store.activeLayout();
         applyPadHome();
+        applyBleed();
 
         updateFlex(false);
         return wrap;
@@ -864,10 +1085,19 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 r.show(CodecMenu.hostFor(MainActivity.this));
             }
         });
+        m.check("Gâchettes en arc", "Autour des joysticks, comme X et Y d'une GameCube, plus faciles "
+                + "à atteindre. Décoche pour les remettre en haut", store.ergoTriggers(), new Runnable() {
+            public void run() {
+                store.setErgoTriggers(!store.ergoTriggers());
+                ConsolePad.ergo = store.ergoTriggers();
+                padChanged();
+                self.run();
+            }
+        });
         m.check("Vibrations", "Retour haptique sur les touches tactiles", store.haptics(), new Runnable() {
             public void run() { store.setHaptics(!store.haptics()); self.run(); }
         });
-        m.check("Plein écran avec une manette", "La manette tactile s'efface dès qu'une manette est branchée",
+        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette physique est branchée",
                 store.padFullscreen(), new Runnable() {
                     public void run() {
                         store.setPadFullscreen(!store.padFullscreen());
@@ -875,7 +1105,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         self.run();
                     }
                 });
-        m.check("Boutons rapides avec une manette", "SAVE, LOAD et ×2 restent à l'écran en jeu",
+        m.check("Boutons rapides avec une manette", "Sauvegarde, chargement et ×2 restent visibles avec une manette physique",
                 store.padQuickButtons(), new Runnable() {
                     public void run() { store.setPadQuickButtons(!store.padQuickButtons()); self.run(); }
                 });
@@ -935,9 +1165,11 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         placeHomeDeck(mini, flex);
         homeDeck.setVisibility(pad ? View.GONE : View.VISIBLE);
         homeGap.setVisibility(pad ? View.GONE : View.VISIBLE);
-        int p = pad ? 0 : dp(4);
-        homeCol.setPadding(p, p, p, p);
-        homeStage.setBackground(Theme.backdrop(pad ? 0 : dp(28)));
+        int p = pad ? 0 : Theme.pillGap(this, dp(4));
+        // Paysage / plein écran : aucune pastille ; portrait : pastille ronde sous la barre d'état.
+        homeCol.setPadding(p, pad || !Theme.bleed ? 0 : Theme.INSETS[1], p, 0);
+        if (homeStageCol != null) homeStageCol.setPadding(0, pad && Theme.bleed ? Theme.INSETS[1] : 0, 0, 0);
+        homeStage.setBackground(pad ? Theme.backdrop(0) : Theme.backdrop(Theme.pillR(this, dp(28))));
         // Plein écran : la fiche du jeu en haut sur l'illustration, le carrousel en bas comme un dock.
         if (homeHero != null) {
             homeHero.setOrientation(pad ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
@@ -1144,6 +1376,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             int next = Math.max(0, Math.min(barButtons.size() - 1, barFocus + (key.equals("LEFT") ? -1 : 1)));
             if (next != barFocus) {
                 barFocus = next;
+                UiSound.play(this, UiSound.MOVE);
                 haptic();
                 paintBarFocus();
             }
@@ -1202,7 +1435,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     private void select(int i) {
         if (shown.isEmpty()) return;
+        int before = selected;
         selected = Math.max(0, Math.min(shown.size() - 1, i));
+        if (selected != before) UiSound.play(this, UiSound.MOVE);
         haptic();
         updateFlex(true);
     }
@@ -1214,6 +1449,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     /** B : retour à « Tous » depuis un filtre. */
     private void back() {
+        UiSound.play(this, UiSound.BACK);
         if (!filter.equals("all")) {
             switchFilter("all", -1);
             status("B · retour à Tous");
@@ -1258,7 +1494,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             });
         }
         final boolean auto = store.autoCovers();
-        m.check("Jaquettes automatiques", "Téléchargées depuis la base libretro", auto, new Runnable() {
+        m.check("Jaquettes automatiques", "Images de boîte téléchargées automatiquement", auto, new Runnable() {
             public void run() {
                 store.setAutoCovers(!auto);
                 if (!auto) fetchCovers();
@@ -1307,7 +1543,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             heroSystem.setText("BIBLIOTHÈQUE");
             heroTitle.setVisibility(View.VISIBLE);
             heroTitle.setText(scanning ? "Lecture du dossier…" : "Choisis ton dossier de jeux");
-            heroMeta.setText("Appuie sur Ⓐ ou sur l'icône dossier. Origami range tes jeux par console et les lance dans ton émulateur.");
+            heroMeta.setText("Appuie sur Ⓐ ou l'icône dossier : Origami range tes jeux par console.");
             heroEmblem.setVisibility(View.INVISIBLE);
             heroSheet.setVisibility(View.GONE);
             return;
@@ -1316,7 +1552,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             heroSystem.setText(filterLabel(filter).toUpperCase());
             heroTitle.setVisibility(View.VISIBLE);
             heroTitle.setText("Rien ici pour l'instant");
-            heroMeta.setText("Change de catégorie avec ◀ ▶, ou ajoute des favoris avec Ⓨ.");
+            heroMeta.setText("◀ ▶ change de catégorie, Ⓨ ajoute un favori.");
             SystemInfo fs = SystemInfo.byId(filter);
             heroEmblem.setSystem(fs);
             heroEmblem.setVisibility(fs != null ? View.VISIBLE : View.INVISIBLE);
@@ -1348,10 +1584,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         String meta = (fav ? "★ Favori · " : "") + (selected + 1) + "/" + shown.size();
         if (emu != null) meta += " · " + emu;
         heroMeta.setText(meta);
-        if (animate) {
-            heroSheet.setAlpha(0.4f);
-            heroSheet.animate().alpha(1f).setDuration(160).start();
-        }
+        if (animate) sheetEffect(heroSheet);
         for (int i = 0; i < carousel.getChildCount(); i++) {
             LinearLayout card = (LinearLayout) carousel.getChildAt(i);
             CartridgeView cv = (CartridgeView) card.getChildAt(0);
@@ -1655,7 +1888,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         }
                     }
                 })
-                .choice("Profil", new String[] {"performance", "balanced", "quality"}, CoreProfiles.NAMES,
+                .choice("Profil", CoreProfiles.IDS, CoreProfiles.NAMES,
                         CoreProfiles.HELP, CoreProfiles.index(prof), new CodecMenu.Pick() {
                             public void picked(int i) {
                                 store.setGameProfile(id, CoreProfiles.IDS[i]);
@@ -1785,7 +2018,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         logo.setTypeface(Fonts.logo(this));
         postureTag = text(postureText(), 11, Theme.MUTED, true);
         android.widget.ImageView mark = new android.widget.ImageView(this);
-        mark.setImageDrawable(new Crane.Logo());
+        Crane.Logo crane = new Crane.Logo();
+        mark.setImageDrawable(crane);
+        // Le logo est un bouton (applications) : un reflet le traverse régulièrement (0.62).
+        crane.animate(mark, 5000);
         LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(40), dp(40));
         mlp.rightMargin = dp(10);
         // Le logo ouvre les applications du téléphone (0.60.4, à la place du bouton « Applications »).
@@ -1847,7 +2083,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         return bar;
     }
 
-    /** Les cinq thèmes, et l'interface aux couleurs de la manette en dernier choix. */
+    /** Les cinq thèmes, puis les couleurs du logo et de la manette (un seul panneau, 0.61). */
     private void themeMenu() {
         CodecMenu m = new CodecMenu(this).title("Thème", "COULEURS DE L'INTERFACE");
         final boolean sync = store.syncUi();
@@ -1857,6 +2093,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             m.radio(Theme.THEME_NAMES[i], Theme.THEME_HELP[i], !sync && id.equals(cur), new Runnable() {
                 public void run() {
                     store.setTheme(id);
+                    UiSound.refresh(MainActivity.this);
                     store.setSyncUi(false);
                     // L'icône du lanceur change seulement une fois l'app quittée : pas de redémarrage.
                     Theme.queueIcon(MainActivity.this, id);
@@ -1864,16 +2101,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
             });
         }
-        m.radio("Couleurs de la manette", "Menus, titres, logo et emblèmes reprennent les couleurs de la manette active ; "
-                + "elles se règlent en direct", sync, new Runnable() {
-                    public void run() {
-                        store.setSyncUi(true);
-                        CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));
-                        if (open != null) open.dismiss();
-                        if (Theme.sync(MainActivity.this)) rebuild();
-                        ColorSheet.show(MainActivity.this, MainActivity.this, false, sheetHeight());
-                    }
-                });
         m.sub("Couleurs du logo et de la manette", store.logoColor() == 0 ? "Logo : suit le thème" : "Logo : couleur perso", new Runnable() {
             public void run() {
                 CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));
@@ -1883,25 +2110,41 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         });
         // Choix du pack à part : rouvert avec le store de thèmes communautaires (décision BOSS,
         // 0.60.6). D'ici là, les icônes suivent le thème (iconPackMenu reste prêt).
-        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "En chantier : arrive avec le store de thèmes. Les icônes suivent le thème.");
+        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "👷‍♂️🚧 Arrive avec le store de thèmes.");
         // Partage de thèmes entre joueurs : annoncé, pas encore ouvert.
-        m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "En chantier : partager et récupérer des thèmes");
+        m.subIf(store.pills(), "Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu, en jeu", new Runnable() {
+            public void run() {
+                EngineMenus.andon(MainActivity.this, CodecMenu.hostFor(MainActivity.this), store, new Runnable() {
+                    public void run() { themeMenu(); }
+                }, new Runnable() {
+                    public void run() { }
+                });
+            }
+        });
+        m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "👷‍♂️🚧 Partager et récupérer des thèmes");
         m.show(CodecMenu.hostFor(this));
     }
 
     /** Toutes les applications du téléphone, en menu codec (en attendant le lanceur Washi complet). */
     private void appsMenu() {
         final boolean grid = store.appsGrid();
-        CodecMenu m = new CodecMenu(this).title("Applications", "LANCEUR DU TÉLÉPHONE").grid(grid)
+        CodecMenu m = new CodecMenu(this).title("Applications", "TRI · " + HomeApps.SORTS[store.appsSort()].toUpperCase()).grid(grid)
                 .headButton(Icons.of(this, grid ? "menu" : "grid", Theme.CODEC, 22),
                         grid ? "Afficher en liste" : "Afficher en grille", new Runnable() {
                     public void run() {
                         store.setAppsGrid(!grid);
                         appsMenu();
                     }
+                }).slider(true)
+                .headButton2(Icons.of(this, "sort", Theme.CODEC, 22), "Trier les applications", new Runnable() {
+                    public void run() {
+                        store.setAppsSort((store.appsSort() + 1) % HomeApps.SORTS.length);
+                        toast(HomeApps.SORTS[store.appsSort()]);
+                        appsMenu();
+                    }
                 });
         int px = dp(grid ? 48 : 32);
-        for (final HomeApps.App app : HomeApps.apps(this)) {
+        for (final HomeApps.App app : HomeApps.apps(this, store.appsSort())) {
             android.graphics.drawable.Drawable d = app.icon(this);
             if (d != null) d.setBounds(0, 0, px, px);
             m.item(d, app.label, null, new Runnable() {
@@ -1991,10 +2234,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 public void run() { scan(Uri.parse(store.treeUri())); }
             });
         }
-        m.item("Oublier les émulateurs choisis", "Le prochain lancement redemandera, console par console", new Runnable() {
+        m.item("Oublier les émulateurs choisis", "L'émulateur à utiliser sera redemandé au prochain jeu", new Runnable() {
             public void run() {
                 store.clearEmulators();
-                toast("Le prochain lancement te redemandera l'émulateur, console par console.");
+                toast("L'émulateur sera redemandé au prochain lancement.");
             }
         });
         if (store.treeUri() != null) {
@@ -2015,7 +2258,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         try {
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
         } catch (ActivityNotFoundException e) {
-            toast("Impossible d'ouvrir le sélecteur de dossiers sur cet appareil.");
+            toast("Sélecteur de dossiers indisponible.");
         }
     }
 
@@ -2130,7 +2373,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             return box;
         }
         TextView t = text(filter.equals("fav")
-                ? "Pas encore de favoris. Appui long sur un jeu pour l'ajouter."
+                ? "Pas de favoris. Appui long sur un jeu pour en ajouter."
                 : filter.equals("recent") ? "Aucune partie lancée pour l'instant." : "Rien ici pour l'instant.",
                 15, Theme.MUTED, false);
         t.setGravity(Gravity.CENTER);

@@ -17,13 +17,15 @@ import java.util.Set;
  * puce). Les valeurs viennent de assets/cores/install.json, section « profiles ».
  */
 final class CoreProfiles {
-    static final String[] IDS = {"performance", "balanced", "quality"};
-    static final String[] NAMES = {"Performance", "Équilibré", "Qualité"};
+    static final String[] IDS = {"performance", "balanced", "quality", "custom"};
+    static final String[] NAMES = {"Performance", "Équilibré", "Qualité", "Personnalisé"};
+    static final String CUSTOM = "custom";
     static final String[] HELP = {
-        "Définition native et effets coûteux coupés : la fluidité et l'autonomie d'abord.",
-        "Le bon compromis : définition relevée et filtrage léger, le jeu reste fluide.",
-        "Rendu poussé (définition, filtrage, couleurs) mais plafonné pour ne pas faire chauffer "
-                + "le téléphone sur les jeux 3D gourmands.",
+        "Définition native, effets coupés : fluidité d'abord.",
+        "Bon compromis : définition relevée, jeu fluide.",
+        "Rendu poussé, mais plafonné pour ne pas faire chauffer "
+                + "le téléphone.",
+        "Tes réglages : toute modification à la main passe ici.",
     };
 
     private static JSONObject all;
@@ -34,6 +36,12 @@ final class CoreProfiles {
     static int index(String id) {
         for (int i = 0; i < IDS.length; i++) if (IDS[i].equals(id)) return i;
         return 1;
+    }
+
+    /** Profil de référence pour les valeurs : Personnalisé repart de l'Équilibré. */
+    static int base(String id) {
+        int i = index(id);
+        return i > 2 ? 1 : i;
     }
 
     static String name(String id) {

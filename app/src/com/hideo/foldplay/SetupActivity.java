@@ -22,8 +22,23 @@ import java.util.List;
  */
 public class SetupActivity extends Activity {
     private static final int REQ_TREE = 31;
+    private static final int REQ_BIOS = 32;
+    private String biosReport;
     private static String demo;
-    private static final String[] STEPS = {"Bienvenue", "Jeux", "Moteurs", "Émulateurs", "Manette", "Fiches", "Prêt"};
+    /**
+     * Deux parcours (0.62) : l'installation simple (dossier de jeux et style, tout le reste réglé
+     * pour toi) et l'installation avancée (moteurs, BIOS, manette, fiches en plus).
+     */
+    private static final String[] SIMPLE = {"Bienvenue", "Jeux", "Style", "Prêt"};
+    private static final String[] ADVANCED = {"Bienvenue", "Jeux", "Moteurs", "BIOS", "Manette", "Style", "Fiches", "Prêt"};
+
+    private String[] steps() {
+        return store.setupAdvanced() ? ADVANCED : SIMPLE;
+    }
+
+    private String current() {
+        return steps()[step];
+    }
 
     private Store store;
     private int step;
@@ -43,12 +58,12 @@ public class SetupActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Theme.GAP);
-        root.setPadding(dp(4), dp(4), dp(4), dp(4));
+        root.setBackground(Theme.backdrop(0));
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(Theme.pill(Theme.BG, dp(28)));
+        // Plein cadre, coins droits : les coins arrondis laissaient voir le fond derrière (0.65.30).
+        card.setBackgroundColor(Theme.BG);
         card.setClipToOutline(true);
 
         LinearLayout head = new LinearLayout(this);
@@ -88,12 +103,16 @@ public class SetupActivity extends Activity {
         next = button("Suivant", true);
         next.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                if (step == STEPS.length - 1) finishSetup();
-                else go(step + 1);
+                if (step == steps().length - 1) finishSetup();
+                else {
+                    UiSound.play(SetupActivity.this, UiSound.NEXT);
+                    go(step + 1);
+                }
             }
         });
         nav.addView(next);
         card.addView(nav);
+        Theme.mirror(card);
 
         root.addView(card, new LinearLayout.LayoutParams(-1, -1));
         setContentView(root);
@@ -117,6 +136,7 @@ public class SetupActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
     }
 
@@ -129,8 +149,8 @@ public class SetupActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Retour du Play Store : on met à jour les coches « installé ».
-        if (step == 3) go(3);
+        // Retour du sélecteur de fichiers : on met à jour les coches « importé ».
+        if (current().equals("BIOS")) go(step);
     }
 
     private void finishSetup() {
@@ -143,11 +163,12 @@ public class SetupActivity extends Activity {
     // ------------------------------------------------------------------ étapes
 
     private void go(int s) {
-        step = Math.max(0, Math.min(STEPS.length - 1, s));
+        String[] steps = steps();
+        step = Math.max(0, Math.min(steps.length - 1, s));
         store.setSetupStep(step);
         page.removeAllViews();
         dots.removeAllViews();
-        for (int i = 0; i < STEPS.length; i++) {
+        for (int i = 0; i < steps.length; i++) {
             View d = new View(this);
             d.setBackground(Theme.pill(i == step ? Theme.CODEC : i < step ? Theme.darken(Theme.CODEC, 0.5f)
                     : Theme.PANEL_HI, dp(4)));
@@ -156,17 +177,18 @@ public class SetupActivity extends Activity {
             dots.addView(d, lp);
         }
         back.setVisibility(step == 0 ? View.INVISIBLE : View.VISIBLE);
-        next.setText(step == 0 ? "Commencer" : step == STEPS.length - 1 ? "Jouer" : "Suivant");
-        title(STEPS[step]);
-        switch (step) {
-            case 0: welcome(); break;
-            case 1: folder(); break;
-            case 2: cores(); break;
-            case 3: externals(); break;
-            case 4: pad(); break;
-            case 5: sheets(); break;
-            default: done(); break;
-        }
+        next.setText(step == 0 ? "Commencer" : step == steps.length - 1 ? "Jouer" : "Suivant");
+        next.setVisibility(step == 0 ? View.GONE : View.VISIBLE);
+        String name = steps[step];
+        title(step == 0 ? name : name + "  " + step + "/" + (steps.length - 1));
+        if (name.equals("Bienvenue")) welcome();
+        else if (name.equals("Jeux")) folder();
+        else if (name.equals("Moteurs")) cores();
+        else if (name.equals("BIOS")) bios();
+        else if (name.equals("Manette")) pad();
+        else if (name.equals("Style")) style();
+        else if (name.equals("Fiches")) sheets();
+        else done();
     }
 
     private void welcome() {
@@ -180,15 +202,28 @@ public class SetupActivity extends Activity {
             }
         });
         if (!store.languageChosen()) store.setLanguage("system");
-        para("Bienvenue. Origami range tes jeux par console et les lance dans ses émulateurs open source "
-                + "intégrés, avec une manette à l'écran qui suit ton Fold, plié ou ouvert.");
-        para("Quelques réglages rapides et c'est parti. Chaque étape peut se passer et se refaire plus tard "
-                + "dans Réglages.");
-        note("Origami ne fournit ni jeux ni BIOS : utilise les copies de tes propres jeux.");
+        para("Bienvenue. Origami range tes jeux par console et les lance dans ses émulateurs "
+                + "intégrés, avec une manette à l'écran adaptée à ton Fold.");
+        label("INSTALLATION");
+        row("Simple  (recommandée)", "Deux étapes : ton dossier de jeux et ton style. Le reste est réglé pour toi, "
+                + "les moteurs se téléchargent au premier jeu", new Runnable() {
+            public void run() {
+                store.setSetupAdvanced(false);
+                go(1);
+            }
+        });
+        row("Avancée", "Moteurs hors ligne, BIOS et firmware, manette, vibrations, fiches des jeux", new Runnable() {
+            public void run() {
+                store.setSetupAdvanced(true);
+                go(1);
+            }
+        });
+        note("Tout se change ensuite dans Réglages. Origami ne fournit ni jeux ni BIOS : utilise les copies de "
+                + "tes propres jeux.");
     }
 
     private void folder() {
-        para("Choisis le dossier où sont tes jeux. Ranger par console (gba/, ps2/, switch/…) aide, mais Origami "
+        para("Choisis ton dossier de jeux. Ranger par console (gba/, ps2/…) aide, mais Origami "
                 + "reconnaît aussi les jeux par leur contenu.");
         String tree = store.treeUri();
         row(tree == null ? "Choisir le dossier de jeux" : "Dossier choisi  ✓",
@@ -197,7 +232,7 @@ public class SetupActivity extends Activity {
                         try {
                             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
                         } catch (ActivityNotFoundException e) {
-                            note("Sélecteur de dossiers indisponible sur cet appareil.");
+                            note("Sélecteur de dossiers indisponible.");
                         }
                     }
                 });
@@ -206,6 +241,11 @@ public class SetupActivity extends Activity {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+        if (request == REQ_BIOS && result == RESULT_OK && data != null) {
+            biosReport = BiosImport.fromIntent(this, data).text();
+            go(step);
+            return;
+        }
         if (request != REQ_TREE || result != RESULT_OK || data == null || data.getData() == null) return;
         Uri tree = data.getData();
         try {
@@ -221,10 +261,10 @@ public class SetupActivity extends Activity {
     private void cores() {
         final CoreManager cm = new CoreManager(this);
         final List<String> all = CoreManager.allCores();
-        para("Le moteur intégré fait tourner ces consoles directement dans Origami, avec des cœurs libretro "
-                + "open source. Installe-les maintenant pour jouer même hors ligne.");
+        para("Le moteur intégré fait tourner ces consoles dans Origami, avec des cœurs libretro "
+                + "open source. Installe-les pour jouer hors ligne.");
         if (!Libretro.available()) {
-            note("Le moteur intégré demande un appareil 64 bits (arm64).");
+            note("Demande un appareil 64 bits (arm64).");
             return;
         }
         int missing = 0;
@@ -248,7 +288,7 @@ public class SetupActivity extends Activity {
         }
         page.addView(bar, new LinearLayout.LayoutParams(-1, -2));
         page.addView(status);
-        note("Sinon, chaque moteur se télécharge tout seul au premier jeu de sa console.");
+        note("Sinon, chaque moteur se télécharge au premier jeu.");
     }
 
     private void downloadAll(final CoreManager cm, final List<String> all, final TextView status, final ProgressBar bar) {
@@ -277,7 +317,7 @@ public class SetupActivity extends Activity {
                 final int f = failed;
                 runOnUiThread(new Runnable() {
                     public void run() {
-                        if (step == 2) go(2);
+                        if (current().equals("Moteurs")) go(step);
                         if (f > 0) note(f + " moteur(s) n'ont pas pu être téléchargés : vérifie la connexion, "
                                 + "ils se réessaieront au premier jeu.");
                     }
@@ -295,18 +335,69 @@ public class SetupActivity extends Activity {
         });
     }
 
-    private void externals() {
-        para("Origami fait tourner ses consoles avec ces cœurs, directement dans l'app. Chacun a sa page dans "
-                + "Réglages > Cœurs : téléchargement, réglages, licence et code source.");
-        CoreManager cores = new CoreManager(this);
-        for (CoreCatalog.Info i : CoreCatalog.ALL) {
-            row(i.name + (cores.installed(i.core) ? "  ✓" : ""), CoreManager.systemsOf(i.core), null);
+    private void bios() {
+        para("Certaines consoles demandent un fichier de ta propre console : le BIOS (PS1 en HD, PS2) et le "
+                + "firmware de la PS3 (PS3UPDAT.PUP, sur le site de Sony). Origami les reconnaît et les range tout seul.");
+        row("Importer des BIOS", "Un ou plusieurs fichiers, ou une archive .zip", new Runnable() {
+            public void run() {
+                try {
+                    startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                            .setType("*/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_BIOS);
+                } catch (ActivityNotFoundException e) {
+                    note("Sélecteur de fichiers indisponible sur cet appareil.");
+                }
+            }
+        });
+        row("Installer le firmware PS3" + (Ps3Core.firmwareInstalled(this) ? "  ✓" : ""), "PS3UPDAT.PUP",
+                new Runnable() {
+            public void run() {
+                startActivity(new Intent(SetupActivity.this, Ps3Activity.class).putExtra(Ps3Activity.EXTRA_FIRMWARE, true));
+            }
+        });
+        if (biosReport != null) note(biosReport);
+        note("Rien à importer ? Passe : Origami te le redemandera au premier jeu qui en a besoin.");
+    }
+
+    /** Thème, bruits de l'interface et musique d'accueil : le style d'Origami, choisi d'un coup d'œil. */
+    private void style() {
+        para("Choisis l'ambiance d'Origami. Couleurs, bruits des menus et musique d'accueil suivent le thème.");
+        String cur = store.theme();
+        for (int i = 0; i < Theme.THEMES.length; i++) {
+            final String id = Theme.THEMES[i];
+            row((id.equals(cur) ? "■  " : "□  ") + Theme.THEME_NAMES[i], Theme.THEME_HELP[i], new Runnable() {
+                public void run() {
+                    store.setTheme(id);
+                    store.setSyncUi(false);
+                    Theme.queueIcon(SetupActivity.this, id);
+                    // La musique du thème choisi démarre aussitôt (0.62.3).
+                    UiSound.musicStart(SetupActivity.this);
+                    UiSound.play(SetupActivity.this, UiSound.SELECT);
+                    recreate();
+                }
+            });
         }
-        note("Certaines consoles demandent un BIOS tiré de ta propre console (PS2, PS1 en HD).");
+        sub("Options audio");
+        final boolean sound = store.menuSound();
+        row((sound ? "■  " : "□  ") + "Bruits de l'interface", "Déplacement, validation, lancement d'un jeu", new Runnable() {
+            public void run() {
+                store.setMenuSound(!sound);
+                UiSound.play(SetupActivity.this, sound ? UiSound.OFF : UiSound.ON);
+                go(step);
+            }
+        });
+        final boolean music = store.musicOn();
+        row((music ? "■  " : "□  ") + "Musique d'accueil", "Une boucle par thème, coupée pendant les parties", new Runnable() {
+            public void run() {
+                store.setMusicOn(!music);
+                if (!music) UiSound.musicStart(SetupActivity.this);
+                else UiSound.musicPause();
+                go(step);
+            }
+        });
     }
 
     private void pad() {
-        para("Choisis la manette à l'écran. Tu pourras tout changer ensuite dans l'éditeur (icône manette).");
+        para("Choisis la manette à l'écran, modifiable ensuite dans l'éditeur.");
         final String active = store.activeLayout();
         final String[][] kinds = {
             {"Flex", "Notre manette phare : elle prend la forme de la manette de chaque console, touches comprises"},
@@ -318,7 +409,7 @@ public class SetupActivity extends Activity {
                 public void run() {
                     store.layouts(); // les trois profils existent dès la première lecture
                     store.setActiveLayout(k[0]);
-                    go(4);
+                    go(step);
                 }
             });
         }
@@ -330,7 +421,7 @@ public class SetupActivity extends Activity {
             b.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     demo = k.equals(demo) ? null : k;
-                    go(4);
+                    go(step);
                 }
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
@@ -379,7 +470,7 @@ public class SetupActivity extends Activity {
                 public void onClick(View v) {
                     store.setHapticLevel(lv);
                     Haptics.tap(v);
-                    go(4);
+                    go(step);
                 }
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
@@ -390,22 +481,15 @@ public class SetupActivity extends Activity {
         hs.setHorizontalScrollBarEnabled(false);
         hs.addView(chips);
         page.addView(hs);
-        final boolean sound = store.menuSound();
-        row((sound ? "■  " : "□  ") + "Son des menus", "Petit signal d'appel à l'ouverture d'un menu", new Runnable() {
-            public void run() {
-                store.setMenuSound(!sound);
-                go(4);
-            }
-        });
     }
 
     private void sheets() {
-        para("Jaquettes et fiches (synopsis, année) se récupèrent toutes seules sur internet.");
+        para("Jaquettes et fiches récupérées automatiquement.");
         final boolean covers = store.autoCovers();
         row((covers ? "■  " : "□  ") + "Jaquettes automatiques", "Base libretro-thumbnails", new Runnable() {
             public void run() {
                 store.setAutoCovers(!covers);
-                go(5);
+                go(step);
             }
         });
         final boolean info = store.autoInfo();
@@ -413,16 +497,16 @@ public class SetupActivity extends Activity {
                 new Runnable() {
                     public void run() {
                         store.setAutoInfo(!info);
-                        go(5);
+                        go(step);
                     }
                 });
     }
 
     private void done() {
         para(store.treeUri() == null
-                ? "C'est prêt. Il ne manque que ton dossier de jeux : choisis-le depuis l'accueil (icône dossier)."
+                ? "C'est prêt. Choisis ton dossier de jeux depuis l'accueil."
                 : "C'est prêt. Origami lit ton dossier et range tes jeux par console.");
-        para("En jeu, la touche Home ouvre le menu (options, triches, format d'image) ; deux appuis rapides "
+        para("En jeu, Home ouvre le menu ; deux appuis rapides "
                 + "quittent le jeu.");
     }
 
@@ -439,6 +523,15 @@ public class SetupActivity extends Activity {
         TextView t = text(s, 16, Theme.TEXT);
         t.setLineSpacing(0, 1.15f);
         t.setPadding(0, dp(4), 0, dp(10));
+        page.addView(t);
+    }
+
+    /** Sous-titre de groupe, façon codec. */
+    private void sub(String s) {
+        TextView t = text(s.toUpperCase(), 12, Theme.CODEC);
+        t.setTypeface(Fonts.wide(this));
+        t.setLetterSpacing(0.15f);
+        t.setPadding(0, dp(18), 0, dp(6));
         page.addView(t);
     }
 

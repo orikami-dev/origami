@@ -10,16 +10,17 @@ index febc15c..fc6207f 100644
 +  target_link_libraries(xenia-apu-nop PUBLIC aaudio)
 +endif()
 diff --git a/src/xenia/apu/nop/nop_audio_system.cc b/src/xenia/apu/nop/nop_audio_system.cc
-index cfac7e7..ba3dea7 100644
+index cfac7e7..8628b1f 100644
 --- a/src/xenia/apu/nop/nop_audio_system.cc
 +++ b/src/xenia/apu/nop/nop_audio_system.cc
-@@ -11,6 +11,20 @@
+@@ -11,6 +11,21 @@
  
  #include "xenia/apu/apu_flags.h"
  
 +#if XE_PLATFORM_ANDROID
 +#include <aaudio/AAudio.h>
 +
++#include <cmath>
 +#include <cstring>
 +#include <deque>
 +#include <mutex>
@@ -34,7 +35,7 @@ index cfac7e7..ba3dea7 100644
  namespace xe {
  namespace apu {
  namespace nop {
-@@ -24,19 +38,170 @@ NopAudioSystem::NopAudioSystem(cpu::Processor* processor)
+@@ -24,19 +39,191 @@ NopAudioSystem::NopAudioSystem(cpu::Processor* processor)
  
  NopAudioSystem::~NopAudioSystem() = default;
  
@@ -61,8 +62,10 @@ index cfac7e7..ba3dea7 100644
 +    AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
 +    AAudioStreamBuilder_setChannelCount(builder, 2);
 +    AAudioStreamBuilder_setSampleRate(builder, int32_t(frequency_));
++    // Origami 0.62.3: no low-latency mode; its tiny bursts underran (crackles) whenever
++    // the guest audio thread was late.
 +    AAudioStreamBuilder_setPerformanceMode(builder,
-+                                           AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
++                                           AAUDIO_PERFORMANCE_MODE_NONE);
 +    AAudioStreamBuilder_setUsage(builder, AAUDIO_USAGE_GAME);
 +    AAudioStreamBuilder_setDataCallback(builder, DataCallback, this);
 +    aaudio_result_t res = AAudioStreamBuilder_openStream(builder, &stream_);
@@ -101,8 +104,8 @@ index cfac7e7..ba3dea7 100644
 +        float c = xe::byte_swap(frame[2 * n + i]) * 0.5f;
 +        float bl = xe::byte_swap(frame[4 * n + i]);
 +        float br = xe::byte_swap(frame[5 * n + i]);
-+        out[i * 2] = (fl + bl + c) * 0.4f;
-+        out[i * 2 + 1] = (fr + br + c) * 0.4f;
++        out[i * 2] = SoftClip((fl + bl + c) * 0.4f);
++        out[i * 2 + 1] = SoftClip((fr + br + c) * 0.4f);
 +      }
 +    } else if (channels_ == 2) {
 +      std::memcpy(out.data(), frame, out.size() * sizeof(float));
@@ -115,6 +118,13 @@ index cfac7e7..ba3dea7 100644
 +    }
 +    std::lock_guard<std::mutex> lock(mutex_);
 +    queue_.push_back(std::move(out));
++  }
++
++  // Gentle limiter instead of hard clipping (saturation on loud mixes).
++  static float SoftClip(float x) {
++    if (x > 0.8f) return 0.8f + 0.2f * std::tanh((x - 0.8f) / 0.2f);
++    if (x < -0.8f) return -0.8f + 0.2f * std::tanh((x + 0.8f) / 0.2f);
++    return x;
 +  }
 +
 +  void Pause() override {
@@ -135,6 +145,13 @@ index cfac7e7..ba3dea7 100644
 +    uint32_t released = 0;
 +    {
 +      std::lock_guard<std::mutex> lock(self->mutex_);
++      // After an underrun, wait for a small cushion (kPrime frames) before playing again,
++      // so one late guest frame gives a short gap instead of a burst of crackles.
++      if (self->priming_ && self->queue_.size() < kPrime) {
++        std::memset(dst, 0, want * sizeof(float));
++        return AAUDIO_CALLBACK_RESULT_CONTINUE;
++      }
++      self->priming_ = false;
 +      while (want && !self->queue_.empty()) {
 +        auto& front = self->queue_.front();
 +        size_t take = std::min(want, front.size() - self->offset_);
@@ -152,7 +169,10 @@ index cfac7e7..ba3dea7 100644
 +        }
 +      }
 +    }
-+    if (want) std::memset(dst, 0, want * sizeof(float));
++    if (want) {
++      std::memset(dst, 0, want * sizeof(float));
++      self->priming_ = true;
++    }
 +    if (released) self->semaphore_->Release(released, nullptr);
 +    return AAUDIO_CALLBACK_RESULT_CONTINUE;
 +  }
@@ -165,6 +185,8 @@ index cfac7e7..ba3dea7 100644
 +  std::mutex mutex_;
 +  std::deque<std::vector<float>> queue_;
 +  size_t offset_ = 0;
++  bool priming_ = true;
++  static constexpr size_t kPrime = 6;
 +};
 +#endif
 +
@@ -225,6 +247,30 @@ index db65075..cd3cf92 100644
      size_t map_length = length;
      if (!length) {
        map_length = size_t(file_size);
+diff --git a/src/xenia/kernel/xam/profile_manager.cc b/src/xenia/kernel/xam/profile_manager.cc
+index 33bb264..3224e24 100644
+--- a/src/xenia/kernel/xam/profile_manager.cc
++++ b/src/xenia/kernel/xam/profile_manager.cc
+@@ -128,6 +128,19 @@ ProfileManager::ProfileManager(KernelState* kernel_state,
+               cvars::logged_profile_slot_3_xuid, true),
+           3);
+   }
++
++#if XE_PLATFORM_ANDROID
++  // Origami : sans profil connecté, certains jeux (DMC 4) ouvrent une fenêtre
++  // « No gamer profile selected » qui bloque le menu titre. On connecte le
++  // premier profil trouvé, ou on en crée un.
++  if (logged_profiles_.empty()) {
++    if (accounts_.empty()) {
++      CreateProfile("Origami", true, false);
++    } else {
++      Login(accounts_.begin()->first, 0, false);
++    }
++  }
++#endif
+ }
+ 
+ void ProfileManager::ReloadProfile(const uint64_t xuid) {
 diff --git a/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc b/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc
 index bed9436..82abcf2 100644
 --- a/src/xenia/kernel/xboxkrnl/xboxkrnl_io.cc
@@ -261,7 +307,7 @@ index 19be6a6..956ad8f 100644
  
    if (thread_state_) {
 diff --git a/src/xenia/ui/presenter.cc b/src/xenia/ui/presenter.cc
-index d53a081..5a472dd 100644
+index d53a081..803229a 100644
 --- a/src/xenia/ui/presenter.cc
 +++ b/src/xenia/ui/presenter.cc
 @@ -9,6 +9,8 @@
@@ -288,7 +334,7 @@ index d53a081..5a472dd 100644
    GuestOutputProperties& writable_properties =
        guest_output_properties_[guest_output_mailbox_writable_];
    writable_properties.frontbuffer_width = frontbuffer_width;
-@@ -1447,3 +1453,11 @@ void Presenter::DXGIUITickThread() {
+@@ -1447,3 +1453,18 @@ void Presenter::DXGIUITickThread() {
  
  }  // namespace ui
  }  // namespace xe
@@ -298,5 +344,12 @@ index d53a081..5a472dd 100644
 +extern "C" JNIEXPORT jlong JNICALL
 +Java_com_hideo_foldplay_X360Activity_nativeFrames(JNIEnv*, jclass) {
 +  return jlong(xe::ui::origami_guest_frames.load(std::memory_order_relaxed));
++}
++
++// Origami : « Étirer » remplit la surface au lieu de garder le rapport du jeu.
++extern "C" JNIEXPORT void JNICALL
++Java_com_hideo_foldplay_X360Activity_nativeSetFill(JNIEnv*, jclass,
++                                                   jboolean fill) {
++  cvars::present_letterbox = !fill;
 +}
 +#endif

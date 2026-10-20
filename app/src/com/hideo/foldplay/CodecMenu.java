@@ -45,6 +45,7 @@ final class CodecMenu extends FrameLayout {
         int sel;
         Pick pick;
         boolean helpOpen;
+        boolean dim;
 
         Item(String label, String detail, int mark, Runnable action, boolean keepOpen) {
             this.label = label;
@@ -64,12 +65,19 @@ final class CodecMenu extends FrameLayout {
     private TextView messageView;
     private Runnable back;
     private int focus;
+    private int startFocus;
+    /** Vrai quand un autre menu l'a remplacé : il ne doit plus jamais revenir à l'écran. */
+    private boolean replaced;
     private int columns = 1;
     /** Entrées en tuiles (icône au-dessus du nom), comme un lanceur d'apps. */
     private boolean grid;
     private android.graphics.drawable.Drawable headIcon;
     private String headDesc;
     private Runnable headAction;
+    private android.graphics.drawable.Drawable headIcon2;
+    private String headDesc2;
+    private Runnable headAction2;
+    private boolean slider;
     private Capped scroll;
     private LinearLayout card;
     private FrameLayout host;
@@ -111,7 +119,7 @@ final class CodecMenu extends FrameLayout {
         return this;
     }
 
-    /** Une entrée visible mais fermée (fonction annoncée, « en chantier ») : rien ne s'ouvre. */
+    /** Une entrée visible mais fermée (fonction annoncée, « en construction ») : rien ne s'ouvre. */
     CodecMenu soon(android.graphics.drawable.Drawable icon, String label, String detail) {
         Item it = new Item(label, detail, 0, null, true);
         it.icon = icon;
@@ -148,6 +156,20 @@ final class CodecMenu extends FrameLayout {
         return this;
     }
 
+    /** Un second bouton-icône dans l'en-tête (tri, par exemple). */
+    CodecMenu headButton2(android.graphics.drawable.Drawable icon, String description, Runnable action) {
+        headIcon2 = icon;
+        headDesc2 = description;
+        headAction2 = action;
+        return this;
+    }
+
+    /** Ajoute un curseur de défilement rapide le long de la liste. */
+    CodecMenu slider(boolean on) {
+        slider = on;
+        return this;
+    }
+
     /** Un paragraphe sous le titre (avertissement, explication). */
     CodecMenu message(String m) {
         message = m;
@@ -164,6 +186,15 @@ final class CodecMenu extends FrameLayout {
     /** Une entrée qui ouvre un sous-menu (le menu reste à l'écran le temps de la remplacer). */
     CodecMenu sub(String label, String detail, Runnable action) {
         items.add(new Item(label + "  ›", detail, 0, action, true));
+        return this;
+    }
+
+    /** Comme sub, mais grisée et fermée quand elle ne sert à rien (ex. Andon sans pastilles). */
+    CodecMenu subIf(boolean enabled, String label, String detail, Runnable action) {
+        if (enabled) return sub(label, detail, action);
+        Item it = new Item(label, "Sans effet sans les pastilles", 0, null, true);
+        it.dim = true;
+        items.add(it);
         return this;
     }
 
@@ -184,6 +215,12 @@ final class CodecMenu extends FrameLayout {
         return this;
     }
 
+    /** Ligne choisie à l'ouverture (menu rouvert après un changement, pour garder sa place). */
+    CodecMenu focusAt(int i) {
+        startFocus = i;
+        return this;
+    }
+
     CodecMenu listener(Listener l) {
         listener = l;
         return this;
@@ -199,12 +236,30 @@ final class CodecMenu extends FrameLayout {
             View v = where.getChildAt(i);
             if (v instanceof CodecMenu) {
                 if (listener == null) listener = ((CodecMenu) v).listener;
+                ((CodecMenu) v).replaced = true;
                 where.removeViewAt(i);
                 replacing = true;
             }
         }
         build();
         where.addView(this, new FrameLayout.LayoutParams(-1, -1));
+        // Voile sombre sur tout l'écran, barres d'état et de navigation comprises (0.65).
+        where.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                post(new Runnable() {
+                    public void run() {
+                        extend();
+                        // Rotation ou pliage : la carte se refait au nouveau format.
+                        if (host != null && getParent() == host && card != null && (hostPortrait() && !padConnected) != compact) {
+                            int f = focus;
+                            build();
+                            setFocus(f);
+                        }
+                    }
+                });
+            }
+        });
+        post(new Runnable() { public void run() { extend(); } });
         if (replacing) {
             // Sous-menu : simple fondu, sans relancer l'appel.
             card.setAlpha(0f);
@@ -222,9 +277,33 @@ final class CodecMenu extends FrameLayout {
                             .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
                 }
             }).start();
-            CodecSound.call(getContext());
+            UiSound.play(getContext(), UiSound.OPEN);
         }
-        setFocus(0);
+        setFocus(startFocus);
+    }
+
+    /**
+     * Étend le voile jusqu'aux bords de la fenêtre : marges négatives égales à ce qui dépasse de la zone
+     * hôte, et la même marge en remplissage pour que la carte reste à sa place.
+     */
+    private void extend() {
+        if (host == null || getParent() != host || host.getWidth() == 0) return;
+        View decor = host.getRootView();
+        int[] at = new int[2];
+        host.getLocationInWindow(at);
+        // La zone hôte peut avoir sa propre marge (sa racine laisse la place aux barres) : on la compte aussi.
+        int l = Math.max(0, at[0]) + host.getPaddingLeft(), t = Math.max(0, at[1]) + host.getPaddingTop();
+        int r = Math.max(0, decor.getWidth() - (at[0] + host.getWidth())) + host.getPaddingRight();
+        int b = Math.max(0, decor.getHeight() - (at[1] + host.getHeight())) + host.getPaddingBottom();
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
+        if (lp.leftMargin == -l && lp.topMargin == -t && lp.rightMargin == -r && lp.bottomMargin == -b) return;
+        for (android.view.ViewParent p = host; p instanceof android.view.ViewGroup; p = p.getParent()) {
+            ((android.view.ViewGroup) p).setClipChildren(false);
+            ((android.view.ViewGroup) p).setClipToPadding(false);
+        }
+        lp.setMargins(-l, -t, -r, -b);
+        setLayoutParams(lp);
+        setPadding(l, t, r, b);
     }
 
     static CodecMenu find(FrameLayout where) {
@@ -242,12 +321,19 @@ final class CodecMenu extends FrameLayout {
     }
 
     void dismiss() {
+        if (!UiSound.playedRecently(150)) UiSound.play(getContext(), UiSound.CLOSE);
         if (host != null) host.removeView(this);
         host = null;
         if (listener != null) listener.onClosed();
     }
 
     private boolean padConnected;
+    /** Portrait : carte ajustée à son contenu, entrées plus serrées (0.65.25). */
+    private boolean compact;
+
+    private boolean hostPortrait() {
+        return host != null && host.getWidth() > 0 && host.getHeight() > host.getWidth();
+    }
 
     private void build() {
         removeAllViews();
@@ -264,11 +350,36 @@ final class CodecMenu extends FrameLayout {
         card.setClipToOutline(true);
         card.setClickable(true);
         card.setPadding(0, px(14), 0, px(10));
+        Theme.mirror(card);
 
         // En-tête : barre verte, titre au pochoir, sous-titre.
         LinearLayout head = new LinearLayout(getContext());
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.setPadding(px(18), 0, px(18), px(8));
+        head.setPadding(px(10), 0, px(18), px(8));
+        // Flèche retour aux couleurs du thème, sur chaque menu et sous-menu (0.62.1).
+        android.widget.ImageView backBtn = new android.widget.ImageView(getContext());
+        backBtn.setImageDrawable(Icons.of(getContext(), "back", Theme.CODEC, 22));
+        backBtn.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+        backBtn.setContentDescription(I18n.tr("Retour"));
+        backBtn.setBackground(Theme.pill(Theme.alpha(Theme.CODEC, 0x1A), px(20)));
+        backBtn.setOnClickListener(new OnClickListener() {
+            public void onClick(View v) {
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                goBack();
+            }
+        });
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(px(40), px(40));
+        // Droitier : toute l'en-tête se lit depuis le bord droit, flèche en premier, sous le pouce
+        // (Réglages > Accessibilité, 0.65) ; gaucher : flèche à gauche, titre à sa droite.
+        boolean backRight = Theme.RIGHT_HANDED;
+        if (backRight) {
+            head.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            head.setTextDirection(View.TEXT_DIRECTION_LTR);
+            blp.leftMargin = px(10);
+        } else {
+            blp.rightMargin = px(10);
+        }
+        head.addView(backBtn, blp);
         View bar = new View(getContext());
         bar.setBackgroundColor(Theme.CODEC);
         head.addView(bar, new LinearLayout.LayoutParams(px(4), px(26)));
@@ -278,7 +389,7 @@ final class CodecMenu extends FrameLayout {
         TextView t = new TextView(getContext());
         t.setText(title.toUpperCase());
         t.setTypeface(Fonts.logo(getContext()));
-        t.setTextSize(18);
+        t.setTextSize(compact ? 16 : 18);
         t.setTextColor(Theme.CODEC);
         Theme.marquee(t);
         titles.addView(t);
@@ -292,6 +403,22 @@ final class CodecMenu extends FrameLayout {
             titles.addView(st);
         }
         head.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));
+        if (headIcon2 != null) {
+            android.widget.ImageView hb2 = new android.widget.ImageView(getContext());
+            hb2.setImageDrawable(headIcon2);
+            hb2.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+            hb2.setContentDescription(I18n.tr(headDesc2));
+            hb2.setBackground(Theme.pill(Theme.alpha(Theme.CODEC, 0x22), px(12)));
+            hb2.setOnClickListener(new OnClickListener() {
+                public void onClick(View v) {
+                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                    headAction2.run();
+                }
+            });
+            LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(px(44), px(44));
+            p2.rightMargin = px(8);
+            head.addView(hb2, p2);
+        }
         if (headIcon != null) {
             android.widget.ImageView hb = new android.widget.ImageView(getContext());
             hb.setImageDrawable(headIcon);
@@ -321,7 +448,15 @@ final class CodecMenu extends FrameLayout {
 
         LinearLayout list = new LinearLayout(getContext());
         list.setOrientation(LinearLayout.VERTICAL);
+        // Navigation au sens de la main (0.65) : droitier = entrées alignées à droite, marque et icône
+        // côté pouce, colonnes lues de droite à gauche ; gaucher = tout à gauche. Le texte reste lu normalement.
+        if (Theme.RIGHT_HANDED) {
+            list.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            list.setTextDirection(View.TEXT_DIRECTION_LTR);
+        }
         int hw = host != null && host.getWidth() > 0 ? host.getWidth() : px(600);
+        int hh = host != null ? host.getHeight() : 0;
+        compact = hostPortrait() && !padConnected;
         // Toute la pilule du haut : deux colonnes dès qu'il y a la place, pour voir plus d'entrées.
         columns = hw >= px(620) && items.size() > 3 ? 2 : 1;
         for (Item it : items) if (it.icons != null) columns = 1;
@@ -338,14 +473,26 @@ final class CodecMenu extends FrameLayout {
             }
             list.addView(line, new LinearLayout.LayoutParams(-1, -2));
         }
-        scroll = new Capped(getContext());
+        Capped capped = new Capped(getContext());
+        scroll = capped;
+        // Portrait : la liste s'arrête à 72 % de la hauteur, la carte se resserre autour (hors en-tête et pied).
+        if (compact) capped.max = Math.max(px(160), Math.round(hh * 0.72f) - px(120));
         scroll.setVerticalScrollBarEnabled(false);
         scroll.addView(list);
-        card.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        if (slider) {
+            FrameLayout wrap = new FrameLayout(getContext());
+            wrap.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
+            wrap.addView(new Slider(getContext(), scroll), new FrameLayout.LayoutParams(px(30), -1,
+                    Theme.RIGHT_HANDED ? Gravity.LEFT : Gravity.RIGHT));
+            card.addView(wrap, new LinearLayout.LayoutParams(-1, 0, 1f));
+        } else {
+            card.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        }
 
         TextView hint = new TextView(getContext());
         // Avec une manette physique, on parle de ses touches ; sinon, du doigt et de la manette à l'écran.
         hint.setText(padConnected ? "✚ / STICK CHOISIR   Ⓐ VALIDER   Ⓑ RETOUR   ⌂ FERMER"
+                : compact ? "✚ CHOISIR   Ⓐ VALIDER   Ⓑ RETOUR"
                 : "TOUCHE UNE ENTRÉE   ·   ✚ CHOISIR   Ⓐ VALIDER   Ⓑ RETOUR");
         hint.setTypeface(Fonts.wide(getContext()));
         hint.setTextSize(9);
@@ -360,8 +507,54 @@ final class CodecMenu extends FrameLayout {
                 ? new FrameLayout.LayoutParams(Math.min(hw - px(24), px(720)), -1, Gravity.CENTER)
                 : new FrameLayout.LayoutParams(-1, -1);
         if (padConnected) lp.setMargins(0, px(24), 0, px(24));
-        else lp.setMargins(px(10), px(10), px(10), px(10));
+        else if (compact) {
+            // Carte ajustée au contenu, centrée dans la moitié de jeu (ou l'écran), jamais plein cadre.
+            lp = new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER);
+            lp.setMargins(px(10), px(10), px(10), px(10));
+        } else lp.setMargins(px(10), px(10), px(10), px(10));
         addView(card, lp);
+    }
+
+    /** Curseur de défilement rapide : glisser la poignée fait défiler toute la liste. */
+    private static final class Slider extends View {
+        private final ScrollView target;
+        private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+        Slider(Context c, ScrollView t) {
+            super(c);
+            target = t;
+            setLayerType(LAYER_TYPE_NONE, null);
+        }
+
+        private int range() {
+            View child = target.getChildAt(0);
+            return child == null ? 0 : Math.max(0, child.getHeight() - target.getHeight());
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas c) {
+            int range = range();
+            if (range <= 0) return;
+            float w = getWidth(), h = getHeight(), d = getResources().getDisplayMetrics().density;
+            float cx = w / 2, th = 46 * d;
+            paint.setColor(Theme.alpha(Theme.CODEC, 0x33));
+            c.drawRoundRect(cx - 2 * d, 4 * d, cx + 2 * d, h - 4 * d, 2 * d, 2 * d, paint);
+            float y = 4 * d + (h - 8 * d - th) * target.getScrollY() / range;
+            paint.setColor(Theme.CODEC);
+            c.drawRoundRect(cx - 7 * d, y, cx + 7 * d, y + th, 7 * d, 7 * d, paint);
+            postInvalidateOnAnimation();
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int range = range();
+            if (range <= 0) return false;
+            float d = getResources().getDisplayMetrics().density, th = 46 * d;
+            float f = (e.getY() - 4 * d - th / 2) / Math.max(1f, getHeight() - 8 * d - th);
+            target.scrollTo(0, Math.round(Math.max(0f, Math.min(1f, f)) * range));
+            getParent().requestDisallowInterceptTouchEvent(true);
+            return true;
+        }
     }
 
     /** Liste qui défile au-delà d'une hauteur maximale. */
@@ -384,8 +577,8 @@ final class CodecMenu extends FrameLayout {
         if (it.icons != null) return choiceRow(i);
         LinearLayout r = new LinearLayout(getContext());
         r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setPadding(px(18), px(11), px(18), px(11));
-        r.setMinimumHeight(px(48));
+        r.setPadding(px(18), px(compact ? 8 : 11), px(18), px(compact ? 8 : 11));
+        r.setMinimumHeight(px(compact ? 44 : 48));
         if (it.icon != null) {
             android.widget.ImageView iv = new android.widget.ImageView(getContext());
             iv.setImageDrawable(it.icon);
@@ -393,7 +586,9 @@ final class CodecMenu extends FrameLayout {
             ip.setMargins(0, 0, px(12), 0);
             r.addView(iv, ip);
         }
-        if (it.mark != 0) {
+        if (it.mark == 1 || it.mark == 2) {
+            // Interrupteur ajouté en fin de ligne, juste après le texte.
+        } else if (it.mark != 0) {
             TextView m = new TextView(getContext());
             m.setText(it.mark == 1 ? "■" : it.mark == 2 ? "□" : it.mark == 3 ? "●" : "○");
             m.setTextSize(15);
@@ -419,6 +614,11 @@ final class CodecMenu extends FrameLayout {
             texts.addView(d);
         }
         r.addView(texts, new LinearLayout.LayoutParams(0, -2, 1f));
+        if (it.mark == 1 || it.mark == 2) {
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(px(48), px(compact ? 44 : 48));
+            sp.setMargins(px(8), 0, 0, 0);
+            r.addView(new ThemeSwitch(getContext(), it.mark == 1), sp);
+        }
         r.setOnTouchListener(new OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent e) {
@@ -432,6 +632,7 @@ final class CodecMenu extends FrameLayout {
                 activate(i);
             }
         });
+        if (it.dim) r.setAlpha(0.45f);
         rows.add(r);
         return r;
     }
@@ -571,7 +772,9 @@ final class CodecMenu extends FrameLayout {
 
     private void setFocus(int i) {
         if (rows.isEmpty()) return;
+        int before = focus;
         focus = Math.max(0, Math.min(rows.size() - 1, i));
+        if (focus != before && isShown()) UiSound.play(getContext(), UiSound.MOVE);
         for (int k = 0; k < rows.size(); k++) {
             View r = rows.get(k);
             if (k == focus) {
@@ -602,6 +805,7 @@ final class CodecMenu extends FrameLayout {
         if (i < 0 || i >= items.size()) return;
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         Item it = items.get(i);
+        UiSound.play(getContext(), it.keepOpen && it.mark == 2 ? UiSound.ON : it.keepOpen && it.mark == 1 ? UiSound.OFF : UiSound.SELECT);
         if (!it.keepOpen) {
             // On ferme d'abord : l'action peut ouvrir un autre menu à la place.
             Listener l = listener;
@@ -624,7 +828,7 @@ final class CodecMenu extends FrameLayout {
                     build();
                     setFocus(i);
                 }
-            } else if (getContext() instanceof android.app.Activity) {
+            } else if (!replaced && getContext() instanceof android.app.Activity) {
                 // L'écran s'est reconstruit (thème changé) : le menu revient à sa place, aux nouvelles couleurs.
                 FrameLayout now = hostFor((android.app.Activity) getContext());
                 if (now != null && find(now) == null && before != null) {
@@ -640,6 +844,7 @@ final class CodecMenu extends FrameLayout {
     }
 
     private void goBack() {
+        UiSound.play(getContext(), UiSound.BACK);
         if (back != null) back.run();
         else dismiss();
     }

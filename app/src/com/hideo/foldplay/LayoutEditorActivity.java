@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -39,7 +40,7 @@ public class LayoutEditorActivity extends Activity {
     private ControlDeckView deck;
     private final List<ControlLayout> layouts = new ArrayList<ControlLayout>();
     private ControlLayout current;
-    private LinearLayout chips;
+    private ViewGroup chips;
     private TextView info;
     private boolean ready;
     private LinearLayout styleBox;
@@ -61,7 +62,7 @@ public class LayoutEditorActivity extends Activity {
 
         LinearLayout root = vertical();
         // Mêmes proportions que la vue Flex : deux pilules séparées par un mince filet.
-        root.setBackgroundColor(Theme.GAP);
+        root.setBackground(Theme.backdrop(0));
         root.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         // Moitié haute : les outils.
@@ -78,15 +79,23 @@ public class LayoutEditorActivity extends Activity {
                 finish();
             }
         });
-        bar.addView(back);
         TextView title = text("MANETTE", 20, Theme.CODEC);
         title.setTypeface(Fonts.logo(this));
-        bar.addView(title);
+        title.setPadding(dp(6), 0, dp(6), 0);
+        if (Theme.RIGHT_HANDED) {
+            // Droitier : flèche et titre depuis le bord droit, sous le pouce (0.65).
+            bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            title.setTextDirection(View.TEXT_DIRECTION_LTR);
+            back.setText("→");
+        }
+        bar.addView(back);
+        bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
         tools.addView(bar);
 
-        chips = new LinearLayout(this);
+        // Rangée qui passe à la ligne, remplie à chaque renderChips (une copie détachée perdait les manettes).
+        chips = new FlowRow(this, 0);
         chips.setPadding(dp(12), dp(4), dp(12), dp(4));
-        tools.addView(scroller(chips));
+        tools.addView(chips);
 
         // Catégories : une seule page d'outils à la fois, plutôt qu'une longue liste.
         // Barre d'onglets fixe sous les dispositions ; seule la page de l'onglet défile.
@@ -154,6 +163,19 @@ public class LayoutEditorActivity extends Activity {
     private void loadLayouts() {
         layouts.clear();
         layouts.addAll(store.layouts());
+        // 0.65 : la 2D fournie avait disparu des puces ; on la remet (Flex, 2D, 3D, ..., Mini).
+        boolean has2d = false;
+        for (ControlLayout l : layouts) has2d |= l.kind.equals("2d");
+        if (!has2d && !layouts.isEmpty()) {
+            ControlLayout d2 = ControlLayout.arcade();
+            boolean taken = false;
+            for (ControlLayout l : layouts) taken |= l.name.equals(d2.name);
+            if (taken) d2.name = unique("2D");
+            int at = 0;
+            while (at < layouts.size() && layouts.get(at).kind.equals("flex")) at++;
+            layouts.add(at, d2);
+            store.saveLayouts(layouts);
+        }
         if (layouts.isEmpty()) layouts.add(ControlLayout.classic(deck.columns(), deck.rows()));
         current = null;
         for (ControlLayout l : layouts) if (l.name.equals(store.activeLayout())) current = l;
@@ -163,6 +185,7 @@ public class LayoutEditorActivity extends Activity {
 
     private void open(ControlLayout l) {
         current = l;
+        if (l.kind.equals("flex")) deck.setSystem(flexSystem);
         deck.setLayout(l);
         save();
         renderChips();
@@ -189,10 +212,10 @@ public class LayoutEditorActivity extends Activity {
     private void renderChips() {
         chips.removeAllViews();
         for (final ControlLayout l : layouts) {
-            // Mini : en chantier (0.60.3), ni ouverte ni modifiable.
+            // Mini : en construction (0.60.3), ni ouverte ni modifiable.
             if (l.floating()) {
-                chips.addView(chip(l.name + " · en chantier", false, new Runnable() {
-                    public void run() { toast("La manette Mini est en chantier."); }
+                chips.addView(chip(l.name + " · 👷‍♂️🚧", false, new Runnable() {
+                    public void run() { toast("La manette Mini : 👷‍♂️🚧"); }
                 }));
                 continue;
             }
@@ -253,9 +276,32 @@ public class LayoutEditorActivity extends Activity {
         open(copy);
     }
 
+    /** Console dont on règle la Flex dans l'éditeur (0.62.3) : la réinitialisation remet son modèle. */
+    private static String flexSystem = "ps3";
+
+    /** Choix de la console : la Flex prend sa forme, et « Réinitialiser » rend son modèle exact. */
+    private void consoles() {
+        if (current == null || !current.kind.equals("flex") || current.split) return;
+        styleBox.addView(label("CONSOLE"));
+        LinearLayout row = new LinearLayout(this);
+        row.setPadding(dp(12), dp(2), dp(12), dp(4));
+        for (final String[] s : ControlDeckView.TOUR) {
+            row.addView(chip(s[1], s[0].equals(flexSystem), new Runnable() {
+                public void run() {
+                    flexSystem = s[0];
+                    deck.setSystem(flexSystem);
+                    deck.setLayout(current);
+                    renderStyle();
+                }
+            }));
+        }
+        styleBox.addView(scroller(row));
+    }
+
     private void reset() {
         if (current == null) return;
         current.controls.clear();
+        if (current.kind.equals("flex")) current.family = flexSystem;
         ControlLayout d = current.origin(deck.columns(), deck.rows());
         current.controls.addAll(d.controls);
         current.split = d.split;
@@ -266,7 +312,7 @@ public class LayoutEditorActivity extends Activity {
         current.stock = true;
         deck.setLayout(current);
         save();
-        toast("Touches remises à la disposition classique.");
+        toast("Disposition d'origine remise.");
     }
 
     private void deleteLayout() {
@@ -278,7 +324,7 @@ public class LayoutEditorActivity extends Activity {
         final ControlLayout doomed = current;
         new CodecMenu(this).title("Supprimer « " + doomed.name + " » ?", "DISPOSITION")
                 .item("Annuler", null, null)
-                .item("Supprimer", "Ses touches et son image de fond seront effacées", new Runnable() {
+                .item("Supprimer", "Efface cette manette (touches et fond)", new Runnable() {
                     public void run() {
                         layouts.remove(doomed);
                         deleteBackgroundFile(doomed.background);
@@ -324,7 +370,7 @@ public class LayoutEditorActivity extends Activity {
         current.bgScale = 1;
         deck.reloadBackground();
         save();
-        toast("Fond ajouté : glisse pour le déplacer, pince pour zoomer.");
+        toast("Fond ajouté : glisse, pince pour zoomer.");
     }
 
     private void recenter() {
@@ -422,9 +468,7 @@ public class LayoutEditorActivity extends Activity {
         styleBox.removeAllViews();
         if (info.getParent() != null) ((LinearLayout) info.getParent()).removeView(info);
         if (tab.equals("keys") && current.split) {
-            styleBox.addView(hint("Disposition Flex : la place et la taille de chaque touche sont figées. Fais glisser "
-                    + "une moitié pour la déplacer, pince pour grossir la manette ; le curseur de taille et la case "
-                    + "« Délier » sont dans l'onglet Disposition."));
+            styleBox.addView(hint("Touches figées : glisse une moitié pour la déplacer, pince pour la taille."));
         } else if (tab.equals("keys")) {
             styleBox.addView(scroller(buttons(
                     new String[] {"＋ Ajouter", "Retirer la touche", "− Taille", "＋ Taille"},
@@ -437,15 +481,14 @@ public class LayoutEditorActivity extends Activity {
             styleBox.addView(info);
         } else if (tab.equals("layout")) {
             styleBox.addView(scroller(buttons(
-                    new String[] {"Renommer", "Dupliquer", "Réinitialiser", "Supprimer la disposition"},
+                    new String[] {"Renommer", "Dupliquer", "Réinitialiser", "Supprimer"},
                     new Runnable[] {
                         new Runnable() { public void run() { rename(); } },
                         new Runnable() { public void run() { duplicate(); } },
                         new Runnable() { public void run() { reset(); } },
                         new Runnable() { public void run() { deleteLayout(); } },
                     })));
-            styleBox.addView(hint("« Réinitialiser » remet la disposition d'origine. Elle garde le même "
-                    + "agencement sur les deux écrans, en portrait comme en paysage."));
+            consoles();
             if (current.split) {
                 final ControlLayout l = current;
                 styleBox.addView(slider("Taille de la manette", l.splitScale, 60, 130, new Pick() {
@@ -478,7 +521,7 @@ public class LayoutEditorActivity extends Activity {
                     })));
                 styleBox.addView(hint("Disposition Flex : les touches sont figées. Fais glisser une moitié sur la "
                         + "manette pour la déplacer" + (l.splitLinked ? ", l'autre suit en miroir." : ".")
-                        + " Le joystick gauche sert aussi de croix en jeu."));
+                        + " Le joystick gauche fait aussi croix."));
             }
         } else if (tab.equals("bg")) {
             styleBox.addView(scroller(buttons(
@@ -488,7 +531,7 @@ public class LayoutEditorActivity extends Activity {
                         new Runnable() { public void run() { recenter(); } },
                         new Runnable() { public void run() { removeBackground(); } },
                     })));
-            styleBox.addView(hint("Sans touche choisie, glisse et pince sur la manette pour placer l'image."));
+            styleBox.addView(hint("Sans touche choisie, glisse et pince pour placer l'image."));
         } else {
             hapticsPage();
         }
@@ -598,7 +641,7 @@ public class LayoutEditorActivity extends Activity {
             }));
         }
         styleBox.addView(scroller(row));
-        styleBox.addView(hint("Vibration à chaque appui sur une touche de la manette, en jeu comme dans les menus."));
+
     }
 
     private void styleChanged() {
@@ -679,11 +722,21 @@ public class LayoutEditorActivity extends Activity {
 
     // ------------------------------------------------------------------ vues
 
+    /**
+     * Rangée de boutons : elle passe à la ligne au lieu de défiler à l'horizontale (0.62.3,
+     * demande de BOSS : les longs boutons à faire glisser étaient pénibles).
+     */
     private View scroller(View content) {
-        HorizontalScrollView hs = new HorizontalScrollView(this);
-        hs.setHorizontalScrollBarEnabled(false);
-        hs.addView(content);
-        return hs;
+        if (!(content instanceof LinearLayout)) return content;
+        LinearLayout row = (LinearLayout) content;
+        FlowRow flow = new FlowRow(this, 0);
+        flow.setPadding(row.getPaddingLeft(), row.getPaddingTop(), row.getPaddingRight(), row.getPaddingBottom());
+        while (row.getChildCount() > 0) {
+            View v = row.getChildAt(0);
+            row.removeViewAt(0);
+            flow.addView(v);
+        }
+        return flow;
     }
 
     private LinearLayout buttons(String[] labels, Runnable[] actions) {
@@ -752,6 +805,7 @@ public class LayoutEditorActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
         // Rotation ou pli : la colonne des catégories montre ou cache les noms selon la largeur.
         renderStyle();

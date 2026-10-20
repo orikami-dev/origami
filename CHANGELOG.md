@@ -2,6 +2,21 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.0
+
+- Interrupteurs redessinés aux couleurs de chaque thème, dans les Réglages comme dans les menus codec.
+- Andon : la lumière est enfermée dans un contour propre à chaque thème (Codec, Arctique, Écarlate, Sakura, Ambre).
+- Nouvelle option Réglages > Affichage > « Pastilles » : coins arrondis ou écran bord à bord. Sans pastilles, Andon est désactivé et grisé.
+- Manette de l'accueil : L et R retirés.
+- PS3 : boucles d'attente SPU détectées pour libérer le processeur, caches de code forcés, envoi GPU rapide, tampon son de 200 ms contre les coupures pendant les ralentis.
+- Mode débogage : charge de chaque fil du moteur relevée toutes les 2 s et jointe à « Copier le journal ».
+
+## 0.65.30
+- Assistant de démarrage : les coins ne laissent plus voir le fond derrière.
+
+## 0.65.29
+- Journal : le bouton « Copier le journal » retire le bruit système et garde les lignes utiles ; la musique n’inonde plus le journal.
+
 ## 0.65.28
 - Bibliothèque : l’entrée « Actualiser la bibliothèque » de la catégorie Tous est retirée, le geste « tirer pour actualiser » la remplace.
 
@@ -16,7 +31,7 @@ Studio : KAMI-WORKS.
 - Andon : la lumière suit l'image réelle du jeu et se reforme selon le format (rotation, pliage), sans couper l'interface.
 - Menu codec : en portrait, la carte s'ajuste à son contenu au lieu de prendre tout l'écran, avec des entrées plus serrées.
 
-## 0.65.24
+## 0.65.24 ⭐
 - Sons système propres à chaque thème pour les actions : suivant, changement d'onglet, option activée ou désactivée, erreur, opération terminée, fermeture d'un menu.
 
 ## 0.65.23
@@ -37,7 +52,7 @@ Studio : KAMI-WORKS.
 - Apparition de la bulle propre à chaque thème (balayage Codec, givre Arctique, éventail Écarlate, éclosion Sakura, scintillement Ambre).
 - Sous-textes des menus réécrits pour être plus clairs.
 
-## 0.65.18
+## 0.65.18 ⭐
 - Andon : lumière d'ambiance autour de l'écran du jeu, qui reprend les couleurs de l'image. Modes Éteinte, Thème, Image, Image et thème, Douce, dans le menu Codec en jeu et dans le menu Thème de l'accueil.
 - Manette de l'accueil : L et R descendus en haricot, un de chaque côté.
 
@@ -61,7 +76,7 @@ Studio : KAMI-WORKS.
 ## 0.65.12
 - Le canal des builds de test s'appelle « Préversions » (Réglages > Mises à jour) ; « bêta » reste réservé à la future bêta publique.
 
-## 0.65.11
+## 0.65.11 ⭐
 - Préversions dans l'app (Réglages > Mises à jour > Préversions) : les nouvelles versions apparaissent seules, avec notification.
 - Format et mode : le message précédent est remplacé tout de suite, plus de notifications qui s'enchaînent en retard.
 - PS3 et Xbox 360 : l'écran et la manette se replacent d'après la hauteur réelle de la scène (plus de chevauchement au pliage).

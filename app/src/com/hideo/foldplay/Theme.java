@@ -23,8 +23,13 @@ final class Theme {
     static int LOGO;
     /** Thème en cours, pour le fond assorti. */
     static String THEME_ID = "codec";
-    static final int TEXT = 0xFFF1F1F1;
-    static final int MUTED = 0xFF8A8F9C;
+    /** Fonds animés en boucle (0.62.2, Réglages > Affichage). */
+    static boolean ANIMATE = true;
+    static int TEXT = 0xFFF1F1F1;
+    static int MUTED = 0xFF8A8F9C;
+    /** Accessibilité (Réglages > Accessibilité) : main qui tient le téléphone, gâchettes à bascule, course des joysticks. */
+    static boolean RIGHT_HANDED = true, LATCH = false, STRONG_HAPTICS = false;
+    static float STICK_REACH = 1f;
     static final int YELLOW = 0xFFFFD23F;
     static final int RED = 0xFFFF5A5F;
 
@@ -45,11 +50,56 @@ final class Theme {
     }
 
     /** Rectangle aux coins très arrondis : les deux moitiés de l'écran Flex. */
+    /** Réglage « Pastilles » : rayon demandé, ou 0 (coins droits) quand les pastilles sont coupées. */
+    static float pillR(android.content.Context c, float radiusPx) {
+        return new Store(c).pills() ? radiusPx : 0f;
+    }
+
+    /** Idem pour une marge ou un filet qui n'existe que pour montrer l'espace entre pastilles. */
+    static int pillGap(android.content.Context c, int px) {
+        return new Store(c).pills() ? px : 0;
+    }
+
     static android.graphics.drawable.GradientDrawable pill(int color, float radiusPx) {
         android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
         d.setColor(color);
         d.setCornerRadius(radiusPx);
         return d;
+    }
+
+    /**
+     * Fond entre les pilules (0.62.5) : plus de noir franc, un fondu de la couleur du thème,
+     * plus marqué en haut et en bas, presque noir au milieu.
+     */
+    /** Pilule de l'accent dont une part (0 à 1) est pleine, le reste en teinte sombre : barre de progression. */
+    static android.graphics.drawable.Drawable progressPill(final float frac, final float radius) {
+        final int on = CODEC, off = blend(BG, CODEC, 0.28f);
+        return new android.graphics.drawable.Drawable() {
+            private final android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+            public void draw(android.graphics.Canvas c) {
+                android.graphics.RectF r = new android.graphics.RectF(getBounds());
+                p.setColor(off);
+                c.drawRoundRect(r, radius, radius, p);
+                c.save();
+                c.clipRect(r.left, r.top, r.left + r.width() * frac, r.bottom);
+                p.setColor(on);
+                c.drawRoundRect(r, radius, radius, p);
+                c.restore();
+            }
+
+            public void setAlpha(int a) { }
+
+            public void setColorFilter(android.graphics.ColorFilter f) { }
+
+            public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        };
+    }
+
+    static android.graphics.drawable.Drawable gap() {
+        int edge = blend(GAP, CODEC, 0.26f), mid = blend(GAP, CODEC, 0.10f);
+        return new android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, new int[] {edge, mid, edge});
     }
 
     /** L'accent du thème avec une transparence donnée (0x00 à 0xFF). */
@@ -100,15 +150,49 @@ final class Theme {
      * Plein écran : barres d'état et de navigation masquées, un glissement du bord les rappelle.
      * Toujours en jeu ; ailleurs seulement si l'option est activée (Réglages > Affichage).
      */
+    /** Mode droitier (0.65) : la zone se lit en miroir de la disposition de base, navigation et textes
+     *  proches côté pouce. Le sens de lecture du texte lui-même ne change pas. */
+    /** Vrai pendant l'animation de démarrage : sous les barres, le fond reste uni (0.65). */
+    static boolean splashing;
+
+    /** Fond sous les barres d'état et de navigation : uni pendant le démarrage, puis celui du thème. */
+    static void barsBackground(android.app.Activity a, boolean splash) {
+        splashing = splash;
+        android.view.View content = a.getWindow().getDecorView().findViewById(android.R.id.content);
+        if (content == null) return;
+        if (splash) content.setBackgroundColor(BG);
+        else content.setBackground(backdrop(0));
+    }
+
+    static void mirror(android.view.View v) {
+        if (!RIGHT_HANDED || v == null) return;
+        v.setLayoutDirection(android.view.View.LAYOUT_DIRECTION_RTL);
+        v.setTextDirection(android.view.View.TEXT_DIRECTION_LTR);
+    }
+
     @SuppressWarnings("deprecation")
     static void fullscreen(android.app.Activity a) {
         android.view.Window w = a.getWindow();
-        if (!(a instanceof GameActivity) && !new Store(a).appFullscreen()) {
+        // La décoration doit exister avant getInsetsController (sinon NullPointerException dans
+        // onCreate, avant setContentView : plantage des moteurs PS3 et 360 en 0.62.1).
+        w.getDecorView();
+        TouchSound.install(a);
+        textScale(a);
+        boolean game = a instanceof GameActivity || a instanceof Ps3Activity || a instanceof X360Activity;
+        // Paysage : plein écran automatique partout, barres masquées (BOSS, 20/10).
+        boolean land = a.getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        if (!game && !land && !new Store(a).appFullscreen()) {
             // Fenêtre classique : l'app se redimensionne entre la barre d'état et la barre de
             // navigation, rien n'est caché dessous (ni le haut des menus, ni les manettes).
             w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            w.setStatusBarColor(BG);
-            w.setNavigationBarColor(BG);
+            // Barres d'état (batterie) et de navigation transparentes (0.65) : le fond de l'app passe
+            // dessous, le contenu reste entre les deux grâce à une marge posée sur la zone de contenu.
+            w.setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            w.setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                w.setNavigationBarContrastEnforced(false);
+                w.setStatusBarContrastEnforced(false);
+            }
             if (android.os.Build.VERSION.SDK_INT >= 28) {
                 android.view.WindowManager.LayoutParams lp = w.getAttributes();
                 if (lp.layoutInDisplayCutoutMode != android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT) {
@@ -117,7 +201,45 @@ final class Theme {
                 }
             }
             if (android.os.Build.VERSION.SDK_INT >= 30) {
-                w.setDecorFitsSystemWindows(true);
+                w.setDecorFitsSystemWindows(false);
+                final android.view.View content = w.getDecorView().findViewById(android.R.id.content);
+                if (content != null) {
+                    if (!splashing) content.setBackground(backdrop(0));
+                    // Le clavier suit le même chemin : le contenu monte avec lui, image par image, sans barre opaque.
+                    content.setWindowInsetsAnimationCallback(new android.view.WindowInsetsAnimation.Callback(
+                            android.view.WindowInsetsAnimation.Callback.DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+                        public android.view.WindowInsets onProgress(android.view.WindowInsets wi,
+                                java.util.List<android.view.WindowInsetsAnimation> running) {
+                            content.dispatchApplyWindowInsets(wi);
+                            return wi;
+                        }
+                    });
+                    content.setOnApplyWindowInsetsListener(new android.view.View.OnApplyWindowInsetsListener() {
+                        public android.view.WindowInsets onApplyWindowInsets(android.view.View v, android.view.WindowInsets wi) {
+                            android.graphics.Insets b = wi.getInsets(android.view.WindowInsets.Type.systemBars()
+                                    | android.view.WindowInsets.Type.displayCutout() | android.view.WindowInsets.Type.ime());
+                            // La marge va sur la vue racine de l'activité, pas sur la zone de contenu :
+                            // le fond de la racine passe ainsi sous les barres, sans raccord.
+                            android.view.View top = ((android.view.ViewGroup) v).getChildCount() > 0
+                                    ? ((android.view.ViewGroup) v).getChildAt(0) : null;
+                            android.graphics.Insets sys = wi.getInsets(android.view.WindowInsets.Type.systemBars()
+                                    | android.view.WindowInsets.Type.displayCutout());
+                            INSETS[0] = sys.left;
+                            INSETS[1] = sys.top;
+                            INSETS[2] = sys.right;
+                            INSETS[3] = sys.bottom;
+                            // Tsuru : haut et bas sans marge, les pastilles passent sous les barres ; seul le clavier remonte le contenu.
+                            int bottom = bleed ? (wi.isVisible(android.view.WindowInsets.Type.ime()) ? b.bottom : 0) : b.bottom;
+                            int topPad = bleed ? 0 : b.top;
+                            if (top != null) top.setPadding(b.left, topPad, b.right, bottom);
+                            else v.setPadding(b.left, topPad, b.right, bottom);
+                            Runnable hook = insetsHook;
+                            if (hook != null) hook.run();
+                            return android.view.WindowInsets.CONSUMED;
+                        }
+                    });
+                    content.requestApplyInsets();
+                }
                 android.view.WindowInsetsController c = w.getInsetsController();
                 if (c != null) c.show(android.view.WindowInsets.Type.statusBars() | android.view.WindowInsets.Type.navigationBars());
             } else {
@@ -134,6 +256,19 @@ final class Theme {
         }
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             w.setDecorFitsSystemWindows(false);
+            // Plein écran ou jeu : plus de marge de la fenêtre classique.
+            android.view.View content = w.getDecorView().findViewById(android.R.id.content);
+            if (content != null) {
+                content.setOnApplyWindowInsetsListener(null);
+                content.setPadding(0, 0, 0, 0);
+                // Retour du portrait : la marge posée sur la vue racine pour les barres disparaît aussi.
+                if (!game && content instanceof android.view.ViewGroup && ((android.view.ViewGroup) content).getChildCount() > 0) {
+                    ((android.view.ViewGroup) content).getChildAt(0).setPadding(0, 0, 0, 0);
+                }
+                INSETS[0] = INSETS[1] = INSETS[2] = INSETS[3] = 0;
+                Runnable hook = insetsHook;
+                if (!game && hook != null) hook.run();
+            }
             // Avant setContentView, le DecorView n'existe pas encore et getInsetsController plante
             // (PS3 et Xbox 360 en 0.60.6) : getDecorView() le crée au besoin.
             w.getDecorView();
@@ -190,6 +325,14 @@ final class Theme {
         PAD_OWN = store.syncUi();
         LOGO = logo;
         THEME_ID = id;
+        ANIMATE = store.animatedBackdrop() && !store.reduceMotion();
+        // Tenue à une main désactivée (BOSS, 20/10) : disposition de base partout, à réintégrer plus tard.
+        RIGHT_HANDED = false;
+        LATCH = store.latchTriggers();
+        STRONG_HAPTICS = store.strongHaptics();
+        STICK_REACH = new float[] {1f, 0.7f, 0.5f}[Math.max(0, Math.min(2, store.stickReach()))];
+        TEXT = store.highContrast() ? 0xFFFFFFFF : 0xFFF1F1F1;
+        MUTED = store.highContrast() ? 0xFFC9CDD6 : 0xFF8A8F9C;
         BG = bg;
         PANEL = panel;
         PANEL_HI = hi;
@@ -276,6 +419,33 @@ final class Theme {
     static android.graphics.drawable.Drawable backdrop(float radius) {
         return new ThemeBackdrop(THEME_ID, BG, CODEC, radius);
     }
+
+    /** Idem, avec les coins du haut droits : l'écran du haut touche la barre d'état (Tsuru). */
+    static android.graphics.drawable.Drawable backdropFlushTop(float radius) {
+        return new ThemeBackdrop(THEME_ID, BG, CODEC, radius).squareTop(true);
+    }
+
+    /** Hauteur de la barre d'état et de la barre de navigation du téléphone, même cachées (plein écran). */
+    static int statusBarPx(android.content.Context c) {
+        return systemBarPx(c, "status_bar_height", 24);
+    }
+
+    static int navBarPx(android.content.Context c) {
+        return systemBarPx(c, "navigation_bar_height", 20);
+    }
+
+    private static int systemBarPx(android.content.Context c, String name, int fallbackDp) {
+        int id = c.getResources().getIdentifier(name, "dimen", "android");
+        int px = id > 0 ? c.getResources().getDimensionPixelSize(id) : 0;
+        return px > 0 ? px : Math.round(fallbackDp * c.getResources().getDisplayMetrics().density);
+    }
+
+    /** Hauteur des barres système (gauche, haut, droite, bas) mesurée par la fenêtre classique. */
+    static final int[] INSETS = new int[4];
+    /** Vrai en Tsuru : le contenu passe sous les barres, c'est lui qui se marge (pas la racine). */
+    static boolean bleed;
+    /** Appelé après chaque mesure des barres ; l'accueil y recale ses marges. */
+    static Runnable insetsHook;
 
     /** Les cinq thèmes : identifiant, nom, puis fond, panneau, panneau clair, accent, touches. */
     static final String[] THEMES = {"codec", "arctique", "ecarlate", "sakura", "ambre"};
@@ -400,7 +570,23 @@ final class Theme {
      * une manette physique est branchée. L'écran interne tourne librement.
      */
     /** Rotation libre partout, écran externe compris (depuis la 0.26, à la demande de BOSS). */
+    /**
+     * Textes plus petits sur un écran étroit (écran externe d'un pliant, petit téléphone) : 85 %
+     * de la taille choisie dans Android, pour que les menus tiennent sans couper (0.62.5).
+     * Appelé à chaque changement d'écran ; les vues créées ensuite prennent la nouvelle taille.
+     */
+    @SuppressWarnings("deprecation")
+    static void textScale(android.content.Context ctx) {
+        android.content.res.Resources r = ctx.getResources();
+        android.content.res.Configuration c = r.getConfiguration();
+        android.util.DisplayMetrics dm = r.getDisplayMetrics();
+        float k = c.smallestScreenWidthDp < 480 ? 0.85f : c.smallestScreenWidthDp < 600 ? 0.92f : 1f;
+        k *= new float[] {1f, 1.15f, 1.3f}[Math.max(0, Math.min(2, new Store(ctx).a11yText()))];
+        dm.scaledDensity = dm.density * c.fontScale * k;
+    }
+
     static void orientation(android.app.Activity a) {
+        textScale(a);
         int want = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
         if (a.getRequestedOrientation() != want) a.setRequestedOrientation(want);
     }
