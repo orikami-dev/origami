@@ -65,7 +65,8 @@ Write-Progress -Activity "Releases Origami" -Completed
 
 if ($failed.Count -eq 0) {
   if (-not $KeepBranches) {
-    foreach ($b in $temp) { git -C notes push --quiet origin --delete $b; Write-Host "Branche $b supprimée" }
+    # La branche de la préversion en cours reste : elle sera publiée au prochain passage.
+    foreach ($b in ($temp | Where-Object { $_ -ne "apk-$preview" })) { git -C notes push --quiet origin --delete $b; Write-Host "Branche $b supprimée" }
   }
   Write-Host "Terminé : $($todo.Count) releases publiées, dernière $latest"
 } else {
