@@ -1138,6 +1138,12 @@ public class SettingsActivity extends Activity {
                         }
                     }
                 });
+        toggle("Versions bêta", "Reçois aussi les corrections rapides avant la version stable",
+                store.betaUpdates(), new Toggle() {
+                    public void set(boolean on) {
+                        store.setBetaUpdates(on);
+                    }
+                });
         final LinearLayout result = vertical();
         action("Rechercher une mise à jour", "Compare avec la dernière version publiée", new Runnable() {
             public void run() {

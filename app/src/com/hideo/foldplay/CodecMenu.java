@@ -73,6 +73,10 @@ final class CodecMenu extends FrameLayout {
     private android.graphics.drawable.Drawable headIcon;
     private String headDesc;
     private Runnable headAction;
+    private android.graphics.drawable.Drawable headIcon2;
+    private String headDesc2;
+    private Runnable headAction2;
+    private boolean slider;
     private Capped scroll;
     private LinearLayout card;
     private FrameLayout host;
@@ -148,6 +152,20 @@ final class CodecMenu extends FrameLayout {
         headIcon = icon;
         headDesc = description;
         headAction = action;
+        return this;
+    }
+
+    /** Un second bouton-icône dans l'en-tête (tri, par exemple). */
+    CodecMenu headButton2(android.graphics.drawable.Drawable icon, String description, Runnable action) {
+        headIcon2 = icon;
+        headDesc2 = description;
+        headAction2 = action;
+        return this;
+    }
+
+    /** Ajoute un curseur de défilement rapide le long de la liste. */
+    CodecMenu slider(boolean on) {
+        slider = on;
         return this;
     }
 
@@ -358,6 +376,22 @@ final class CodecMenu extends FrameLayout {
             titles.addView(st);
         }
         head.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));
+        if (headIcon2 != null) {
+            android.widget.ImageView hb2 = new android.widget.ImageView(getContext());
+            hb2.setImageDrawable(headIcon2);
+            hb2.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+            hb2.setContentDescription(I18n.tr(headDesc2));
+            hb2.setBackground(Theme.pill(Theme.alpha(Theme.CODEC, 0x22), px(12)));
+            hb2.setOnClickListener(new OnClickListener() {
+                public void onClick(View v) {
+                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                    headAction2.run();
+                }
+            });
+            LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(px(44), px(44));
+            p2.rightMargin = px(8);
+            head.addView(hb2, p2);
+        }
         if (headIcon != null) {
             android.widget.ImageView hb = new android.widget.ImageView(getContext());
             hb.setImageDrawable(headIcon);
@@ -413,7 +447,15 @@ final class CodecMenu extends FrameLayout {
         scroll = new Capped(getContext());
         scroll.setVerticalScrollBarEnabled(false);
         scroll.addView(list);
-        card.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        if (slider) {
+            FrameLayout wrap = new FrameLayout(getContext());
+            wrap.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
+            wrap.addView(new Slider(getContext(), scroll), new FrameLayout.LayoutParams(px(30), -1,
+                    Theme.RIGHT_HANDED ? Gravity.LEFT : Gravity.RIGHT));
+            card.addView(wrap, new LinearLayout.LayoutParams(-1, 0, 1f));
+        } else {
+            card.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        }
 
         TextView hint = new TextView(getContext());
         // Avec une manette physique, on parle de ses touches ; sinon, du doigt et de la manette à l'écran.
@@ -434,6 +476,48 @@ final class CodecMenu extends FrameLayout {
         if (padConnected) lp.setMargins(0, px(24), 0, px(24));
         else lp.setMargins(px(10), px(10), px(10), px(10));
         addView(card, lp);
+    }
+
+    /** Curseur de défilement rapide : glisser la poignée fait défiler toute la liste. */
+    private static final class Slider extends View {
+        private final ScrollView target;
+        private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+        Slider(Context c, ScrollView t) {
+            super(c);
+            target = t;
+            setLayerType(LAYER_TYPE_NONE, null);
+        }
+
+        private int range() {
+            View child = target.getChildAt(0);
+            return child == null ? 0 : Math.max(0, child.getHeight() - target.getHeight());
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas c) {
+            int range = range();
+            if (range <= 0) return;
+            float w = getWidth(), h = getHeight(), d = getResources().getDisplayMetrics().density;
+            float cx = w / 2, th = 46 * d;
+            paint.setColor(Theme.alpha(Theme.CODEC, 0x33));
+            c.drawRoundRect(cx - 2 * d, 4 * d, cx + 2 * d, h - 4 * d, 2 * d, 2 * d, paint);
+            float y = 4 * d + (h - 8 * d - th) * target.getScrollY() / range;
+            paint.setColor(Theme.CODEC);
+            c.drawRoundRect(cx - 7 * d, y, cx + 7 * d, y + th, 7 * d, 7 * d, paint);
+            postInvalidateOnAnimation();
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int range = range();
+            if (range <= 0) return false;
+            float d = getResources().getDisplayMetrics().density, th = 46 * d;
+            float f = (e.getY() - 4 * d - th / 2) / Math.max(1f, getHeight() - 8 * d - th);
+            target.scrollTo(0, Math.round(Math.max(0f, Math.min(1f, f)) * range));
+            getParent().requestDisallowInterceptTouchEvent(true);
+            return true;
+        }
     }
 
     /** Liste qui défile au-delà d'une hauteur maximale. */

@@ -2301,7 +2301,7 @@ public class GameActivity extends Activity {
     private void toastUi(final String msg) {
         runOnUiThread(new Runnable() {
             public void run() {
-                I18n.toast(GameActivity.this, msg, android.widget.Toast.LENGTH_SHORT).show();
+                I18n.say(GameActivity.this, msg);
             }
         });
     }

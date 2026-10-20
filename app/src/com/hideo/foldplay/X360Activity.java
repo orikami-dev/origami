@@ -59,6 +59,9 @@ public class X360Activity extends WindowedAppActivity {
     /** Images du jeu présentées depuis le lancement (moteur 0.60.12 et suivants). */
     static native long nativeFrames();
 
+    /** Pause (menu Codec ouvert) ou reprise du jeu. */
+    static native void nativePause(boolean on);
+
     /** Étirer : le moteur remplit la surface au lieu de garder le rapport du jeu. */
     static native void nativeSetFill(boolean fill);
 
@@ -209,7 +212,8 @@ public class X360Activity extends WindowedAppActivity {
         setContentView(stage);
         stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
-                if (r - l != or - ol || b - t != ob - ot) applyFormat();
+                if (b - t != ob - ot) place();
+                else if (r - l != or - ol) applyFormat();
             }
         });
         formatKey();
@@ -268,7 +272,7 @@ public class X360Activity extends WindowedAppActivity {
             GameLayout.full(sl, dl);
             deck.setOverlay(true, store.overlayOpacity());
         } else {
-            strip = GameLayout.portrait(this, sl, dl);
+            strip = GameLayout.portrait(this, stage.getHeight(), sl, dl);
             deck.setOverlay(false, store.overlayOpacity());
         }
         if (hud != null) {
@@ -334,7 +338,7 @@ public class X360Activity extends WindowedAppActivity {
                 public void applyFormat() { X360Activity.this.applyFormat(); }
 
                 public void say(String text) {
-                    I18n.toast(X360Activity.this, text, android.widget.Toast.LENGTH_SHORT).show();
+                    I18n.say(X360Activity.this, text);
                 }
 
                 public void refreshKeys() { if (deck != null) deck.refreshKeys(); }
@@ -505,6 +509,7 @@ public class X360Activity extends WindowedAppActivity {
         }
         menuOpen = true;
         nativePad(0, true, 0, 0, 0, 0, 0, 0, 0);
+        try { nativePause(true); } catch (Throwable ignored) { }
         new CodecMenu(this).title(title, "XBOX 360")
                 .item("Reprendre", null, new Runnable() {
                     public void run() { resumeGame(); }
@@ -579,6 +584,7 @@ public class X360Activity extends WindowedAppActivity {
         CodecMenu m = CodecMenu.find(stage);
         if (m != null) m.dismiss();
         menuOpen = false;
+        try { nativePause(false); } catch (Throwable ignored) { }
         Theme.fullscreen(this);
         send();
     }

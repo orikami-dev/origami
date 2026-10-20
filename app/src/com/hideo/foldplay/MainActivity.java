@@ -2054,16 +2054,23 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Toutes les applications du téléphone, en menu codec (en attendant le lanceur Washi complet). */
     private void appsMenu() {
         final boolean grid = store.appsGrid();
-        CodecMenu m = new CodecMenu(this).title("Applications", "LANCEUR DU TÉLÉPHONE").grid(grid)
+        CodecMenu m = new CodecMenu(this).title("Applications", "TRI · " + HomeApps.SORTS[store.appsSort()].toUpperCase()).grid(grid)
                 .headButton(Icons.of(this, grid ? "menu" : "grid", Theme.CODEC, 22),
                         grid ? "Afficher en liste" : "Afficher en grille", new Runnable() {
                     public void run() {
                         store.setAppsGrid(!grid);
                         appsMenu();
                     }
+                }).slider(true)
+                .headButton2(Icons.of(this, "sort", Theme.CODEC, 22), "Trier les applications", new Runnable() {
+                    public void run() {
+                        store.setAppsSort((store.appsSort() + 1) % HomeApps.SORTS.length);
+                        toast(HomeApps.SORTS[store.appsSort()]);
+                        appsMenu();
+                    }
                 });
         int px = dp(grid ? 48 : 32);
-        for (final HomeApps.App app : HomeApps.apps(this)) {
+        for (final HomeApps.App app : HomeApps.apps(this, store.appsSort())) {
             android.graphics.drawable.Drawable d = app.icon(this);
             if (d != null) d.setBounds(0, 0, px, px);
             m.item(d, app.label, null, new Runnable() {

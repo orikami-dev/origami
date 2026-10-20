@@ -189,7 +189,8 @@ public class Ps3Activity extends Activity {
         setContentView(stage);
         stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
-                if (r - l != or - ol || b - t != ob - ot) applyFormat();
+                if (b - t != ob - ot) place();
+                else if (r - l != or - ol) applyFormat();
             }
         });
         formatKey();
@@ -252,7 +253,7 @@ public class Ps3Activity extends Activity {
             GameLayout.full(sl, dl);
             deck.setOverlay(true, store.overlayOpacity());
         } else {
-            strip = GameLayout.portrait(this, sl, dl);
+            strip = GameLayout.portrait(this, stage.getHeight(), sl, dl);
             deck.setOverlay(false, store.overlayOpacity());
         }
         if (hud != null) {
@@ -493,7 +494,7 @@ public class Ps3Activity extends Activity {
                 public void applyFormat() { Ps3Activity.this.applyFormat(); }
 
                 public void say(String text) {
-                    I18n.toast(Ps3Activity.this, text, android.widget.Toast.LENGTH_SHORT).show();
+                    I18n.say(Ps3Activity.this, text);
                 }
 
                 public void refreshKeys() { if (deck != null) deck.refreshKeys(); }

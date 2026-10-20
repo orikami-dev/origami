@@ -596,6 +596,15 @@ final class Store {
         prefs.edit().putBoolean("upd_auto", on).apply();
     }
 
+    /** Canal bêta : inclut les préversions (corrections rapides) en plus des versions stables. */
+    boolean betaUpdates() {
+        return prefs.getBoolean("upd_beta", true);
+    }
+
+    void setBetaUpdates(boolean on) {
+        prefs.edit().putBoolean("upd_beta", on).apply();
+    }
+
     long lastUpdateCheck() {
         return prefs.getLong("upd_last", 0);
     }
@@ -877,6 +886,15 @@ final class Store {
 
     void setAppsGrid(boolean on) {
         prefs.edit().putBoolean("apps_grid", on).apply();
+    }
+
+    /** Tri du lanceur d'apps : 0 A→Z, 1 Z→A, 2 installées récemment, 3 mises à jour récemment, 4 jeux d'abord. */
+    int appsSort() {
+        return prefs.getInt("apps_sort", 0);
+    }
+
+    void setAppsSort(int v) {
+        prefs.edit().putInt("apps_sort", v).apply();
     }
 
     boolean isFavorite(Game g) {

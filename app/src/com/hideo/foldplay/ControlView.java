@@ -580,6 +580,7 @@ final class ControlView extends View {
             // Gâchette à bascule (Accessibilité) : un appui l'enfonce, le suivant la relâche.
             if (action == MotionEvent.ACTION_DOWN) {
                 pressed = !pressed;
+                DebugLog.event("[pad] gâchette à bascule " + control.type + " -> " + (pressed ? "enfoncée" : "relâchée"));
                 if (haptics) Haptics.tap(this);
                 if (pressed) listener.onDown(control.type);
                 else listener.onUp(control.type);

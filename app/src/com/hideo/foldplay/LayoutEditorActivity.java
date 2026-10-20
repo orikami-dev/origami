@@ -62,7 +62,7 @@ public class LayoutEditorActivity extends Activity {
 
         LinearLayout root = vertical();
         // Mêmes proportions que la vue Flex : deux pilules séparées par un mince filet.
-        root.setBackground(Theme.gap());
+        root.setBackground(Theme.backdrop(0));
         root.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         // Moitié haute : les outils.

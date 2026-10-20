@@ -14,8 +14,9 @@ final class GameLayout {
     }
 
     /** Bande du haut utilisée (px), pour l'ATH. */
-    static int portrait(Activity a, FrameLayout.LayoutParams screen, FrameLayout.LayoutParams deck) {
-        int total = a.getResources().getDisplayMetrics().heightPixels;
+    static int portrait(Activity a, int stageHeight, FrameLayout.LayoutParams screen, FrameLayout.LayoutParams deck) {
+        // Hauteur réelle de la scène (change au pliage et avec les barres) ; l'écran sert de repli.
+        int total = stageHeight > 0 ? stageHeight : a.getResources().getDisplayMetrics().heightPixels;
         int top = Theme.statusBarPx(a);
         int bottom = Math.max(top, Theme.navBarPx(a));
         int gap = Math.round(6 * a.getResources().getDisplayMetrics().density);

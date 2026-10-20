@@ -2,45 +2,15 @@
 
 Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
 
-## 0.65.10
-
-Jeux PS3 et 360 en portrait : ATH dans la bande de la barre d état, deux pastilles égales séparées au milieu.
-
-## 0.65.9
-
-Menu fantôme corrigé, Tsuru sous les barres, formats sans déplacement, mesures de performance dans les journaux.
-
-## 0.65.8
-
-PS3 : correction de la course entre fenêtre et initialisation du moteur (écran noir).
-
-## 0.65.7
-
-Journaux PS3 et 360 plus riches ; sorties voulues non signalées comme plantages.
-
-## 0.65.6
-
-PS3 et 360 : relance automatique dans un processus neuf après une sortie pendant le chargement.
-
-## 0.65.5
-
-Profil Personnalisé, menu des réglages en direct, bouton Redémarrer la console.
-
-## 0.65.4
-
-360 : shaders compilés de façon synchrone (test).
-
-## 0.65.3
-
-360 : relecture rapide en Performance et Équilibré (image noire corrigée).
-
-## 0.65.2
-
-Moteur Xbox 360 recompilé (correctif du son 360 embarqué).
-
-## 0.65.1
-
-Transition Washi ↔ Tsuru par thème, pilules collées aux barres, ATH CPU/GPU en degrés, profils PS3/360 recalés.
+## 0.65.11
+- Mises à jour bêta dans l'app (Réglages > Mises à jour > Versions bêta) : les nouvelles versions apparaissent seules, avec notification, sans repasser par le chat.
+- Format et mode : le message précédent est remplacé tout de suite, plus de notifications qui s'enchaînent en retard.
+- PS3 et Xbox 360 : l'écran et la manette se replacent d'après la hauteur réelle de la scène (plus de chevauchement au pliage).
+- Xbox 360 : le menu Codec met maintenant le jeu en pause (moteur recompilé avec une vraie pause).
+- Lanceur d'apps : curseur de défilement rapide et bouton de tri (nom A-Z, Z-A, installées récemment, mises à jour récemment, jeux d'abord), aux couleurs du thème.
+- Barres de notification et de navigation transparentes aussi dans l'assistant de démarrage, l'éditeur de manette et l'import.
+- Gâchettes à bascule : journal détaillé ajouté pour trouver pourquoi elles ne tiennent pas.
+- Script tools/publish.sh : envoie les sources et la bêta sur GitHub.
 
 ## Ce que fait Origami aujourd'hui (0.60.12)
 

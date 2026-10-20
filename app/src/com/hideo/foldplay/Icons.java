@@ -367,6 +367,15 @@ final class Icons extends Drawable {
                 c.drawCircle(15, 12, 2, fill);
                 c.drawCircle(8, 17, 2, fill);
                 break;
+            case "sort":
+                // Flèches haut/bas : tri.
+                c.drawLine(8, 5, 8, 19, stroke);
+                c.drawLine(8, 5, 5, 8, stroke);
+                c.drawLine(8, 5, 11, 8, stroke);
+                c.drawLine(16, 19, 16, 5, stroke);
+                c.drawLine(16, 19, 13, 16, stroke);
+                c.drawLine(16, 19, 19, 16, stroke);
+                break;
             case "keys":
                 // Éditeur : touches.
                 c.drawCircle(8, 8, 3, stroke);

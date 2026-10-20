@@ -159,6 +159,15 @@ final class I18n {
         };
     }
 
+    private static android.widget.Toast lastToast;
+
+    /** Affiche tout de suite un message court en annulant le précédent (pas de file d'attente). */
+    static void say(Context c, CharSequence text) {
+        if (lastToast != null) lastToast.cancel();
+        lastToast = android.widget.Toast.makeText(c.getApplicationContext(), tr(text), android.widget.Toast.LENGTH_SHORT);
+        lastToast.show();
+    }
+
     static android.widget.Toast toast(Context c, CharSequence text, int duration) {
         return android.widget.Toast.makeText(c, tr(text), duration);
     }
