@@ -7,6 +7,10 @@ on:
       notes_branch:
         description: Branche qui contient docs/releases
         default: main
+      refresh_notes:
+        description: Réécrire les notes de toutes les releases depuis docs/releases
+        type: boolean
+        default: false
 concurrency: releases
 permissions:
   contents: write
@@ -47,6 +51,12 @@ jobs:
           # « Dernière version » = la plus haute publiée.
           LATEST="$(gh release list --limit 500 --json tagName --jq '.[].tagName' | sed 's/^v//' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -1)"
           gh release edit "v$LATEST" --latest && echo "dernière : v$LATEST"
+          if [ "${{ inputs.refresh_notes }}" = "true" ]; then
+            for t in $(gh release list --limit 500 --json tagName --jq '.[].tagName'); do
+              f="docs/releases/${t#v}.md"
+              [ -f "$f" ] && gh release edit "$t" --notes-file "$f" >/dev/null && echo "notes $t mises à jour"
+            done
+          fi
           for b in $(temp); do
             [ "$b" = "apk-$PREVIEW" ] || { git push origin --delete "$b"; echo "branche $b supprimée"; }
           done
