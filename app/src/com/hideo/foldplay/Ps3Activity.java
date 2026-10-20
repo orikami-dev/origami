@@ -184,6 +184,16 @@ public class Ps3Activity extends Activity {
             public boolean paused() {
                 return menuOpen;
             }
+
+            public String renderRes() {
+                // Définition réellement appliquée par le moteur : 720p × l'échelle choisie (Demon's Souls plafonné).
+                try {
+                    int pct = Integer.parseInt(Ps3Core.nativeSettingsGet("Video@@Resolution Scale").trim());
+                    return Math.round(1280 * pct / 100f) + "×" + Math.round(720 * pct / 100f);
+                } catch (Throwable e) {
+                    return null;
+                }
+            }
         });
         hud.setScreen(screen);
         hud.apply();

@@ -352,7 +352,10 @@ public class GameActivity extends Activity {
             h.tempC = bat.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
         }
         h.fahrenheit = "f".equals(store.tempUnit());
-        if (items.contains("heat")) h.chipC = Hud.chipC();
+        if (items.contains("heat")) {
+            h.cpuC = Hud.cpuC();
+            h.gpuC = Hud.gpuC();
+        }
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
             h.heat = pm.getCurrentThermalStatus();

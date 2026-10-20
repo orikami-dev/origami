@@ -23,6 +23,9 @@ final class HudOverlay {
         float frameMaxMs();
 
         boolean paused();
+
+        /** Résolution interne du jeu (« 1280×720 »), ou null si le moteur ne la donne pas. */
+        String renderRes();
     }
 
     private final Activity activity;
@@ -109,6 +112,8 @@ final class HudOverlay {
         timer.removeCallbacks(tick);
     }
 
+    private float recentPeak;
+
     private void update() {
         if (hud == null) return;
         long now = android.os.SystemClock.elapsedRealtime();
@@ -133,7 +138,12 @@ final class HudOverlay {
         float max = source.frameMaxMs();
         h.frameMaxMs = max >= 0 ? max : h.frameMs;
         // Sans compteur d'images émulées, la vitesse se déduit des 60 images/s visées.
-        h.speed = h.fps >= 0 ? h.fps / 60f * 100 : -1;
+        // La cadence visée suit le jeu : 30 images/s si le meilleur score récent ne dépasse pas 45, sinon 60.
+        // Un jeu à 30 i/s qui tient ses 30 affiche donc 100 % (0.65), pas 50 %.
+        if (h.fps >= 0) recentPeak = Math.max(h.fps, recentPeak * 0.97f);
+        float target = recentPeak > 45f ? 60f : 30f;
+        h.speed = h.fps >= 0 ? Math.min(100f, h.fps / target * 100f) : -1;
+        h.renderRes = source.renderRes();
         h.cpu = (cpu - lastCpuMs) / 10f / sec;
         lastAt = now;
         lastCpuMs = cpu;
@@ -156,7 +166,10 @@ final class HudOverlay {
             h.tempC = bat.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
         }
         h.fahrenheit = "f".equals(store.tempUnit());
-        if (items.contains("heat")) h.chipC = Hud.chipC();
+        if (items.contains("heat")) {
+            h.cpuC = Hud.cpuC();
+            h.gpuC = Hud.gpuC();
+        }
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             android.os.PowerManager pm = (android.os.PowerManager) activity.getSystemService(Activity.POWER_SERVICE);
             h.heat = pm.getCurrentThermalStatus();

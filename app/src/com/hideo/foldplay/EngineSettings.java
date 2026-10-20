@@ -43,6 +43,7 @@ final class EngineSettings {
             new Opt("readback_resolve", "Relecture des images",
                     "Corrige effets, reflets ou vidéos manquants.",
                     "string", new String[]{"none", "fast", "full"}, new String[]{"Aucune", "Rapide", "Complète (lente)"}),
+            // Valeurs gardées en « facteur » (×4, ×8, ×16) ; putCvars les traduit vers l'échelle de Xenia.
             new Opt("anisotropic_override", "Filtrage anisotrope", "Netteté des textures vues de biais.",
                     "int", new String[]{"-1", "0", "4", "8", "16"}, new String[]{"Jeu", "Désactivé", "×4", "×8", "×16"}),
             new Opt("gpu_allow_invalid_fetch_constants", "Tolérer les données graphiques invalides",
@@ -69,14 +70,15 @@ final class EngineSettings {
                     {"anisotropic_override", "-1"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
             // quality
+            // Qualité : ×8 (et non ×16) pour ménager la bande passante mémoire de l'Adreno.
             {{"draw_resolution_scale", "2"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
-                    {"anisotropic_override", "16"}, {"gpu_allow_invalid_fetch_constants", "true"},
+                    {"anisotropic_override", "8"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
     };
 
     private static final Opt[] PS3_OPTS = {
             new Opt("Video@@Resolution Scale", "Définition interne", "En pourcentage de la définition du jeu (720p).",
-                    "uint", new String[]{"100", "150", "200", "300"}, new String[]{"100 %", "150 %", "200 %", "300 %"}),
+                    "uint", new String[]{"75", "100", "150", "200", "300"}, new String[]{"75 %", "100 %", "150 %", "200 %", "300 %"}),
             new Opt("Video@@Shader Mode", "Préparation des shaders",
                     "En arrière-plan : recommandé. Avec interpréteur : image plus tôt, certains décors restent noirs.",
                     "string",
@@ -84,9 +86,11 @@ final class EngineSettings {
                     new String[]{"En arrière-plan", "En arrière-plan avec interpréteur", "Interpréteur seul"}),
             new Opt("Video@@Anisotropic Filter Override", "Filtrage anisotrope", "Netteté des textures vues de biais.",
                     "uint", new String[]{"0", "4", "8", "16"}, new String[]{"Jeu", "×4", "×8", "×16"}),
-            new Opt("Video@@Output Scaling Mode", "Mise à l'échelle", "FSR : agrandissement net (AMD FidelityFX).",
-                    "string", new String[]{"Bilinear", "Nearest", "FidelityFX Super Resolution 1"},
-                    new String[]{"Bilinéaire", "Pixels nets", "FSR"}),
+            // Valeurs exactes de l'enum output_scaling_mode du moteur (« FidelityFX Super Resolution », sans « 1 »).
+            new Opt("Video@@Output Scaling Mode", "Mise à l'échelle",
+                    "FSR : agrandissement net (AMD). SGSR : équivalent Snapdragon, plus léger.",
+                    "string", new String[]{"Bilinear", "Nearest", "FidelityFX Super Resolution", "Snapdragon Game Super Resolution"},
+                    new String[]{"Bilinéaire", "Pixels nets", "FSR", "SGSR"}),
             new Opt("Video@@Frame limit", "Limite d'images", "Auto suit le jeu.",
                     "string", new String[]{"Auto", "30", "60", "Off"}, new String[]{"Auto", "30", "60", "Aucune"}),
             new Opt("Video@@Multithreaded RSX", "Rendu sur plusieurs cœurs", "Peut accélérer les jeux lourds en rendu.",
@@ -97,17 +101,20 @@ final class EngineSettings {
             new Opt("Video@@Strict Rendering Mode", "Rendu strict", "Plus fidèle, plus lent.", "bool", BOOL, YESNO),
     };
 
+    // Définition (0.65.1) : le moteur accepte 25 à 800 %. Sur le Fold 8 les jeux lourds sont limités
+    // par le processeur, monter la définition chauffe sans gagner d'images : 75 % (≈ 540p, agrandi par
+    // SGSR) en Performance, 100 % en Équilibré, 150 % (1080p, proche de l'écran intérieur) en Qualité.
     private static final String[][][] PS3_PROFILES = {
+            {{"Video@@Resolution Scale", "75"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
+                    {"Video@@Anisotropic Filter Override", "0"}, {"Video@@Output Scaling Mode", "Snapdragon Game Super Resolution"},
+                    {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
+                    {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
             {{"Video@@Resolution Scale", "100"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
-                    {"Video@@Anisotropic Filter Override", "0"}, {"Video@@Output Scaling Mode", "Bilinear"},
+                    {"Video@@Anisotropic Filter Override", "4"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
             {{"Video@@Resolution Scale", "150"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
-                    {"Video@@Anisotropic Filter Override", "4"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution 1"},
-                    {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
-                    {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
-            {{"Video@@Resolution Scale", "200"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
-                    {"Video@@Anisotropic Filter Override", "16"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution 1"},
+                    {"Video@@Anisotropic Filter Override", "16"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
     };
@@ -159,12 +166,22 @@ final class EngineSettings {
                 cvars.putInt("draw_resolution_scale_y", s);
             } else if ("bool".equals(o.type)) {
                 cvars.putBoolean(o.key, Boolean.parseBoolean(v));
+            } else if (o.key.equals("anisotropic_override")) {
+                // Échelle de Xenia (vérifiée dans libxenia-app.so, 0.65.1) : -1 jeu, 0 coupé, 1 = ×1,
+                // 2 = ×2, 3 = ×4, 4 = ×8, 5 = ×16. Les anciennes valeurs 8 et 16 étaient hors bornes.
+                int f = Integer.parseInt(v);
+                cvars.putInt(o.key, f <= 0 ? f : f >= 16 ? 5 : f >= 8 ? 4 : f >= 4 ? 3 : f >= 2 ? 2 : 1);
             } else if ("int".equals(o.type)) {
                 cvars.putInt(o.key, Integer.parseInt(v));
             } else {
                 cvars.putString(o.key, v);
             }
         }
+        // Le « CONFIG DUMP » de Xenia recopie le fichier xenia-canary.config.toml au début de ReadConfig :
+        // il ne montre pas ces valeurs, qui passent pourtant avant celles du fichier. On les journalise ici.
+        StringBuilder log = new StringBuilder("cvars du profil :");
+        for (String k : cvars.keySet()) log.append(' ').append(k).append('=').append(cvars.get(k));
+        android.util.Log.i("Origami", log.toString());
     }
 
     /** PS3 : les réglages sont écrits dans la configuration du moteur avant le lancement du jeu. */
@@ -183,8 +200,10 @@ final class EngineSettings {
                 if (demons && !mine && o.key.equals("Video@@Frame limit")) v = "30";
                 // Limité par le processeur (journal du 20/10 : CPU 239 %) : monter la définition ne
                 // rend rien de plus fluide et chauffe pour rien, donc 100 % sauf choix de BOSS.
-                if (demons && !mine && o.key.equals("Video@@Resolution Scale")) v = "100";
-                Ps3Core.nativeSettingsSet(o.key, v);
+                if (demons && !mine && o.key.equals("Video@@Resolution Scale") && Integer.parseInt(v) > 100) v = "100";
+                // Ancienne valeur de la 0.65 refusée par le moteur (« ... Resolution 1 ») : on la corrige.
+                if (v.equals("FidelityFX Super Resolution 1")) v = "FidelityFX Super Resolution";
+                set3(o.key, v);
             } catch (Throwable ignored) {
                 // Réglage inconnu de cette version du moteur : on garde le sien.
             }
@@ -203,6 +222,10 @@ final class EngineSettings {
         // Réglages processeur par profil, calés sur la puce du Fold 8 (8 cœurs Oryon, 0.62.5) :
         // blocs SPU plus gros et calcul flottant allégé en Performance, threads de compilation
         // des shaders sur 6 cœurs, flux de textures asynchrone pour éviter les à-coups.
+        // Noms et bornes relus dans libarmsx3-core.so (0.65.1) : Max SPURS Threads 1 à 6,
+        // Preferred SPU Threads 0 à 6 (0 = auto), Shader Compiler Threads 0 à 16, SPU Block Size
+        // Safe/Mega/Giga, SPU XFloat Accuracy Accurate/Approximate/Relaxed/Inaccurate ; le flux de
+        // textures asynchrone est rangé sous Video@@Vulkan.
         int prof = CoreProfiles.index(profile(ctx, PS3));
         String[][] cpu = {
                 {"Core@@SPU Block Size", new String[] {"Mega", "Mega", "Safe"}[prof]},
@@ -211,20 +234,25 @@ final class EngineSettings {
                 {"Core@@Preferred SPU Threads", new String[] {"0", "0", "0"}[prof]},
                 {"Video@@Shader Compiler Threads", "6"},
                 {"Video@@Relaxed ZCULL Sync", new String[] {"true", "true", "false"}[prof]},
-                {"Video@@Asynchronous Texture Streaming", "true"},
+                {"Video@@Vulkan@@Asynchronous Texture Streaming", "true"},
         };
         for (String[] kv : cpu) {
             try {
-                Ps3Core.nativeSettingsSet(kv[0], kv[1]);
+                set3(kv[0], kv[1]);
             } catch (Throwable ignored) {
             }
         }
         for (String[] kv : fixed) {
             try {
-                Ps3Core.nativeSettingsSet(kv[0], kv[1]);
+                set3(kv[0], kv[1]);
             } catch (Throwable ignored) {
             }
         }
+    }
+
+    /** Écrit un réglage PS3 et signale au journal celui que le moteur refuse (nœud ou valeur inconnus). */
+    private static void set3(String key, String value) {
+        if (!Ps3Core.nativeSettingsSet(key, value)) android.util.Log.w("Origami", "PS3 refuse " + key + " = " + value);
     }
 
     /**

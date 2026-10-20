@@ -221,6 +221,16 @@ public class X360Activity extends WindowedAppActivity {
             public boolean paused() {
                 return menuOpen;
             }
+
+            public String renderRes() {
+                try {
+                    int k = Integer.parseInt(EngineSettings.get(X360Activity.this, EngineSettings.X360,
+                            EngineSettings.opts(EngineSettings.X360)[0]).trim());
+                    return (1280 * k) + "×" + (720 * k);
+                } catch (Throwable e) {
+                    return null;
+                }
+            }
         });
         hud.setScreen(screen);
         hud.apply();

@@ -31,7 +31,7 @@ final class Hud {
             {"ram", "Mémoire", "Mémoire utilisée par l'app"},
             {"bat", "Batterie", "Niveau et charge"},
             {"temp", "Température", "Température de la batterie"},
-            {"heat", "Chauffe", "Température de la puce et état thermique annoncé par Android"},
+            {"heat", "Température CPU et GPU", "Degrés du processeur et de la carte graphique"},
             {"res", "Moteur et résolution", "Cœur utilisé et taille de l'image"},
             {"clock", "Heure", "Heure actuelle"},
     };
@@ -83,11 +83,13 @@ final class Hud {
         float fps, frameMs, frameMaxMs, speed, cpu;
         int mhz = -1, ramMb, battery = -1, heat = -1;
         boolean charging;
-        float tempC = Float.NaN, chipC = Float.NaN;
+        float tempC = Float.NaN, cpuC = Float.NaN, gpuC = Float.NaN;
         boolean fahrenheit;
         String core;
         int width, height;
         boolean paused;
+        /** Résolution interne du jeu (ex. « 1280×720 »), ou null : on affiche alors la taille de la surface. */
+        String renderRes;
     }
 
     private static final String[] HEAT = {"normale", "légère", "modérée", "forte", "critique", "urgence", "arrêt"};
@@ -96,7 +98,7 @@ final class Hud {
         SpannableStringBuilder b = new SpannableStringBuilder();
         Builder w = new Builder(b, block, label);
         if (items.contains("res") && s.core != null)
-            w.item(s.core.toUpperCase(Locale.ROOT), s.width + "×" + s.height, null);
+            w.item(s.core.toUpperCase(Locale.ROOT), s.renderRes != null ? s.renderRes : s.width + "×" + s.height, null);
         if (items.contains("fps")) w.item("FPS", s.paused ? "‖" : s.fps < 0 ? "—" : fmt0(s.fps), null);
         if (items.contains("ft") && s.frameMs > 0) {
             w.item(items.contains("fps") && !block ? null : "FT", fmt1(s.frameMs), "ms");
@@ -119,13 +121,10 @@ final class Hud {
             if (items.contains("bat") && !block) w.extra(fmt1(deg(s.tempC, s.fahrenheit)), unit);
             else w.item("TEMP", fmt1(deg(s.tempC, s.fahrenheit)), unit);
         }
-        if (items.contains("heat") && (s.heat >= 0 || !Float.isNaN(s.chipC))) {
-            if (!Float.isNaN(s.chipC)) {
-                // Chiffre seul, sans le mot « forte » ou « critique » (demande BOSS, 0.65).
-                w.item("CHAUFFE", fmt0(deg(s.chipC, s.fahrenheit)), unit);
-            } else {
-                w.item("CHAUFFE", s.heat < HEAT.length ? HEAT[s.heat] : "?", null);
-            }
+        // Températures du processeur et de la carte graphique, en degrés seulement (0.65).
+        if (items.contains("heat")) {
+            if (!Float.isNaN(s.cpuC)) w.item("CPU", fmt0(deg(s.cpuC, s.fahrenheit)), unit);
+            if (!Float.isNaN(s.gpuC)) w.item("GPU", fmt0(deg(s.gpuC, s.fahrenheit)), unit);
         }
         if (items.contains("clock")) {
             java.util.Calendar c = java.util.Calendar.getInstance();
@@ -140,42 +139,51 @@ final class Hud {
         return f ? c * 9f / 5f + 32f : c;
     }
 
-    /**
-     * Température de la puce en °C : la plus chaude des zones thermiques du processeur que le
-     * système laisse lire, ou NaN. Les zones lisibles sont retenues au premier appel.
-     */
-    static float chipC() {
-        if (zones == null) {
-            java.util.List<File> found = new java.util.ArrayList<File>();
+    /** Température du processeur en °C (moyenne des zones lisibles, retenues au premier appel), ou NaN. */
+    static float cpuC() {
+        return zoneMean(true);
+    }
+
+    static float gpuC() {
+        return zoneMean(false);
+    }
+
+    /** Moyenne des zones thermiques lisibles du processeur (cpu) ou de la carte graphique (gpu), ou NaN. */
+    private static float zoneMean(boolean cpu) {
+        if (cpuZones == null) {
+            java.util.List<File> c = new java.util.ArrayList<File>(), g = new java.util.ArrayList<File>();
             File[] all = new File("/sys/class/thermal").listFiles();
             if (all != null) {
                 for (File z : all) {
                     String type = readLine(new File(z, "type"));
-                    if (type == null) continue;
+                    if (type == null || readLine(new File(z, "temp")) == null) continue;
                     type = type.toLowerCase(Locale.ROOT);
-                    if ((type.contains("cpu") || type.contains("soc") || type.contains("ap_therm")
-                            || type.contains("gpu")) && readLine(new File(z, "temp")) != null) found.add(new File(z, "temp"));
+                    if (type.contains("gpu")) g.add(new File(z, "temp"));
+                    else if (type.contains("cpu")) c.add(new File(z, "temp"));
                 }
             }
-            zones = found.toArray(new File[0]);
+            cpuZones = c.toArray(new File[0]);
+            gpuZones = g.toArray(new File[0]);
         }
-        float best = Float.NaN;
-        for (File f : zones) {
+        float sum = 0;
+        int n = 0;
+        for (File f : cpu ? cpuZones : gpuZones) {
             String v = readLine(f);
             if (v == null) continue;
             try {
                 float t = Long.parseLong(v.trim());
                 if (t > 1000) t /= 1000f;
-                // Au-delà de 95 °C, c'est une valeur de repli de la zone (seuil, capteur absent) et non une
-                // mesure : le Fold affichait 105 °C à 33 °C de batterie (0.65).
-                if (t > 0 && t < 95 && (Float.isNaN(best) || t > best)) best = t;
+                if (t > 5 && t < 125) {
+                    sum += t;
+                    n++;
+                }
             } catch (NumberFormatException ignored) {
             }
         }
-        return best;
+        return n == 0 ? Float.NaN : sum / n;
     }
 
-    private static File[] zones;
+    private static File[] cpuZones, gpuZones;
 
     private static String readLine(File f) {
         BufferedReader r = null;
