@@ -798,8 +798,19 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         list.setAdapter(adapter);
         wireClicks(list, adapter);
         list.setSelection(selected);
-        col.addView(list, new LinearLayout.LayoutParams(-1, 0, 1f));
+        col.addView(new PullRefresh(this, list, pullScan()), new LinearLayout.LayoutParams(-1, 0, 1f));
         return col;
+    }
+
+    /** Geste « tirer pour actualiser » : relit le dossier de jeux et annonce le résultat. */
+    private Runnable pullScan() {
+        return new Runnable() {
+            public void run() {
+                if (scanning || store.treeUri() == null) return;
+                announceScan = true;
+                scan(Uri.parse(store.treeUri()));
+            }
+        };
     }
 
     private View buildOpen() {
@@ -822,7 +833,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             grid.setAdapter(adapter);
             wireClicks(grid, adapter);
             grid.setSelection(selected);
-            row.addView(grid, new LinearLayout.LayoutParams(0, -1, 1f));
+            row.addView(new PullRefresh(this, grid, pullScan()), new LinearLayout.LayoutParams(0, -1, 1f));
         }
         col.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
         return col;

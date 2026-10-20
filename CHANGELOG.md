@@ -2,6 +2,9 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.27
+- Bibliothèque en mode Washi : tire vers le bas pour actualiser la liste des jeux.
+
 ## 0.65.26
 - Réglages > Débogage : nouveau bouton « Copier le journal », un clic pour copier la fin du journal et la coller dans une conversation.
 
