@@ -7,6 +7,7 @@ on:
       notes_branch:
         description: Branche qui contient docs/releases
         default: main
+concurrency: releases
 permissions:
   contents: write
 jobs:
@@ -21,24 +22,31 @@ jobs:
       - name: Releases manquantes
         run: |
           set -euo pipefail
-          PREVIEW="$(curl -fsS "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/preview/preview.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])' || true)"
-          mkdir apk
-          for b in $(git ls-remote --heads origin | sed 's#.*refs/heads/##' | grep -E '^(apk-transfer|apk-[0-9])'); do
-            for f in $(gh api "repos/$GITHUB_REPOSITORY/git/trees/$b" --jq '.tree[].path' | grep '\.apk$'); do
-              [ -f "apk/$f" ] || curl -fsSL "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$b/$f" -o "apk/$f"
+          R="$GITHUB_REPOSITORY"
+          PREVIEW="$(curl -fsS "https://raw.githubusercontent.com/$R/preview/preview.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])' || true)"
+          temp() { git ls-remote --heads origin | sed 's#.*refs/heads/##' | grep -E '^(apk-transfer|apk-[0-9])' || true; }
+          mkdir -p apk
+          for b in $(temp); do
+            for f in $(gh api "repos/$R/git/trees/$b" --jq '.tree[].path' | grep '\.apk$' || true); do
+              [ -f "apk/$f" ] || curl -fsSL "https://raw.githubusercontent.com/$R/$b/$f" -o "apk/$f"
             done
           done
           EXISTING="$(gh release list --limit 500 --json tagName --jq '.[].tagName')"
-          LATEST="$(ls apk | sed -E 's/^(foldplay|origami)-//; s/-debug\.apk$//' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -1)"
           for f in $(ls apk | sort -V); do
             v="$(echo "$f" | sed -E 's/^(foldplay|origami)-//; s/-debug\.apk$//')"
             echo "$v" | grep -qE '^[0-9]+(\.[0-9]+)+$' || continue
             [ "$v" = "$PREVIEW" ] && continue
             echo "$EXISTING" | grep -qx "v$v" && continue
             notes="docs/releases/$v.md"; [ -f "$notes" ] || { echo "Origami $v" > /tmp/n.md; notes=/tmp/n.md; }
-            flag="--latest=false"; [ "$v" = "$LATEST" ] && flag="--latest"
-            gh release create "v$v" "apk/$f" --title "Origami $v" --notes-file "$notes" --target "${{ inputs.notes_branch }}" $flag
+            gh release create "v$v" "apk/$f" --title "Origami $v" --notes-file "$notes" --target "${{ inputs.notes_branch }}" --latest=false
+            echo "v$v publiée"
           done
-          for b in $(git ls-remote --heads origin | sed 's#.*refs/heads/##' | grep -E '^(apk-transfer|apk-[0-9])'); do
-            [ "$b" = "apk-$PREVIEW" ] || git push origin --delete "$b"
+          # Doublons (deux publications en même temps) : on garde la plus ancienne.
+          gh api --paginate "repos/$R/releases?per_page=100" --jq '.[] | "\(.tag_name) \(.id)"' | sort -k1,1 -k2,2n \
+            | awk 'seen[$1]++ {print $2}' | while read -r id; do gh api -X DELETE "repos/$R/releases/$id"; echo "doublon $id supprimé"; done
+          # « Dernière version » = la plus haute publiée.
+          LATEST="$(gh release list --limit 500 --json tagName --jq '.[].tagName' | sed 's/^v//' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -1)"
+          gh release edit "v$LATEST" --latest && echo "dernière : v$LATEST"
+          for b in $(temp); do
+            [ "$b" = "apk-$PREVIEW" ] || { git push origin --delete "$b"; echo "branche $b supprimée"; }
           done
