@@ -446,7 +446,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         }
                         announceScan = false;
                         if (found.isEmpty()) {
-                            toast("Aucun jeu reconnu dans ce dossier. Range-les par console (snes/, gba/…) ou garde leurs extensions d'origine.");
+                            toast("Aucun jeu reconnu. Range-les par console (snes/, gba/…).");
                         }
                         library.clear();
                         library.addAll(found);
@@ -669,7 +669,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             row.addView(grid, new LinearLayout.LayoutParams(0, -1, 1f));
         }
         col.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
-        TextView tip = text("Astuce : plie l'écran à moitié en paysage, ou touche l'icône en haut, pour passer en mode Tsuru.", 12, Theme.MUTED, false);
+        TextView tip = text("Astuce : plie l'écran à moitié pour le mode Tsuru.", 12, Theme.MUTED, false);
         tip.setPadding(dp(16), dp(6), dp(16), dp(10));
         col.addView(tip);
         return col;
@@ -926,8 +926,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 r.show(CodecMenu.hostFor(MainActivity.this));
             }
         });
-        m.check("Gâchettes en arc", "Posées autour des joysticks comme X et Y sur une manette GameCube, plus faciles "
-                + "à atteindre. Décoche pour retrouver la place d'origine, en haut", store.ergoTriggers(), new Runnable() {
+        m.check("Gâchettes en arc", "Autour des joysticks, comme X et Y d'une GameCube, plus faciles "
+                + "à atteindre. Décoche pour les remettre en haut", store.ergoTriggers(), new Runnable() {
             public void run() {
                 store.setErgoTriggers(!store.ergoTriggers());
                 ConsolePad.ergo = store.ergoTriggers();
@@ -938,7 +938,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         m.check("Vibrations", "Retour haptique sur les touches tactiles", store.haptics(), new Runnable() {
             public void run() { store.setHaptics(!store.haptics()); self.run(); }
         });
-        m.check("Plein écran avec une manette", "La manette tactile s'efface dès qu'une manette est branchée",
+        m.check("Plein écran avec une manette", "Masquée quand une manette est branchée",
                 store.padFullscreen(), new Runnable() {
                     public void run() {
                         store.setPadFullscreen(!store.padFullscreen());
@@ -1382,7 +1382,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             heroSystem.setText("BIBLIOTHÈQUE");
             heroTitle.setVisibility(View.VISIBLE);
             heroTitle.setText(scanning ? "Lecture du dossier…" : "Choisis ton dossier de jeux");
-            heroMeta.setText("Appuie sur Ⓐ ou sur l'icône dossier. Origami range tes jeux par console et les lance dans ton émulateur.");
+            heroMeta.setText("Appuie sur Ⓐ ou l'icône dossier : Origami range tes jeux par console.");
             heroEmblem.setVisibility(View.INVISIBLE);
             heroSheet.setVisibility(View.GONE);
             return;
@@ -1391,7 +1391,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             heroSystem.setText(filterLabel(filter).toUpperCase());
             heroTitle.setVisibility(View.VISIBLE);
             heroTitle.setText("Rien ici pour l'instant");
-            heroMeta.setText("Change de catégorie avec ◀ ▶, ou ajoute des favoris avec Ⓨ.");
+            heroMeta.setText("◀ ▶ change de catégorie, Ⓨ ajoute un favori.");
             SystemInfo fs = SystemInfo.byId(filter);
             heroEmblem.setSystem(fs);
             heroEmblem.setVisibility(fs != null ? View.VISIBLE : View.INVISIBLE);
@@ -1952,7 +1952,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         });
         // Choix du pack à part : rouvert avec le store de thèmes communautaires (décision BOSS,
         // 0.60.6). D'ici là, les icônes suivent le thème (iconPackMenu reste prêt).
-        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "👷‍♂️🚧 Arrive avec le store de thèmes. Les icônes suivent le thème.");
+        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "👷‍♂️🚧 Arrive avec le store de thèmes.");
         // Partage de thèmes entre joueurs : annoncé, pas encore ouvert.
         m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "👷‍♂️🚧 Partager et récupérer des thèmes");
         m.show(CodecMenu.hostFor(this));
@@ -2060,10 +2060,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 public void run() { scan(Uri.parse(store.treeUri())); }
             });
         }
-        m.item("Oublier les émulateurs choisis", "Le prochain lancement redemandera, console par console", new Runnable() {
+        m.item("Oublier les émulateurs choisis", "Redemandé au prochain lancement", new Runnable() {
             public void run() {
                 store.clearEmulators();
-                toast("Le prochain lancement te redemandera l'émulateur, console par console.");
+                toast("L'émulateur sera redemandé au prochain lancement.");
             }
         });
         if (store.treeUri() != null) {
@@ -2084,7 +2084,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         try {
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
         } catch (ActivityNotFoundException e) {
-            toast("Impossible d'ouvrir le sélecteur de dossiers sur cet appareil.");
+            toast("Sélecteur de dossiers indisponible.");
         }
     }
 
@@ -2199,7 +2199,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             return box;
         }
         TextView t = text(filter.equals("fav")
-                ? "Pas encore de favoris. Appui long sur un jeu pour l'ajouter."
+                ? "Pas de favoris. Appui long sur un jeu pour en ajouter."
                 : filter.equals("recent") ? "Aucune partie lancée pour l'instant." : "Rien ici pour l'instant.",
                 15, Theme.MUTED, false);
         t.setGravity(Gravity.CENTER);

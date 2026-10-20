@@ -197,8 +197,8 @@ public class SetupActivity extends Activity {
             }
         });
         if (!store.languageChosen()) store.setLanguage("system");
-        para("Bienvenue. Origami range tes jeux par console et les lance dans ses émulateurs open source "
-                + "intégrés, avec une manette à l'écran qui suit ton Fold, plié ou ouvert.");
+        para("Bienvenue. Origami range tes jeux par console et les lance dans ses émulateurs "
+                + "intégrés, avec une manette à l'écran adaptée à ton Fold.");
         label("INSTALLATION");
         row("Simple  (recommandée)", "Deux étapes : ton dossier de jeux et ton style. Le reste est réglé pour toi, "
                 + "les moteurs se téléchargent au premier jeu", new Runnable() {
@@ -218,7 +218,7 @@ public class SetupActivity extends Activity {
     }
 
     private void folder() {
-        para("Choisis le dossier où sont tes jeux. Ranger par console (gba/, ps2/, switch/…) aide, mais Origami "
+        para("Choisis ton dossier de jeux. Ranger par console (gba/, ps2/…) aide, mais Origami "
                 + "reconnaît aussi les jeux par leur contenu.");
         String tree = store.treeUri();
         row(tree == null ? "Choisir le dossier de jeux" : "Dossier choisi  ✓",
@@ -227,7 +227,7 @@ public class SetupActivity extends Activity {
                         try {
                             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
                         } catch (ActivityNotFoundException e) {
-                            note("Sélecteur de dossiers indisponible sur cet appareil.");
+                            note("Sélecteur de dossiers indisponible.");
                         }
                     }
                 });
@@ -256,10 +256,10 @@ public class SetupActivity extends Activity {
     private void cores() {
         final CoreManager cm = new CoreManager(this);
         final List<String> all = CoreManager.allCores();
-        para("Le moteur intégré fait tourner ces consoles directement dans Origami, avec des cœurs libretro "
-                + "open source. Installe-les maintenant pour jouer même hors ligne.");
+        para("Le moteur intégré fait tourner ces consoles dans Origami, avec des cœurs libretro "
+                + "open source. Installe-les pour jouer hors ligne.");
         if (!Libretro.available()) {
-            note("Le moteur intégré demande un appareil 64 bits (arm64).");
+            note("Demande un appareil 64 bits (arm64).");
             return;
         }
         int missing = 0;
@@ -283,7 +283,7 @@ public class SetupActivity extends Activity {
         }
         page.addView(bar, new LinearLayout.LayoutParams(-1, -2));
         page.addView(status);
-        note("Sinon, chaque moteur se télécharge tout seul au premier jeu de sa console.");
+        note("Sinon, chaque moteur se télécharge au premier jeu.");
     }
 
     private void downloadAll(final CoreManager cm, final List<String> all, final TextView status, final ProgressBar bar) {
@@ -392,7 +392,7 @@ public class SetupActivity extends Activity {
     }
 
     private void pad() {
-        para("Choisis la manette à l'écran. Tu pourras tout changer ensuite dans l'éditeur (icône manette).");
+        para("Choisis la manette à l'écran, modifiable ensuite dans l'éditeur.");
         final String active = store.activeLayout();
         final String[][] kinds = {
             {"Flex", "Notre manette phare : elle prend la forme de la manette de chaque console, touches comprises"},
@@ -479,7 +479,7 @@ public class SetupActivity extends Activity {
     }
 
     private void sheets() {
-        para("Jaquettes et fiches (synopsis, année) se récupèrent toutes seules sur internet.");
+        para("Jaquettes et fiches récupérées automatiquement.");
         final boolean covers = store.autoCovers();
         row((covers ? "■  " : "□  ") + "Jaquettes automatiques", "Base libretro-thumbnails", new Runnable() {
             public void run() {
@@ -499,9 +499,9 @@ public class SetupActivity extends Activity {
 
     private void done() {
         para(store.treeUri() == null
-                ? "C'est prêt. Il ne manque que ton dossier de jeux : choisis-le depuis l'accueil (icône dossier)."
+                ? "C'est prêt. Choisis ton dossier de jeux depuis l'accueil."
                 : "C'est prêt. Origami lit ton dossier et range tes jeux par console.");
-        para("En jeu, la touche Home ouvre le menu (options, triches, format d'image) ; deux appuis rapides "
+        para("En jeu, Home ouvre le menu ; deux appuis rapides "
                 + "quittent le jeu.");
     }
 

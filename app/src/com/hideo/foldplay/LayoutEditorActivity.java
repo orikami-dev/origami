@@ -324,7 +324,7 @@ public class LayoutEditorActivity extends Activity {
         final ControlLayout doomed = current;
         new CodecMenu(this).title("Supprimer « " + doomed.name + " » ?", "DISPOSITION")
                 .item("Annuler", null, null)
-                .item("Supprimer", "Ses touches et son image de fond seront effacées", new Runnable() {
+                .item("Supprimer", "Touches et fond effacés", new Runnable() {
                     public void run() {
                         layouts.remove(doomed);
                         deleteBackgroundFile(doomed.background);
@@ -370,7 +370,7 @@ public class LayoutEditorActivity extends Activity {
         current.bgScale = 1;
         deck.reloadBackground();
         save();
-        toast("Fond ajouté : glisse pour le déplacer, pince pour zoomer.");
+        toast("Fond ajouté : glisse, pince pour zoomer.");
     }
 
     private void recenter() {
@@ -521,7 +521,7 @@ public class LayoutEditorActivity extends Activity {
                     })));
                 styleBox.addView(hint("Disposition Flex : les touches sont figées. Fais glisser une moitié sur la "
                         + "manette pour la déplacer" + (l.splitLinked ? ", l'autre suit en miroir." : ".")
-                        + " Le joystick gauche sert aussi de croix en jeu."));
+                        + " Le joystick gauche fait aussi croix."));
             }
         } else if (tab.equals("bg")) {
             styleBox.addView(scroller(buttons(
@@ -531,7 +531,7 @@ public class LayoutEditorActivity extends Activity {
                         new Runnable() { public void run() { recenter(); } },
                         new Runnable() { public void run() { removeBackground(); } },
                     })));
-            styleBox.addView(hint("Sans touche choisie, glisse et pince sur la manette pour placer l'image."));
+            styleBox.addView(hint("Sans touche choisie, glisse et pince pour placer l'image."));
         } else {
             hapticsPage();
         }

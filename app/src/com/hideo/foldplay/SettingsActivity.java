@@ -268,10 +268,10 @@ public class SettingsActivity extends Activity {
             }
         });
         if (tree != null) {
-            action("Rescanner la bibliothèque", "Relit le dossier et range les jeux par console", new Runnable() {
+            action("Rescanner la bibliothèque", "Relit le dossier", new Runnable() {
                 public void run() {
                     store.requestRescan();
-                    toast("La bibliothèque sera relue en revenant à l'accueil.");
+                    toast("Bibliothèque relue au retour à l'accueil.");
                 }
             });
             action("Oublier ce dossier", "Origami n'aura plus accès à ce dossier", new Runnable() {
@@ -282,12 +282,12 @@ public class SettingsActivity extends Activity {
                 }
             });
         }
-        note("Astuce : range tes jeux par console (ps2/, gamecube/, switch/…). Les .iso, .chd et .rvz "
+        note("Astuce : range tes jeux par console (ps2/, gamecube/…). Les .iso, .chd et .rvz "
                 + "sont aussi reconnus par leur contenu.");
     }
 
     private void emulators() {
-        if (!Libretro.available()) note("Le moteur intégré demande un appareil 64 bits (arm64).");
+        if (!Libretro.available()) note("Demande un appareil 64 bits (arm64).");
         final CoreManager cores = new CoreManager(this);
         final Launcher launcher = new Launcher(this, store);
 
@@ -319,10 +319,10 @@ public class SettingsActivity extends Activity {
                         public void run() { pickPs3Firmware(); }
                     });
         }
-        action("Importer des sauvegardes", "Depuis un autre émulateur, converties au bon format", new Runnable() {
+        action("Importer des sauvegardes", "Depuis un autre émulateur", new Runnable() {
             public void run() { pickSaveSystem(); }
         });
-        action("Exporter des sauvegardes", "Vers une autre app, Quick Share, un PC ou un dossier", new Runnable() {
+        action("Exporter des sauvegardes", "Vers une autre app, un PC ou un dossier", new Runnable() {
             public void run() { pickExportSystem(); }
         });
         note("Origami est aussi dans le menu Partager d'Android : envoie-lui des sauvegardes depuis une autre app "
@@ -331,22 +331,22 @@ public class SettingsActivity extends Activity {
         // 4. Entretien.
         header("Entretien");
         if (Libretro.available()) {
-            action("Retélécharger les cœurs", "Dernière version de libretro, un cœur ou tous", new Runnable() {
+            action("Retélécharger les cœurs", "Un cœur ou tous", new Runnable() {
                 public void run() { pickRedownload(cores); }
             });
             action("Supprimer les cœurs téléchargés", (cores.installedSize() / (1024 * 1024)) + " Mo utilisés",
                     new Runnable() {
                         public void run() {
                             deleteRecursive(new File(getFilesDir(), "cores"));
-                            toast("Cœurs supprimés, ils reviendront au prochain lancement.");
+                            toast("Cœurs supprimés, retéléchargés au prochain lancement.");
                             render();
                         }
                     });
         }
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             boolean all = android.os.Environment.isExternalStorageManager();
-            action("Accès à tous les fichiers", all ? "Accordé : .cue/.bin et gros disques lus directement"
-                    : "Nécessaire pour les jeux en plusieurs fichiers (.cue + .bin)", new Runnable() {
+            action("Accès à tous les fichiers", all ? "Accordé : .cue/.bin lus directement"
+                    : "Pour les jeux multi-fichiers (.cue + .bin)", new Runnable() {
                 public void run() {
                     try {
                         startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
@@ -470,7 +470,7 @@ public class SettingsActivity extends Activity {
             });
         }
         gridEnd();
-        note("Switch : Eden, intégré comme les autres cœurs, bientôt.");
+        note("Switch : Eden, bientôt.");
     }
 
     private String coreState(CoreManager cores, String core) {
@@ -495,7 +495,7 @@ public class SettingsActivity extends Activity {
                     new Runnable() {
                         public void run() { redownload(cores, java.util.Collections.singletonList(core)); }
                     });
-            if (cores.installed(core)) m.item("Supprimer", "Il reviendra au prochain lancement d'un jeu", new Runnable() {
+            if (cores.installed(core)) m.item("Supprimer", "Il reviendra au prochain jeu", new Runnable() {
                 public void run() {
                     cores.delete(core);
                     toast(CoreCatalog.name(core) + " supprimé.");
@@ -530,11 +530,11 @@ public class SettingsActivity extends Activity {
                     public void run() { runInstaller(core, self); }
                 });
         final String[] specs = store.coreSpecs(core);
-        m.sub("Réglages du cœur", specs.length == 0 ? "Lance un jeu une fois pour les voir apparaître"
+        m.sub("Réglages du cœur", specs.length == 0 ? "Lance un jeu pour les voir"
                 : (specs.length / 3) + " réglages · appliqués au prochain lancement", new Runnable() {
             public void run() {
                 if (specs.length == 0) {
-                    toast("Lance un jeu de cette console une fois : ses réglages apparaîtront ici.");
+                    toast("Lance un jeu de cette console pour voir ses réglages.");
                     self.run();
                 } else {
                     coreOptions(core, specs, self);
@@ -663,47 +663,47 @@ public class SettingsActivity extends Activity {
     }
 
     private void covers() {
-        toggle("Jaquettes automatiques", "Télécharge les jaquettes manquantes après chaque scan",
+        toggle("Jaquettes automatiques", "Jaquettes manquantes après chaque scan",
                 store.autoCovers(), new Toggle() {
                     public void set(boolean on) {
                         store.setAutoCovers(on);
                     }
                 });
-        toggle("Fiches de jeux", "Synopsis et année de sortie depuis Wikipédia, affichés dans le mode Tsuru",
+        toggle("Fiches de jeux", "Synopsis et année (Wikipédia), en mode Tsuru",
                 store.autoInfo(), new Toggle() {
                     public void set(boolean on) {
                         store.setAutoInfo(on);
                     }
                 });
-        toggle("Illustrations de fond", "Quand le curseur s'arrête sur un jeu, l'accueil affiche une image du jeu "
-                + "derrière : illustration large ScreenScraper (compte requis), sinon les couleurs floutées de sa jaquette", store.backdrops(), new Toggle() {
+        toggle("Illustrations de fond", "L'accueil affiche une image du jeu sélectionné "
+                + "derrière : ScreenScraper (compte requis), sinon sa jaquette floutée", store.backdrops(), new Toggle() {
             public void set(boolean on) {
                 store.setBackdrops(on);
             }
         });
         String[] ss = store.screenScraper();
         action("Compte ScreenScraper", ss[0].isEmpty()
-                ? "Pour les synopsis officiels en français : identifiants développeur et compte"
+                ? "Synopsis officiels : identifiants développeur et compte"
                 : "Saisi · synopsis officiels activés", new Runnable() {
             public void run() {
                 screenScraperDialog();
             }
         });
-        action("Retélécharger les fiches", "Efface les fiches gardées, elles reviendront à la sélection", new Runnable() {
+        action("Retélécharger les fiches", "Efface les fiches gardées", new Runnable() {
             public void run() {
                 new GameInfo(SettingsActivity.this).clear();
                 toast("Fiches effacées.");
             }
         });
-        action("Retélécharger toutes les jaquettes", "Jaquettes et illustrations de fond : efface le cache puis relance la récupération", new Runnable() {
+        action("Retélécharger toutes les jaquettes", "Efface le cache puis relance la récupération", new Runnable() {
             public void run() {
                 deleteRecursive(new File(getFilesDir(), "covers"));
                 deleteRecursive(new File(getFilesDir(), "backdrops"));
                 store.requestRescan();
-                toast("Cache vidé. Les jaquettes reviendront au prochain passage à l'accueil.");
+                toast("Cache vidé. Les jaquettes reviendront à l'accueil.");
             }
         });
-        note("Source : base communautaire libretro-thumbnails. Les jaquettes appartiennent à leurs éditeurs "
+        note("Source : libretro-thumbnails. Les jaquettes appartiennent à leurs éditeurs "
                 + "et restent sur ton appareil.");
     }
 
@@ -714,8 +714,8 @@ public class SettingsActivity extends Activity {
 
     private void pads() {
         if (pads == null) pads = new Pads(this);
-        toggle("Plein écran avec une manette", "Dès qu'une manette est branchée, le jeu prend tout l'écran "
-                + "et la manette à l'écran disparaît", store.padFullscreen(), new Toggle() {
+        toggle("Plein écran avec une manette", "Dès qu'une manette est branchée, jeu plein écran "
+                + "et manette à l'écran masquée", store.padFullscreen(), new Toggle() {
             public void set(boolean on) {
                 store.setPadFullscreen(on);
             }
@@ -723,10 +723,10 @@ public class SettingsActivity extends Activity {
         header("Connectées");
         List<android.view.InputDevice> now = pads.connected();
         java.util.Set<String> seen = new java.util.HashSet<String>();
-        if (now.isEmpty()) note("Aucune manette pour l'instant. Associe-la en Bluetooth dans les réglages Android : "
-                + "elle apparaîtra ici toute seule.");
-        else note("Appuie sur les touches pour les tester : ici la manette ne pilote pas l'app. "
-                + "Pour quitter, touche l'écran ou appuie sur Select et Start ensemble.");
+        if (now.isEmpty()) note("Aucune manette. Associe-la en Bluetooth dans les réglages Android : "
+                + "elle apparaîtra ici.");
+        else note("Teste les touches : la manette ne pilote pas l'app. "
+                + "Pour quitter : touche l'écran ou Select + Start.");
         padViews.clear();
         for (final android.view.InputDevice d : now) {
             final Pads.Profile p = pads.profile(d);
@@ -757,9 +757,9 @@ public class SettingsActivity extends Activity {
                 }
             });
         }
-        note("Mappage automatique : Android reconnaît les manettes Xbox, PlayStation, 8BitDo et la plupart des "
-                + "manettes Bluetooth ; les manettes Nintendo sont détectées et leurs A/B remis à leur place. "
-                + "Jusqu'à 4 joueurs : la première manette est le joueur 1 (avec la manette à l'écran).");
+        note("Mappage auto : Android reconnaît Xbox, PlayStation, 8BitDo et la plupart des "
+                + "manettes Bluetooth ; Nintendo détectées, A/B corrigés. "
+                + "Jusqu'à 4 joueurs : la première manette est le joueur 1.");
     }
 
     private void padMenu(final android.view.InputDevice d, final Pads.Profile p) {
@@ -950,20 +950,20 @@ public class SettingsActivity extends Activity {
             }
         });
         header("Interface");
-        toggle("Plein écran hors jeu", "Masque les barres d'état et de navigation dans les menus (les jeux sont toujours en plein écran)",
+        toggle("Plein écran hors jeu", "Masque les barres système dans les menus",
                 store.appFullscreen(), new Toggle() {
                     public void set(boolean on) {
                         store.setAppFullscreen(on);
                         Theme.fullscreen(SettingsActivity.this);
                     }
                 });
-        toggle("Mode Tsuru par défaut", "Sur l'écran interne ; sinon le mode Washi (liste ou grille). "
-                + "L'écran externe d'un pliant ouvre toujours Washi", store.flexView(), new Toggle() {
+        toggle("Mode Tsuru par défaut", "Écran interne ; sinon Washi. "
+                + "L'écran externe ouvre toujours Washi", store.flexView(), new Toggle() {
             public void set(boolean on) {
                 store.setFlexView(on);
             }
         });
-        toggle("Mode Tsuru à l'ouverture", "Déplier le pliant pendant qu'Origami est à l'écran passe directement en mode jeu",
+        toggle("Mode Tsuru à l'ouverture", "Déplier le pliant dans Origami passe en mode jeu",
                 store.tsuruOnOpen(), new Toggle() {
             public void set(boolean on) {
                 store.setTsuruOnOpen(on);
@@ -994,13 +994,13 @@ public class SettingsActivity extends Activity {
                 store.setScanlines(on);
             }
         });
-        note("Manette tactile, manettes physiques et vibrations : icône manette en haut de l'accueil.");
+        note("Manettes et vibrations : icône manette de l'accueil.");
     }
 
     /** Monitoring : l'ATH en jeu façon RTSS, son style et les mesures affichées. */
     private void monitoring() {
         header("ATH en jeu");
-        toggle("ATH de monitoring en jeu", "Mesures en direct, sur une ligne en haut de l'écran façon RTSS",
+        toggle("ATH de monitoring en jeu", "Mesures en direct, façon RTSS",
                 store.hud(), new Toggle() {
                     public void set(boolean on) {
                         store.setHud(on);
@@ -1039,7 +1039,7 @@ public class SettingsActivity extends Activity {
                 store.setHudRate(Hud.RATES[i]);
             }
         });
-        toggle("Bandeau sombre", "Sinon le texte seul, ombré, directement sur le jeu", store.hudBackground(),
+        toggle("Bandeau sombre", "Sinon, texte ombré sur le jeu", store.hudBackground(),
                 new Toggle() {
                     public void set(boolean on) {
                         store.setHudBackground(on);
@@ -1124,7 +1124,7 @@ public class SettingsActivity extends Activity {
     private void updates() {
         header("Version installée");
         note("Origami " + Updater.installed(this));
-        toggle("Rechercher automatiquement", "Au démarrage, deux fois par jour au plus, avec une notification et un résumé des nouveautés",
+        toggle("Rechercher automatiquement", "Au démarrage, deux fois par jour max, avec notification",
                 store.autoUpdates(), new Toggle() {
                     public void set(boolean on) {
                         store.setAutoUpdates(on);
@@ -1170,7 +1170,7 @@ public class SettingsActivity extends Activity {
 
     private void sound() {
         header("Interface");
-        toggle("Bruits de l'interface", "Déplacement, validation, retour, ouverture d'un menu et lancement d'un jeu, "
+        toggle("Bruits de l'interface", "Déplacement, validation, retour, lancement d'un jeu, "
                 + "propres à chaque thème", store.menuSound(), new Toggle() {
             public void set(boolean on) {
                 store.setMenuSound(on);
@@ -1213,8 +1213,8 @@ public class SettingsActivity extends Activity {
             // Version inconnue.
         }
         header("Débogage");
-        toggle("Mode débogage", "Journal détaillé (messages des cœurs compris) et rapport de plantage, "
-                + "à partager pour un retour de bug", store.debug(), new Toggle() {
+        toggle("Mode débogage", "Journal détaillé et rapport de plantage, "
+                + "à partager en cas de bug", store.debug(), new Toggle() {
             public void set(boolean on) {
                 store.setDebug(on);
                 DebugLog.sync(SettingsActivity.this);
@@ -1250,7 +1250,7 @@ public class SettingsActivity extends Activity {
         note("Origami n'est affilié à aucun fabricant de consoles ni éditeur de jeux. Les noms de "
                 + "consoles cités servent uniquement à indiquer la compatibilité et appartiennent à leurs "
                 + "propriétaires respectifs.");
-        note("Origami ne fournit aucun jeu, BIOS ni clé. Utilise uniquement des copies de jeux que tu possèdes.");
+        note("Origami ne fournit ni jeu, ni BIOS, ni clé. Utilise tes propres copies.");
         note("Polices : Black Ops One et Michroma, sous licence SIL Open Font License 1.1.");
         note("Moteur PS2 : ARMSX2 (dérivé de PCSX2), cœur libretro sous licence GNU GPL 3.0, livré avec l'app "
                 + "et compilé depuis le code source publié ci-dessous, avec un petit correctif Origami pour "

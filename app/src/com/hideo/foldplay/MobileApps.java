@@ -39,11 +39,11 @@ final class MobileApps {
     /** Solutions officielles : {plateforme, paquet, nom, texte de la fiche}. */
     static final String[][] OFFICIAL = {
         {"ps", "com.playstation.remoteplay", "PS Remote Play",
-            "Joue à distance aux jeux de ta PS5 ou de ta PS4, chez toi ou en déplacement."},
+            "Joue à distance à ta PS5 ou PS4."},
         {"xbox", "com.microsoft.xboxone.smartglass", "Xbox",
-            "Joue à distance sur ta Xbox, ou dans le cloud avec le Game Pass."},
-        {"xbox", "com.gamepass", "Xbox Game Pass", "Jeux du Game Pass en streaming depuis le cloud."},
-        {"steam", "com.valvesoftware.steamlink", "Steam Link", "Joue aux jeux de ton PC Steam sur le téléphone."},
+            "Xbox à distance ou Game Pass cloud."},
+        {"xbox", "com.gamepass", "Xbox Game Pass", "Jeux Game Pass en streaming cloud."},
+        {"steam", "com.valvesoftware.steamlink", "Steam Link", "Ton PC Steam sur le téléphone."},
     };
 
     /** Alternatives reconnues sur le téléphone : {plateforme, paquet ou mot du nom, texte}. */
@@ -58,7 +58,7 @@ final class MobileApps {
         {"steam", "moonlight", "Client libre de streaming depuis ton PC (Sunshine)."},
         {"steam", "artemis", "Client libre de streaming depuis ton PC, dérivé de Moonlight."},
         {"steam", "com.parsec.app", "Bureau et jeux de ton PC à distance."},
-        {"steam", "com.nvidia.geforcenow", "Jeux PC en streaming depuis le cloud."},
+        {"steam", "com.nvidia.geforcenow", "Jeux PC en streaming cloud."},
     };
 
     static String groupName(String id) {
@@ -134,7 +134,7 @@ final class MobileApps {
                     || customGroup(custom, uri(ri).substring(4)) != null) continue;
             Game g = new Game(label, SystemInfo.ANDROID, uri(ri));
             g.coverUri = g.uri;
-            g.note = "Jeu Android installé sur ce téléphone. Ⓐ l'ouvre.";
+            g.note = "Jeu Android installé. Ⓐ l'ouvre.";
             out.add(g);
         }
         sort(out);
@@ -243,7 +243,7 @@ final class MobileApps {
     /** Entrée « Actualiser la bibliothèque » de la catégorie Tous. */
     static Game refreshItem() {
         Game g = new Game("Actualiser la bibliothèque", SystemInfo.ACTION, "action:rescan");
-        g.note = "Relit ton dossier de jeux et range les nouveautés par console.";
+        g.note = "Relit ton dossier de jeux.";
         return g;
     }
 

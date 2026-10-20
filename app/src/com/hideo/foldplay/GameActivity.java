@@ -118,7 +118,7 @@ public class GameActivity extends Activity {
         hideBars();
 
         if (!Libretro.available()) {
-            fail("Le moteur intégré ne tourne que sur les appareils 64 bits (arm64).");
+            fail("Demande un appareil 64 bits (arm64).");
             return;
         }
         running = true;
@@ -1149,7 +1149,7 @@ public class GameActivity extends Activity {
                 .item("Redémarrer le jeu", null, new Runnable() {
                     public void run() { jobs.add(new Runnable() { public void run() { Libretro.nativeReset(); } }); }
                 })
-                .item("Quitter", "Retour à l'accueil, la sauvegarde de la cartouche est écrite", new Runnable() {
+                .item("Quitter", "Retour à l'accueil, sauvegarde écrite", new Runnable() {
                     public void run() { finish(); }
                 })
                 .show(stage);
@@ -1184,7 +1184,7 @@ public class GameActivity extends Activity {
             }
         });
         if (screenMode != 2) {
-            m.item("Modifier la manette ici", "Directement sur le jeu, à la bonne échelle, pour cet écran", new Runnable() {
+            m.item("Modifier la manette ici", "Sur le jeu, à l'échelle de cet écran", new Runnable() {
                 public void run() {
                     deck.post(new Runnable() { public void run() { startDeckEdit(); } });
                 }
@@ -1218,7 +1218,7 @@ public class GameActivity extends Activity {
                 r.show(stage);
             }
         });
-        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette est branchée",
+        m.check("Plein écran avec une manette", "Masquée quand une manette est branchée",
                 store.padFullscreen(), new Runnable() {
                     public void run() { store.setPadFullscreen(!store.padFullscreen()); updateOverlay(); showControllerOptions(); }
                 });
@@ -1255,7 +1255,7 @@ public class GameActivity extends Activity {
         m.check("Disposition Nintendo", "A à droite, B en bas", p.nintendo, new Runnable() {
             public void run() { p.nintendo = !p.nintendo; pads.save(p); showPadOptions(d, p); }
         });
-        m.item("Voir la manette et réattribuer les touches", "Ouvre Réglages > Manettes (le jeu reste en pause)",
+        m.item("Voir la manette et réattribuer les touches", "Ouvre Réglages > Manettes (jeu en pause)",
                 new Runnable() {
                     public void run() {
                         startActivity(new Intent(GameActivity.this, SettingsActivity.class)
@@ -1372,7 +1372,7 @@ public class GameActivity extends Activity {
         m.item("Tout remettre par défaut", "Au prochain lancement du jeu", new Runnable() {
             public void run() {
                 store.clearCoreOptions(core);
-                toastUi("Réglages effacés : valeurs par défaut au prochain lancement.");
+                toastUi("Réglages effacés.");
             }
         });
         m.show(stage);
@@ -1408,7 +1408,7 @@ public class GameActivity extends Activity {
                             Libretro.nativeSetVariable(key, v);
                         }
                     });
-                    toastUi("Appliqué. Certains réglages ne prennent effet qu'au redémarrage du jeu.");
+                    toastUi("Appliqué. Effet au redémarrage du jeu.");
                     optionGroupMenu(vars, group, idx);
                 }
             });
@@ -1563,7 +1563,7 @@ public class GameActivity extends Activity {
         try {
             if ("armsx2".equals(core) && !cores.hasPs2Bios()) {
                 fail("ARMSX2 a besoin du BIOS de ta PS2. Importe-le dans Réglages > Émulateurs > "
-                        + "Importer un BIOS (fichier .bin de 4 Mo tiré de ta propre console).");
+                        + "Importer un BIOS (.bin de 4 Mo).");
                 return;
             }
             if (cores.installed(core) && cores.needsSystemFiles(core)) {
@@ -1998,8 +1998,8 @@ public class GameActivity extends Activity {
                     public void run() { finish(); }
                 };
                 new CodecMenu(GameActivity.this).title("Accès aux fichiers", title)
-                        .message("Ce jeu est en plusieurs fichiers (ou très gros) : " + core
-                                + " doit les lire directement. Autorise Origami à accéder à tous les fichiers, "
+                        .message("Jeu multi-fichiers ou très gros : " + core
+                                + " doit les lire directement. Autorise l'accès à tous les fichiers, "
                                 + "puis relance le jeu.")
                         .item("Autoriser", null, new Runnable() {
                             public void run() {
@@ -2055,7 +2055,7 @@ public class GameActivity extends Activity {
 
     private void pickSave() {
         if (java.util.Arrays.asList(SaveImport.SYSTEMS).indexOf(system) < 0) {
-            toastUi("Import de sauvegardes pas encore géré pour cette console.");
+            toastUi("Import non géré pour cette console.");
             return;
         }
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");

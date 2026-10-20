@@ -20,10 +20,10 @@ final class CoreProfiles {
     static final String[] IDS = {"performance", "balanced", "quality"};
     static final String[] NAMES = {"Performance", "Équilibré", "Qualité"};
     static final String[] HELP = {
-        "Définition native et effets coûteux coupés : la fluidité et l'autonomie d'abord.",
-        "Le bon compromis : définition relevée et filtrage léger, le jeu reste fluide.",
-        "Rendu poussé (définition, filtrage, couleurs) mais plafonné pour ne pas faire chauffer "
-                + "le téléphone sur les jeux 3D gourmands.",
+        "Définition native, effets coupés : fluidité d'abord.",
+        "Bon compromis : définition relevée, jeu fluide.",
+        "Rendu poussé, mais plafonné pour ne pas faire chauffer "
+                + "le téléphone.",
     };
 
     private static JSONObject all;

@@ -102,7 +102,7 @@ final class EngineMenus {
                 self.run();
             }
         });
-        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette est branchée",
+        m.check("Plein écran avec une manette", "Masquée quand une manette est branchée",
                 store.padFullscreen(), new Runnable() {
             public void run() {
                 store.setPadFullscreen(!store.padFullscreen());
