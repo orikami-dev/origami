@@ -429,6 +429,7 @@ public class GameActivity extends Activity {
         overlayMode = want == 1;
         if (deck.getParent() != null) ((android.view.ViewGroup) deck.getParent()).removeView(deck);
         if (miniBox != null && miniBox.getParent() != null) ((android.view.ViewGroup) miniBox.getParent()).removeView(miniBox);
+        column.setOrientation(LinearLayout.VERTICAL);
         if (want != 0) {
             gap.setVisibility(View.GONE);
             column.setPadding(0, 0, 0, 0);

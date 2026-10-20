@@ -18,20 +18,26 @@ final class GameLayout {
         // Hauteur réelle de la scène (change au pliage et avec les barres) ; l'écran sert de repli.
         int total = stageHeight > 0 ? stageHeight : a.getResources().getDisplayMetrics().heightPixels;
         int top = Theme.statusBarPx(a);
-        int bottom = Math.max(top, Theme.navBarPx(a));
+        int bottom = Theme.navBarPx(a);
         int gap = Math.round(6 * a.getResources().getDisplayMetrics().density);
-        int pill = (total - top - bottom - gap) / 2;
+        // Coupure exactement au milieu de l'écran, là où passe la charnière du pliant tenu en
+        // portrait (BOSS, 20/10) : chaque pastille remplit sa moitié, barres système exceptées.
+        int mid = total / 2;
         screen.topMargin = top;
-        screen.height = pill;
+        screen.width = -1;
+        deck.width = -1;
+        screen.height = mid - gap / 2 - top;
         screen.gravity = Gravity.TOP;
         deck.bottomMargin = bottom;
-        deck.height = pill;
+        deck.height = total - bottom - (mid + gap - gap / 2);
         deck.gravity = Gravity.BOTTOM;
         return top;
     }
 
     /** Plein cadre (paysage ou manette physique) : plus de bandes. */
     static void full(FrameLayout.LayoutParams screen, FrameLayout.LayoutParams deck) {
+        screen.width = -1;
+        deck.width = -1;
         screen.topMargin = 0;
         screen.height = -1;
         screen.gravity = Gravity.TOP;

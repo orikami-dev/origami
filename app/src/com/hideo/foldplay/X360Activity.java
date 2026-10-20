@@ -212,8 +212,7 @@ public class X360Activity extends WindowedAppActivity {
         setContentView(stage);
         stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
-                if (b - t != ob - ot) place();
-                else if (r - l != or - ol) applyFormat();
+                if (b - t != ob - ot || r - l != or - ol) place();
             }
         });
         formatKey();

@@ -2,6 +2,9 @@
 
 Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
 
+## 0.65.15
+- Jeux PS3 et Xbox 360 en portrait : l'écran du jeu et la manette sont coupés exactement au milieu, là où passe la charnière, et chacun remplit sa moitié. Le paysage reste en plein écran.
+
 ## 0.65.14
 - Accueil en portrait : la pastille du haut retrouve ses coins ronds et commence sous la barre d'état ; en paysage, plus aucune pastille, plein écran.
 - Astuces retirées de l'app (accueil et Réglages).
