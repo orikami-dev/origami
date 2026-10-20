@@ -2,6 +2,9 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.28
+- Bibliothèque : l’entrée « Actualiser la bibliothèque » de la catégorie Tous est retirée, le geste « tirer pour actualiser » la remplace.
+
 ## 0.65.27
 - Bibliothèque en mode Washi : tire vers le bas pour actualiser la liste des jeux.
 

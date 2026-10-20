@@ -75,7 +75,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Catégories d'applications du XMB (0.60.5) : jeux Android installés, clients Remote Play. */
     private final List<Game> mobile = new ArrayList<Game>();
     private final List<Game> remote = new ArrayList<Game>();
-    private final Game refreshItem = MobileApps.refreshItem();
     private String appsSig = "";
     private String filter = "all";
     private int selected;
@@ -331,16 +330,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     /** Ⓐ sur une entrée : jeu (émulateur), application, client à installer ou action. */
     private void open(Game g) {
-        if (g.uri.equals("action:rescan")) {
-            if (store.treeUri() == null) {
-                pickFolder();
-                return;
-            }
-            if (scanning) return;
-            announceScan = true;
-            toast("Actualisation de la bibliothèque…");
-            scan(Uri.parse(store.treeUri()));
-        } else if (g.uri.startsWith("action:remote:")) {
+        if (g.uri.startsWith("action:remote:")) {
             remoteMenu(g.group);
         } else if (g.uri.startsWith("action:addclient:")) {
             addClientMenu(g.group);
@@ -531,8 +521,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 for (Game g : mobile) if (store.isFavorite(g)) shown.add(g);
                 for (Game g : remote) if (store.isFavorite(g)) shown.add(g);
             }
-            // « Tous » se termine par l'entrée qui relit le dossier (ex-bouton de la barre du haut).
-            if (filter.equals("all") && !library.isEmpty()) shown.add(refreshItem);
         }
         if (selected >= shown.size()) selected = Math.max(0, shown.size() - 1);
     }

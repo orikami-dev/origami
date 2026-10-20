@@ -240,13 +240,6 @@ final class MobileApps {
         return chiaki(pkg, label);
     }
 
-    /** Entrée « Actualiser la bibliothèque » de la catégorie Tous. */
-    static Game refreshItem() {
-        Game g = new Game("Actualiser la bibliothèque", SystemInfo.ACTION, "action:rescan");
-        g.note = "Relit ton dossier de jeux.";
-        return g;
-    }
-
     /** Ouvre l'application, ou sa page du Play Store si elle manque. */
     static void open(Activity a, Store store, Game g) {
         try {
