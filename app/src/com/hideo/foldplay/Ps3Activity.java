@@ -98,8 +98,17 @@ public class Ps3Activity extends Activity {
                 DebugLog.event("[PS3] nativeInitialize ok=" + ok + (ok ? "" : ", erreur " + safeError()));
                 runOnUiThread(new Runnable() {
                     public void run() {
-                        if (!ready) fail("Le moteur PS3 n'a pas pu démarrer.");
-                        else next();
+                        if (!ready) {
+                            fail("Le moteur PS3 n'a pas pu démarrer.");
+                            return;
+                        }
+                        // La fenêtre a pu arriver pendant l'initialisation (course) : on la donne maintenant.
+                        android.view.SurfaceHolder sh = screen.getHolder();
+                        if (!surfaceSeen && sh.getSurface() != null && sh.getSurface().isValid()) {
+                            android.graphics.Rect r = sh.getSurfaceFrame();
+                            giveSurface(sh, r.width(), r.height());
+                        }
+                        next();
                     }
                 });
             }
@@ -116,6 +125,17 @@ public class Ps3Activity extends Activity {
 
     // ------------------------------------------------------------------ écran
 
+    /** Remet la fenêtre au moteur (sa taille d'abord : il la lit dès qu'il a une fenêtre). */
+    private void giveSurface(SurfaceHolder h, int w, int hh) {
+        Ps3Core.nativeSurfaceSize(w, hh);
+        int event = surface == null ? Ps3Core.SURFACE_CREATED : Ps3Core.SURFACE_CHANGED;
+        surface = h.getSurface();
+        Ps3Core.nativeSurface(surface, event);
+        surfaceSeen = true;
+        DebugLog.event("[PS3] surface reçue " + w + "×" + hh);
+        maybeBoot();
+    }
+
     private void build() {
         stage = new FrameLayout(this);
         stage.setBackgroundColor(0xFF000000);
@@ -125,15 +145,11 @@ public class Ps3Activity extends Activity {
             }
 
             public void surfaceChanged(SurfaceHolder h, int format, int w, int hh) {
-                if (!ready) return;
-                // La taille avant l'événement : le moteur la lit dès qu'il a une fenêtre.
-                Ps3Core.nativeSurfaceSize(w, hh);
-                int event = surface == null ? Ps3Core.SURFACE_CREATED : Ps3Core.SURFACE_CHANGED;
-                surface = h.getSurface();
-                Ps3Core.nativeSurface(surface, event);
-                surfaceSeen = true;
-                DebugLog.event("[PS3] surface reçue");
-                maybeBoot();
+                if (!ready) {
+                    DebugLog.event("[PS3] surface " + w + "×" + hh + " arrivée avant le moteur : prise en compte dès qu'il est prêt");
+                    return;
+                }
+                giveSurface(h, w, hh);
             }
 
             public void surfaceDestroyed(SurfaceHolder h) {
