@@ -11,6 +11,10 @@ on:
         description: Réécrire les notes de toutes les releases depuis docs/releases
         type: boolean
         default: false
+      include_preview:
+        description: Publier aussi la préversion en cours
+        type: boolean
+        default: false
 concurrency: releases
 permissions:
   contents: write
@@ -39,7 +43,7 @@ jobs:
           for f in $(ls apk | sort -V); do
             v="$(echo "$f" | sed -E 's/^(foldplay|origami)-//; s/-debug\.apk$//')"
             echo "$v" | grep -qE '^[0-9]+(\.[0-9]+)+$' || continue
-            [ "$v" = "$PREVIEW" ] && continue
+            [ "$v" = "$PREVIEW" ] && [ "${{ inputs.include_preview }}" != "true" ] && continue
             echo "$EXISTING" | grep -qx "v$v" && continue
             notes="docs/releases/$v.md"; [ -f "$notes" ] || { echo "Origami $v" > /tmp/n.md; notes=/tmp/n.md; }
             gh release create "v$v" "apk/$f" --title "Origami $v" --notes-file "$notes" --target "${{ inputs.notes_branch }}" --latest=false
