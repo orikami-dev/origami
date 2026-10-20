@@ -215,52 +215,85 @@ final class Updater {
         nm.notify(62, n);
     }
 
-    /** Télécharge l'APK (gestionnaire de téléchargements d'Android) puis ouvre l'installation. */
-    static void install(final Context ctx, Release r) {
+    /** Suivi du téléchargement, rappelé sur le fil principal : pct de 0 à 100, puis done ou erreur. */
+    interface Progress {
+        void progress(int pct);
+
+        void done(boolean ok);
+    }
+
+    /**
+     * Télécharge l'APK dans le stockage de l'app (sans notification Android, la barre est dans
+     * l'interface), l'installe par session, puis supprime le fichier téléchargé.
+     */
+    static void install(final Context ctx, final Release r, final Progress ui) {
         if (r.apkUrl == null) {
             if (r.pageUrl != null) ctx.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(r.pageUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             return;
         }
-        final android.app.DownloadManager dm = (android.app.DownloadManager) ctx.getSystemService(Context.DOWNLOAD_SERVICE);
-        android.app.DownloadManager.Request req = new android.app.DownloadManager.Request(Uri.parse(r.apkUrl))
-                .setTitle("Origami " + r.version)
-                .setMimeType("application/vnd.android.package-archive")
-                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalFilesDir(ctx, android.os.Environment.DIRECTORY_DOWNLOADS, "origami-" + r.version + ".apk");
-        final long id = dm.enqueue(req);
         final Context app = ctx.getApplicationContext();
-        BroadcastReceiver done = new BroadcastReceiver() {
-            public void onReceive(Context c, Intent i) {
-                if (i.getLongExtra(android.app.DownloadManager.EXTRA_DOWNLOAD_ID, -1) != id) return;
-                app.unregisterReceiver(this);
-                final Uri uri = dm.getUriForDownloadedFile(id);
-                if (uri == null) return;
-                // Installation par session (0.65.17) : Android demande seulement la confirmation, puis
-                // l'app redémarre sans la fenêtre « Application installée » à fermer.
-                new Thread(new Runnable() {
-                    public void run() {
-                        if (!installSession(app, uri)) {
-                            Intent inst = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-                            try {
-                                app.startActivity(inst);
-                            } catch (Exception ignored) {
-                                // Pas d'installateur : l'APK reste dans les téléchargements.
-                            }
+        final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
+        new Thread(new Runnable() {
+            public void run() {
+                java.io.File dir = new java.io.File(app.getCacheDir(), "maj");
+                dir.mkdirs();
+                final java.io.File f = new java.io.File(dir, "origami-" + r.version + ".apk");
+                HttpURLConnection c = null;
+                boolean ok = false;
+                try {
+                    c = (HttpURLConnection) new URL(r.apkUrl).openConnection();
+                    c.setConnectTimeout(10000);
+                    c.setReadTimeout(15000);
+                    long total = c.getContentLengthLong();
+                    InputStream in = c.getInputStream();
+                    java.io.FileOutputStream out = new java.io.FileOutputStream(f);
+                    byte[] buf = new byte[1 << 16];
+                    long got = 0;
+                    int last = -1;
+                    for (int n; (n = in.read(buf)) > 0; ) {
+                        out.write(buf, 0, n);
+                        got += n;
+                        final int pct = total > 0 ? (int) (got * 100 / total) : 0;
+                        if (pct != last) {
+                            last = pct;
+                            main.post(new Runnable() {
+                                public void run() { if (ui != null) ui.progress(pct); }
+                            });
                         }
                     }
-                }, "origami-install").start();
+                    out.close();
+                    in.close();
+                    ok = installSession(app, f);
+                } catch (Exception e) {
+                    DebugLog.event("[maj] téléchargement impossible", e);
+                } finally {
+                    if (c != null) c.disconnect();
+                    f.delete();
+                }
+                final boolean res = ok;
+                main.post(new Runnable() {
+                    public void run() { if (ui != null) ui.done(res); }
+                });
             }
-        };
-        IntentFilter f = new IntentFilter(android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE);
-        if (android.os.Build.VERSION.SDK_INT >= 33) app.registerReceiver(done, f, Context.RECEIVER_EXPORTED);
-        else app.registerReceiver(done, f);
+        }, "origami-install").start();
+    }
+
+    /** Supprime les APK téléchargés restants (anciennes mises à jour, installation interrompue). */
+    static void cleanup(Context ctx) {
+        try {
+            java.io.File[] fs = new java.io.File(ctx.getCacheDir(), "maj").listFiles();
+            if (fs != null) for (java.io.File f : fs) f.delete();
+            java.io.File[] old = ctx.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS).listFiles();
+            if (old != null) for (java.io.File f : old) if (f.getName().startsWith("origami-") && f.getName().endsWith(".apk")) f.delete();
+        } catch (Exception ignored) {
+            // Rien à nettoyer.
+        }
     }
 
     static final String ACTION_INSTALL_STATUS = "com.hideo.foldplay.INSTALL_STATUS";
 
     /** Copie l'APK dans une session PackageInstaller et la valide ; faux si quelque chose échoue. */
-    static boolean installSession(Context ctx, Uri apk) {
+    static boolean installSession(Context ctx, java.io.File apk) {
         android.content.pm.PackageInstaller pi = ctx.getPackageManager().getPackageInstaller();
         android.content.pm.PackageInstaller.Session session = null;
         try {
@@ -272,7 +305,7 @@ final class Updater {
             }
             int sid = pi.createSession(sp);
             session = pi.openSession(sid);
-            InputStream in = ctx.getContentResolver().openInputStream(apk);
+            InputStream in = new java.io.FileInputStream(apk);
             java.io.OutputStream out = session.openWrite("origami.apk", 0, -1);
             byte[] buf = new byte[1 << 16];
             for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);

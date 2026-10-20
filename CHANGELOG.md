@@ -2,6 +2,10 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.21
+- Mises à jour : barre de progression dans l'interface, plus de notification de téléchargement Android.
+- Les APK téléchargés sont supprimés une fois la mise à jour installée.
+
 ## 0.65.20
 - Manette de l'accueil : les haricots L et R descendent à hauteur de la flèche droite et du X, côté centre.
 

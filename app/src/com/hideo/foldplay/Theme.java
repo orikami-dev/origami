@@ -61,6 +61,31 @@ final class Theme {
      * Fond entre les pilules (0.62.5) : plus de noir franc, un fondu de la couleur du thème,
      * plus marqué en haut et en bas, presque noir au milieu.
      */
+    /** Pilule de l'accent dont une part (0 à 1) est pleine, le reste en teinte sombre : barre de progression. */
+    static android.graphics.drawable.Drawable progressPill(final float frac, final float radius) {
+        final int on = CODEC, off = blend(BG, CODEC, 0.28f);
+        return new android.graphics.drawable.Drawable() {
+            private final android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+            public void draw(android.graphics.Canvas c) {
+                android.graphics.RectF r = new android.graphics.RectF(getBounds());
+                p.setColor(off);
+                c.drawRoundRect(r, radius, radius, p);
+                c.save();
+                c.clipRect(r.left, r.top, r.left + r.width() * frac, r.bottom);
+                p.setColor(on);
+                c.drawRoundRect(r, radius, radius, p);
+                c.restore();
+            }
+
+            public void setAlpha(int a) { }
+
+            public void setColorFilter(android.graphics.ColorFilter f) { }
+
+            public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        };
+    }
+
     static android.graphics.drawable.Drawable gap() {
         int edge = blend(GAP, CODEC, 0.26f), mid = blend(GAP, CODEC, 0.10f);
         return new android.graphics.drawable.GradientDrawable(

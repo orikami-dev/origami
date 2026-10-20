@@ -16,6 +16,7 @@ public final class UpdatedReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctx, Intent intent) {
         if (!Intent.ACTION_MY_PACKAGE_REPLACED.equals(intent.getAction())) return;
+        Updater.cleanup(ctx);
         DebugLog.event("[maj] Origami " + Updater.installed(ctx) + " installée");
         NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;

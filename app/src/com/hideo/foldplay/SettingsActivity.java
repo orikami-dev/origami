@@ -1160,10 +1160,23 @@ public class SettingsActivity extends Activity {
                             TextView go = text(I18n.tr("Télécharger et installer"), 16, Theme.BG);
                             go.setBackground(Theme.pill(Theme.CODEC, dp(20)));
                             go.setPadding(dp(18), dp(10), dp(18), dp(10));
+                            final TextView goBtn = go;
                             go.setOnClickListener(new View.OnClickListener() {
                                 public void onClick(View v) {
-                                    Updater.install(SettingsActivity.this, r);
-                                    toast(I18n.tr("Téléchargement lancé : l'installation s'ouvrira à la fin."));
+                                    goBtn.setOnClickListener(null);
+                                    goBtn.setTextColor(Theme.TEXT);
+                                    goBtn.setText(I18n.tr("Téléchargement… 0 %"));
+                                    Updater.install(SettingsActivity.this, r, new Updater.Progress() {
+                                        public void progress(int pct) {
+                                            goBtn.setText(I18n.tr("Téléchargement…") + " " + pct + " %");
+                                            goBtn.setBackground(Theme.progressPill(pct / 100f, dp(20)));
+                                        }
+
+                                        public void done(boolean ok) {
+                                            goBtn.setText(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android"
+                                                    : "Échec du téléchargement"));
+                                        }
+                                    });
                                 }
                             });
                             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);

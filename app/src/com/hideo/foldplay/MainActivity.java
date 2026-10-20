@@ -139,6 +139,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         DebugLog.sync(this);
         store = new Store(this);
         if (!store.setupDone()) startActivity(new Intent(this, SetupActivity.class));
+        Updater.cleanup(this);
         Updater.autoCheck(this);
         if (Libretro.available()) store.adoptBuiltinOnce();
         launcher = new Launcher(this, store);
