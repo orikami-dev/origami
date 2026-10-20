@@ -1,0 +1,44 @@
+# Publie les releases d'Origami à partir des branches temporaires apk-<version> et apk-transfer.
+# Lancement : onglet Actions > « Publier les releases » > Run workflow (ou depuis Claude).
+name: Publier les releases
+on:
+  workflow_dispatch:
+    inputs:
+      notes_branch:
+        description: Branche qui contient docs/releases
+        default: main
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.notes_branch }}
+      - name: Releases manquantes
+        run: |
+          set -euo pipefail
+          PREVIEW="$(curl -fsS "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/preview/preview.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])' || true)"
+          mkdir apk
+          for b in $(git ls-remote --heads origin | sed 's#.*refs/heads/##' | grep -E '^(apk-transfer|apk-[0-9])'); do
+            for f in $(gh api "repos/$GITHUB_REPOSITORY/git/trees/$b" --jq '.tree[].path' | grep '\.apk$'); do
+              [ -f "apk/$f" ] || curl -fsSL "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$b/$f" -o "apk/$f"
+            done
+          done
+          EXISTING="$(gh release list --limit 500 --json tagName --jq '.[].tagName')"
+          LATEST="$(ls apk | sed -E 's/^(foldplay|origami)-//; s/-debug\.apk$//' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -1)"
+          for f in $(ls apk | sort -V); do
+            v="$(echo "$f" | sed -E 's/^(foldplay|origami)-//; s/-debug\.apk$//')"
+            echo "$v" | grep -qE '^[0-9]+(\.[0-9]+)+$' || continue
+            [ "$v" = "$PREVIEW" ] && continue
+            echo "$EXISTING" | grep -qx "v$v" && continue
+            notes="docs/releases/$v.md"; [ -f "$notes" ] || { echo "Origami $v" > /tmp/n.md; notes=/tmp/n.md; }
+            flag="--latest=false"; [ "$v" = "$LATEST" ] && flag="--latest"
+            gh release create "v$v" "apk/$f" --title "Origami $v" --notes-file "$notes" --target "${{ inputs.notes_branch }}" $flag
+          done
+          for b in $(git ls-remote --heads origin | sed 's#.*refs/heads/##' | grep -E '^(apk-transfer|apk-[0-9])'); do
+            [ "$b" = "apk-$PREVIEW" ] || git push origin --delete "$b"
+          done
