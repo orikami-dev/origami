@@ -225,7 +225,8 @@ final class EngineSettings {
         String[][] fixed = {
                 {"Savestate@@Compatible Savestate Mode", "true"},
                 {"Audio@@Enable Buffering", "true"},
-                {"Audio@@Desired Audio Buffer Duration", "150"},
+                // 0.66 : 200 ms (le moteur accepte 4 à 250) pour que le son tienne pendant les ralentis.
+                {"Audio@@Desired Audio Buffer Duration", "200"},
                 {"Audio@@Enable Time Stretching", "true"},
                 {"Audio@@Time Stretching Threshold", "75"},
                 {"Audio@@Master Volume", "80"},
@@ -246,6 +247,16 @@ final class EngineSettings {
                 {"Video@@Shader Compiler Threads", "6"},
                 {"Video@@Relaxed ZCULL Sync", new String[] {"true", "true", "false"}[prof]},
                 {"Video@@Vulkan@@Asynchronous Texture Streaming", "true"},
+                // 0.66 (nœuds relus dans libarmsx3-core.so, valeurs par défaut du moteur dans system_config.h) :
+                // la détection des boucles d'attente SPU rend la main au lieu de tourner à vide (désactivée
+                // par défaut), ce qui libère des cœurs pour la physique des destructions ; caches SPU et
+                // précompilation LLVM forcés au cas où un ancien fichier de configuration les aurait coupés,
+                // pour que le code des effets déjà vus ne soit plus recompilé en pleine partie ; envoi des
+                // commandes GPU en mode rapide sauf en Qualité.
+                {"Core@@SPU loop detection", "true"},
+                {"Core@@SPU Cache", "true"},
+                {"Core@@LLVM Precompilation", "true"},
+                {"Video@@Vulkan@@Asynchronous Queue Scheduler", new String[] {"Fast", "Fast", "Safe"}[prof]},
         };
         for (String[] kv : cpu) {
             try {
