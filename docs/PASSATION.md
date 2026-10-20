@@ -114,3 +114,23 @@ Liste de BOSS du 19/10 22h12 (une seule grosse mise à jour, numéro 0.61.0). Le
 - Génération d'images PS3 : ARMSX3 embarque la génération d'images de Lossless Scaling (LSFG ; réglages Frame Generation, Target Rate, Flow Scale, Performance Mode, Lossless Path ; fonction exportée `_rpcsx_frameGenImportShaders`). Il faut le fichier Lossless.dll de l'utilisateur (app Steam payante, interdite de redistribution). À faire : option « Génération d'images » dans le menu PS3, bouton « Importer Lossless.dll », appel câblé dans le pont natif (native/ps3/foldplay_ps3.cpp), désactivée par défaut et réservée aux jeux à 30 images/s. BOSS est intéressé.
 - Proton (jeux PC) : partie 2.0, après la fin de l'émulation.
 - Recompilation native bloquée tant que dl.google.com (NDK) est refusé par le réseau du cloud ; correctif son 360 déjà prêt dans native/xenia-patches/02-origami-fixes.patch.
+
+## Consignes de BOSS pour le prochain fil (20/10 04h18)
+À appliquer dans le prochain fil, ouvert seulement quand BOSS le dit.
+- Sens de la main (droitier/gaucher) sur toute la navigation des menus et sous-menus, pas seulement les flèches retour.
+- Manette 2D manquante dans les puces de l'éditeur (seules Flex, 3D, Mini apparaissent) : la remettre.
+- Remplacer partout les mentions « en chantier » par deux emoji (🚧🏗️).
+- Ambre : la nouvelle image de la manette Ambre (soleil art déco) devient le fond de l'écran du haut ; recréer une nouvelle manette Ambre.
+- Le dépôt devient public : la mise à jour depuis les Réglages (Updater) doit marcher dans la prochaine version.
+- Sortir tout le monitoring (ATH/RTSS) des réglages d'Affichage vers sa propre catégorie.
+- Fusionner les catégories Émulateurs et Cœurs ; simplifier et supprimer les redondances.
+- Format et ×2 : pictogrammes centrés (retirer le décalage vers le coin), bords des boutons un peu plus épais.
+- Demon's Souls : à peine mieux, gros ralentis en cassant des tonneaux (destruction, effets), le son suit les ralentis. ATH : 30 i/s, 33 ms, VIT 50 %, CPU 239 %.
+- DMC 4 rame dès l'écran-titre, plus qu'avant.
+- Revérifier les résolutions de chaque profil sur tous les émulateurs 3D (Demon's Souls trop haut selon BOSS).
+
+## Ce que montre le journal du 20/10 06h12
+- Plantage du bouton Format : récursion infinie (StackOverflowError). Dans Ps3Activity.java:437 et X360Activity.java:303, la classe anonyme ScreenFormat.Host appelle `applyFormat()` qui se rappelle elle-même. Corriger en `Ps3Activity.this.applyFormat()` / `X360Activity.this.applyFormat()`.
+- PS3 : `settingsSet: node Core@@XFloat Accuracy not found` et `Video@@Asynchronous Texture Streaming 2 not found`. Ces deux réglages de profil ne s'appliquent pas : retrouver le vrai nom de nœud (section/clé) dans libarmsx3-core.so.
+- PS3 : profil Équilibré = Resolution Scale 150, Qualité = 200. Pour Demon's Souls (CPU 239 %, limité par le processeur), descendre à 100 % partout sauf Qualité, et 75 % en Performance si le cœur l'accepte.
+- 360 (DMC 4, 06h01) : le config dump au lancement affiche encore `readback_resolve = "none"` et `render_target_path_vulkan = ""`. Les valeurs de profil de 0.62.5 (fast / fbo) ne sont donc peut-être pas transmises au cœur, ou le dump passe avant elles : à vérifier. Aussi « Skipped 88 frames » sur le fil principal au lancement.
