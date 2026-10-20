@@ -236,7 +236,17 @@ final class CodecMenu extends FrameLayout {
         // Voile sombre sur tout l'écran, barres d'état et de navigation comprises (0.65).
         where.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
-                post(new Runnable() { public void run() { extend(); } });
+                post(new Runnable() {
+                    public void run() {
+                        extend();
+                        // Rotation ou pliage : la carte se refait au nouveau format.
+                        if (host != null && getParent() == host && card != null && (hostPortrait() && !padConnected) != compact) {
+                            int f = focus;
+                            build();
+                            setFocus(f);
+                        }
+                    }
+                });
             }
         });
         post(new Runnable() { public void run() { extend(); } });
@@ -308,6 +318,12 @@ final class CodecMenu extends FrameLayout {
     }
 
     private boolean padConnected;
+    /** Portrait : carte ajustée à son contenu, entrées plus serrées (0.65.25). */
+    private boolean compact;
+
+    private boolean hostPortrait() {
+        return host != null && host.getWidth() > 0 && host.getHeight() > host.getWidth();
+    }
 
     private void build() {
         removeAllViews();
@@ -363,7 +379,7 @@ final class CodecMenu extends FrameLayout {
         TextView t = new TextView(getContext());
         t.setText(title.toUpperCase());
         t.setTypeface(Fonts.logo(getContext()));
-        t.setTextSize(18);
+        t.setTextSize(compact ? 16 : 18);
         t.setTextColor(Theme.CODEC);
         Theme.marquee(t);
         titles.addView(t);
@@ -429,6 +445,8 @@ final class CodecMenu extends FrameLayout {
             list.setTextDirection(View.TEXT_DIRECTION_LTR);
         }
         int hw = host != null && host.getWidth() > 0 ? host.getWidth() : px(600);
+        int hh = host != null ? host.getHeight() : 0;
+        compact = hostPortrait() && !padConnected;
         // Toute la pilule du haut : deux colonnes dès qu'il y a la place, pour voir plus d'entrées.
         columns = hw >= px(620) && items.size() > 3 ? 2 : 1;
         for (Item it : items) if (it.icons != null) columns = 1;
@@ -445,7 +463,10 @@ final class CodecMenu extends FrameLayout {
             }
             list.addView(line, new LinearLayout.LayoutParams(-1, -2));
         }
-        scroll = new Capped(getContext());
+        Capped capped = new Capped(getContext());
+        scroll = capped;
+        // Portrait : la liste s'arrête à 72 % de la hauteur, la carte se resserre autour (hors en-tête et pied).
+        if (compact) capped.max = Math.max(px(160), Math.round(hh * 0.72f) - px(120));
         scroll.setVerticalScrollBarEnabled(false);
         scroll.addView(list);
         if (slider) {
@@ -461,6 +482,7 @@ final class CodecMenu extends FrameLayout {
         TextView hint = new TextView(getContext());
         // Avec une manette physique, on parle de ses touches ; sinon, du doigt et de la manette à l'écran.
         hint.setText(padConnected ? "✚ / STICK CHOISIR   Ⓐ VALIDER   Ⓑ RETOUR   ⌂ FERMER"
+                : compact ? "✚ CHOISIR   Ⓐ VALIDER   Ⓑ RETOUR"
                 : "TOUCHE UNE ENTRÉE   ·   ✚ CHOISIR   Ⓐ VALIDER   Ⓑ RETOUR");
         hint.setTypeface(Fonts.wide(getContext()));
         hint.setTextSize(9);
@@ -475,7 +497,11 @@ final class CodecMenu extends FrameLayout {
                 ? new FrameLayout.LayoutParams(Math.min(hw - px(24), px(720)), -1, Gravity.CENTER)
                 : new FrameLayout.LayoutParams(-1, -1);
         if (padConnected) lp.setMargins(0, px(24), 0, px(24));
-        else lp.setMargins(px(10), px(10), px(10), px(10));
+        else if (compact) {
+            // Carte ajustée au contenu, centrée dans la moitié de jeu (ou l'écran), jamais plein cadre.
+            lp = new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER);
+            lp.setMargins(px(10), px(10), px(10), px(10));
+        } else lp.setMargins(px(10), px(10), px(10), px(10));
         addView(card, lp);
     }
 
@@ -541,8 +567,8 @@ final class CodecMenu extends FrameLayout {
         if (it.icons != null) return choiceRow(i);
         LinearLayout r = new LinearLayout(getContext());
         r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setPadding(px(18), px(11), px(18), px(11));
-        r.setMinimumHeight(px(48));
+        r.setPadding(px(18), px(compact ? 8 : 11), px(18), px(compact ? 8 : 11));
+        r.setMinimumHeight(px(compact ? 44 : 48));
         if (it.icon != null) {
             android.widget.ImageView iv = new android.widget.ImageView(getContext());
             iv.setImageDrawable(it.icon);

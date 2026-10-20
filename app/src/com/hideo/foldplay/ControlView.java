@@ -580,7 +580,7 @@ final class ControlView extends View {
             ay = Math.max(0f, Math.min(1f, e.getY() / getHeight()));
             listener.onAxis(control.type, ax, ay);
         }
-        if (Theme.LATCH && (control.type.equals("L2") || control.type.equals("R2"))) {
+        if (Theme.LATCH && isShoulder(control.type)) {
             // Gâchette à bascule (Accessibilité) : un appui l'enfonce, le suivant la relâche.
             if (action == MotionEvent.ACTION_DOWN) {
                 pressed = !pressed;
@@ -603,6 +603,11 @@ final class ControlView extends View {
             invalidate();
         }
         return true;
+    }
+
+    /** Gâchettes et épaules (L, R, L1, R1, L2, R2) : les jeux 2D n'ont que L et R (0.65.25). */
+    private static boolean isShoulder(String t) {
+        return t.equals("L") || t.equals("R") || t.equals("L1") || t.equals("R1") || t.equals("L2") || t.equals("R2");
     }
 
     private long lastStickDown;

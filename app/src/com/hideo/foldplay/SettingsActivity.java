@@ -1094,7 +1094,7 @@ public class SettingsActivity extends Activity {
             }
         });
         header("En jeu");
-        toggle("Gâchettes à bascule", "L2 et R2 : un appui les enfonce, le suivant les relâche, sans garder le doigt dessus",
+        toggle("Gâchettes à bascule", "L, R, L2 et R2 : un appui les enfonce, le suivant les relâche, sans garder le doigt dessus",
                 store.latchTriggers(), new Toggle() {
                     public void set(boolean on) {
                         store.setLatchTriggers(on);

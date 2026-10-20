@@ -1,10 +1,13 @@
 package com.hideo.foldplay;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
+import android.graphics.Matrix;
+import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.PixelCopy;
@@ -34,8 +37,6 @@ final class Andon extends View {
     private final Bitmap small = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
     private final int[] cur = new int[W * H * 3];
     private final int[] px = new int[W * H];
-    private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
-    private final Rect src = new Rect(0, 0, W, H), dst = new Rect();
     private String mode;
     private boolean running, busy, primed;
 
@@ -128,15 +129,30 @@ final class Andon extends View {
         if (mode.equals("off")) return;
         if (mode.equals("theme") || !primed) {
             int a = Theme.darken(Theme.CODEC, 0.72f), b = Theme.darken(Theme.STEEL, 0.8f);
-            android.graphics.Shader sh = new android.graphics.LinearGradient(0, 0, getWidth(), getHeight(),
-                    new int[] {a, Color.BLACK, b}, null, android.graphics.Shader.TileMode.CLAMP);
+            Shader sh = new android.graphics.LinearGradient(0, 0, getWidth(), getHeight(),
+                    new int[] {a, Color.BLACK, b}, null, Shader.TileMode.CLAMP);
             Paint p = new Paint();
             p.setShader(sh);
             c.drawRect(0, 0, getWidth(), getHeight(), p);
             return;
         }
-        dst.set(0, 0, getWidth(), getHeight());
-        c.drawBitmap(small, src, dst, paint);
+        // Les couleurs sont calées sur l'image réelle du jeu, à l'endroit où elle est : au-delà de ses bords,
+        // la couleur du bord se prolonge. Une rotation, un pliage ou un autre format refont donc la lumière,
+        // sans couper l'interface qui passe par-dessus (0.65.25).
+        int[] me = new int[2], at = new int[2];
+        getLocationInWindow(me);
+        source.getLocationInWindow(at);
+        float gw = source.getWidth(), gh = source.getHeight();
+        RectF game = gw > 0 && gh > 0
+                ? new RectF(at[0] - me[0], at[1] - me[1], at[0] - me[0] + gw, at[1] - me[1] + gh)
+                : new RectF(0, 0, getWidth(), getHeight());
+        Matrix m = new Matrix();
+        m.setRectToRect(new RectF(0, 0, W, H), game, Matrix.ScaleToFit.FILL);
+        BitmapShader sh = new BitmapShader(small, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+        sh.setLocalMatrix(m);
+        Paint p = new Paint(Paint.FILTER_BITMAP_FLAG);
+        p.setShader(sh);
+        c.drawRect(0, 0, getWidth(), getHeight(), p);
     }
 
     @Override
