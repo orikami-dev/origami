@@ -125,6 +125,9 @@ final class MusicLoop {
         thread.interrupt();
     }
 
+    /** Dernier volume envoyé à la piste : inutile de le renvoyer à chaque tranche (journal saturé). */
+    private float lastVolume = -1f;
+
     private void loop() {
         int pos = 0, step = rate / 50 * channels;
         try {
@@ -144,7 +147,10 @@ final class MusicLoop {
                 float goal = paused ? 0f : target;
                 volume += (goal - volume) * 0.18f;
                 if (Math.abs(goal - volume) < 0.002f) volume = goal;
-                track.setVolume(volume);
+                if (volume != lastVolume) {
+                    lastVolume = volume;
+                    track.setVolume(volume);
+                }
                 int n = Math.min(step, pcm.length - pos);
                 track.write(pcm, pos, n);
                 pos += n;

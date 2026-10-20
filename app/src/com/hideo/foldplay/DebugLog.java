@@ -327,6 +327,10 @@ final class DebugLog {
 
     /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */
     private static final int CLIP = 60 * 1024;
+    private static final java.util.regex.Pattern NOISE = java.util.regex.Pattern.compile(
+            "AudioTrack: setVolume|VRI\\[|InsetsController|InsetsSource|ImeTracker|InputTransport|ScrollView|perf_hint"
+            + "|BLASTBufferQueue|SurfaceComposerClient|HWUI|InputMethodManager|ImeFocusController|ViewRootImpl"
+            + "|WindowOnBackDispatcher|DecorView|NativeCustomFrequencyManager|BufferQueueProducer| Surface :");
 
     /**
      * Un clic : la fiche de l'appareil et la fin du journal le plus récent partent dans le presse-papiers,
@@ -344,10 +348,14 @@ final class DebugLog {
                 }
             }
             if (last != null) {
-                byte[] b = read(last);
-                int from = Math.max(0, b.length - CLIP);
-                all.append("\n===== ").append(last.getName()).append(" (fin, ").append(CLIP / 1024).append(" Ko) =====\n")
-                        .append(new String(b, from, b.length - from, "UTF-8"));
+                // Bruit d'Android (fenêtres, pistes audio, insets…) retiré : il noie les lignes utiles.
+                StringBuilder kept = new StringBuilder();
+                for (String line : new String(read(last), "UTF-8").split("\n")) {
+                    if (!NOISE.matcher(line).find()) kept.append(line).append('\n');
+                }
+                int from = Math.max(0, kept.length() - CLIP);
+                all.append("\n===== ").append(last.getName()).append(" (fin, ").append(CLIP / 1024)
+                        .append(" Ko, sans le bruit système) =====\n").append(kept.substring(from));
             }
             android.content.ClipboardManager cm = (android.content.ClipboardManager) a.getSystemService(Context.CLIPBOARD_SERVICE);
             cm.setPrimaryClip(android.content.ClipData.newPlainText("journal Origami", all.toString()));
