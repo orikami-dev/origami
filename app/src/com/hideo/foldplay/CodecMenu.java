@@ -65,6 +65,8 @@ final class CodecMenu extends FrameLayout {
     private Runnable back;
     private int focus;
     private int startFocus;
+    /** Vrai quand un autre menu l'a remplacé : il ne doit plus jamais revenir à l'écran. */
+    private boolean replaced;
     private int columns = 1;
     /** Entrées en tuiles (icône au-dessus du nom), comme un lanceur d'apps. */
     private boolean grid;
@@ -206,6 +208,7 @@ final class CodecMenu extends FrameLayout {
             View v = where.getChildAt(i);
             if (v instanceof CodecMenu) {
                 if (listener == null) listener = ((CodecMenu) v).listener;
+                ((CodecMenu) v).replaced = true;
                 where.removeViewAt(i);
                 replacing = true;
             }
@@ -696,7 +699,7 @@ final class CodecMenu extends FrameLayout {
                     build();
                     setFocus(i);
                 }
-            } else if (getContext() instanceof android.app.Activity) {
+            } else if (!replaced && getContext() instanceof android.app.Activity) {
                 // L'écran s'est reconstruit (thème changé) : le menu revient à sa place, aux nouvelles couleurs.
                 FrameLayout now = hostFor((android.app.Activity) getContext());
                 if (now != null && find(now) == null && before != null) {

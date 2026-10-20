@@ -44,6 +44,22 @@ final class ThemeBackdrop extends Drawable {
         this.radius = radius;
     }
 
+    /** Coins du haut droits (Tsuru : l'écran touche la barre d'état), ceux du bas restent arrondis. */
+    private boolean squareTop;
+
+    ThemeBackdrop squareTop(boolean on) {
+        squareTop = on;
+        return this;
+    }
+
+    private void addRound() {
+        if (squareTop) {
+            clip.addRoundRect(box, new float[] {0, 0, 0, 0, radius, radius, radius, radius}, Path.Direction.CW);
+        } else {
+            clip.addRoundRect(box, radius, radius, Path.Direction.CW);
+        }
+    }
+
     private static int a(int color, int alpha) {
         return (color & 0x00FFFFFF) | (alpha << 24);
     }
@@ -100,7 +116,7 @@ final class ThemeBackdrop extends Drawable {
         if (radius > 0) {
             box.set(b);
             clip.reset();
-            clip.addRoundRect(box, radius, radius, Path.Direction.CW);
+            addRound();
             c.clipPath(clip);
         }
         c.translate(b.left, b.top);
@@ -122,7 +138,7 @@ final class ThemeBackdrop extends Drawable {
         box.set(b);
         if (radius > 0) {
             clip.reset();
-            clip.addRoundRect(box, radius, radius, Path.Direction.CW);
+            addRound();
             c.clipPath(clip);
         }
         c.translate(b.left, b.top);
@@ -202,6 +218,8 @@ final class ThemeBackdrop extends Drawable {
 
     @Override
     public void getOutline(android.graphics.Outline o) {
-        o.setRoundRect(getBounds(), radius);
+        Rect b = getBounds();
+        if (squareTop) o.setRoundRect(b.left, Math.round(b.top - radius), b.right, b.bottom, radius);
+        else o.setRoundRect(b, radius);
     }
 }

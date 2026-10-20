@@ -87,7 +87,7 @@ final class EngineSettings {
             // Valeurs exactes de l'enum output_scaling_mode du moteur (« FidelityFX Super Resolution », sans « 1 »).
             new Opt("Video@@Output Scaling Mode", "Mise à l'échelle",
                     "FSR : agrandissement net (AMD). SGSR : équivalent Snapdragon, plus léger.",
-                    "string", new String[]{"Bilinear", "Nearest", "FidelityFX Super Resolution", "Snapdragon Game Super Resolution"},
+                    "string", new String[]{"Bilinear", "Nearest", "FidelityFX Super Resolution", "Bilinear"},
                     new String[]{"Bilinéaire", "Pixels nets", "FSR", "SGSR"}),
             new Opt("Video@@Frame limit", "Limite d'images", "Auto suit le jeu.",
                     "string", new String[]{"Auto", "30", "60", "Off"}, new String[]{"Auto", "30", "60", "Aucune"}),

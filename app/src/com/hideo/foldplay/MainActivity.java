@@ -624,6 +624,18 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         });
     }
 
+    private LinearLayout homeStageCol;
+
+    /** Tsuru : l'écran du haut passe sous la barre d'état et la manette sous la barre de navigation. */
+    private void applyBleed() {
+        int t = Theme.bleed ? Theme.INSETS[1] : 0, b = Theme.bleed ? Theme.INSETS[3] : 0;
+        if (homeStageCol != null) homeStageCol.setPadding(0, t, 0, 0);
+        if (homeDeckView != null) homeDeckView.setBottomInset(b);
+        if (homeStage != null) {
+            homeStage.setBackground(Theme.bleed ? Theme.backdropFlushTop(dp(28)) : Theme.backdrop(dp(28)));
+        }
+    }
+
     private void rebuild() {
         Posture before = posture;
         posture = computePosture();
@@ -634,6 +646,15 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         // Deux pastilles (Tsuru) : entre elles et sous les barres, la couleur de séparation du thème,
         // pas un morceau du fond d'écran.
         root.setBackground(posture == Posture.FLEX ? Theme.gap() : Theme.backdrop(0));
+        boolean flush = posture == Posture.FLEX && !store.appFullscreen();
+        if (Theme.bleed != flush) {
+            Theme.bleed = flush;
+            View content = findViewById(android.R.id.content);
+            if (content != null) content.requestApplyInsets();
+        }
+        Theme.insetsHook = new Runnable() {
+            public void run() { applyBleed(); }
+        };
         homeCol = null;
         homeDeck = null;
         homeDeckView = null;
@@ -767,6 +788,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         stage.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
         backdropGame = null;
         LinearLayout stageCol = vertical();
+        homeStageCol = stageCol;
         stageCol.addView(topBar());
         // Façon XMB : les catégories (Tous, Favoris, Récents, consoles) en ligne, ◀ ▶ pour en
         // changer ; les jeux en colonne sous la catégorie choisie, ▲ ▼ ; la fiche du jeu à droite.
@@ -885,6 +907,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         homeWrap = wrap;
         homeLayoutName = store.activeLayout();
         applyPadHome();
+        applyBleed();
 
         updateFlex(false);
         return wrap;
@@ -1078,7 +1101,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         homeGap.setVisibility(pad ? View.GONE : View.VISIBLE);
         int p = pad ? 0 : dp(4);
         homeCol.setPadding(p, 0, p, 0);
-        homeStage.setBackground(Theme.backdrop(pad ? 0 : dp(28)));
+        homeStage.setBackground(pad ? Theme.backdrop(0) : Theme.bleed ? Theme.backdropFlushTop(dp(28)) : Theme.backdrop(dp(28)));
         // Plein écran : la fiche du jeu en haut sur l'illustration, le carrousel en bas comme un dock.
         if (homeHero != null) {
             homeHero.setOrientation(pad ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);

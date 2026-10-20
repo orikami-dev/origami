@@ -148,6 +148,7 @@ public class X360Activity extends WindowedAppActivity {
             DebugLog.event("[360] onCreate : jeu « " + title + " », chemin " + path + ", profil "
                     + EngineSettings.profile(this, EngineSettings.X360));
             DebugLog.snapshot(this, "360 création");
+            DebugLog.perfStart(this, "360");
             setWindowSurfaceView(screen);
             nativePad(0, true, 0, 0, 0, 0, 0, 0, 0);
             status("Chargement de " + title + "…");
@@ -630,6 +631,7 @@ public class X360Activity extends WindowedAppActivity {
     @Override
     protected void onDestroy() {
         DebugLog.event("[360] onDestroy, isFinishing=" + isFinishing());
+        DebugLog.perfStop();
         super.onDestroy();
         if (hud != null) hud.stop();
         if (peak != null) peak.stop();

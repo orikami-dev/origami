@@ -81,6 +81,7 @@ public class Ps3Activity extends Activity {
         DebugLog.event("[PS3] onCreate : jeu « " + title + " », chemin " + path + ", profil "
                 + EngineSettings.profile(this, EngineSettings.PS3));
         DebugLog.snapshot(this, "PS3 création");
+        DebugLog.perfStart(this, "PS3");
         if (!Ps3Core.present(this)) {
             fail("Le moteur PS3 n'est pas dans cette version d'Origami.");
             return;
@@ -856,6 +857,7 @@ public class Ps3Activity extends Activity {
     @Override
     protected void onDestroy() {
         DebugLog.event("[PS3] onDestroy, isFinishing=" + isFinishing());
+        DebugLog.perfStop();
         super.onDestroy();
         if (hud != null) hud.stop();
         if (peak != null) peak.stop();

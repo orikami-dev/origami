@@ -172,6 +172,61 @@ final class DebugLog {
         }
     }
 
+    private static android.os.Handler perfHandler;
+    private static Runnable perfTick;
+    private static long perfLastCpu, perfLastAt;
+
+    /**
+     * Mesures de performance toutes les 5 s dans le journal (débogage seulement) : charge du processus,
+     * mémoire, fréquence de chaque cœur et du GPU, températures, chaleur Android. Sert à comprendre
+     * pourquoi un jeu rame (cœur saturé, GPU au plafond, chaleur qui bride…).
+     */
+    static void perfStart(final Context ctx, final String tag) {
+        if (!new Store(ctx).debug() || perfTick != null) return;
+        perfHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        perfLastCpu = android.os.Process.getElapsedCpuTime();
+        perfLastAt = android.os.SystemClock.elapsedRealtime();
+        perfTick = new Runnable() {
+            public void run() {
+                try {
+                    long cpu = android.os.Process.getElapsedCpuTime(), now = android.os.SystemClock.elapsedRealtime();
+                    float load = (cpu - perfLastCpu) * 100f / Math.max(1, now - perfLastAt);
+                    perfLastCpu = cpu;
+                    perfLastAt = now;
+                    StringBuilder f = new StringBuilder();
+                    for (int i = 0; i < 12; i++) {
+                        String v = Hud.readLine("/sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");
+                        if (v == null) break;
+                        try {
+                            f.append(i == 0 ? "" : " ").append(Integer.parseInt(v.trim()) / 1000);
+                        } catch (NumberFormatException e) {
+                            f.append(" ?");
+                        }
+                    }
+                    String gpu = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpuclk");
+                    String busy = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpubusy");
+                    event("[perf " + tag + "] charge processus " + Math.round(load) + " % (100 = un cœur), mémoire "
+                            + Hud.residentMb() + " Mo, cœurs MHz [" + f + "], GPU " + (gpu == null ? "?" : Long.parseLong(gpu.trim()) / 1000000L)
+                            + " MHz, occupation GPU " + (busy == null ? "?" : busy.trim()) + ", CPU " + Math.round(Hud.cpuC())
+                            + " °C, GPU " + Math.round(Hud.gpuC()) + " °C, fils " + Thread.getAllStackTraces().size());
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                        if (pm.getCurrentThermalStatus() > 0) event("[perf " + tag + "] chaleur Android " + pm.getCurrentThermalStatus());
+                    }
+                } catch (Throwable t) {
+                    event("[perf " + tag + "] mesure impossible : " + t);
+                }
+                perfHandler.postDelayed(this, 5000);
+            }
+        };
+        perfHandler.postDelayed(perfTick, 5000);
+    }
+
+    static void perfStop() {
+        if (perfHandler != null && perfTick != null) perfHandler.removeCallbacks(perfTick);
+        perfTick = null;
+    }
+
     /** À appeler juste avant de tuer volontairement un processus moteur : sa sortie n'est pas un plantage. */
     static void markClean(Context ctx) {
         try {

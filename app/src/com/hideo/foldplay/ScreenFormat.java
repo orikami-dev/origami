@@ -113,9 +113,9 @@ final class ScreenFormat {
             screen.setLayoutParams(lp);
         }
         screen.setPivotX(w / 2f);
-        // Moitié haute au-dessus de la manette : l'image se pose contre la manette (0.65),
-        // sinon le format 16:9 ou 4:3 la laissait loin d'elle, avec du noir entre les deux.
-        screen.setPivotY((gravity & Gravity.VERTICAL_GRAVITY_MASK) == Gravity.TOP ? h : h / 2f);
+        // Toujours au centre de la zone : changer de format ne fait que changer le rapport de l'image,
+        // elle ne se déplace plus d'un format à l'autre (0.65.9).
+        screen.setPivotY(h / 2f);
         screen.setScaleX(w > 0 ? (float) sw / w : 1);
         screen.setScaleY(h > 0 ? (float) sh / h : 1);
         return fill;

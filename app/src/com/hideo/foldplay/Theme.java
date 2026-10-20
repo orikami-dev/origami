@@ -185,8 +185,19 @@ final class Theme {
                             // le fond de la racine passe ainsi sous les barres, sans raccord.
                             android.view.View top = ((android.view.ViewGroup) v).getChildCount() > 0
                                     ? ((android.view.ViewGroup) v).getChildAt(0) : null;
-                            if (top != null) top.setPadding(b.left, b.top, b.right, b.bottom);
-                            else v.setPadding(b.left, b.top, b.right, b.bottom);
+                            android.graphics.Insets sys = wi.getInsets(android.view.WindowInsets.Type.systemBars()
+                                    | android.view.WindowInsets.Type.displayCutout());
+                            INSETS[0] = sys.left;
+                            INSETS[1] = sys.top;
+                            INSETS[2] = sys.right;
+                            INSETS[3] = sys.bottom;
+                            // Tsuru : haut et bas sans marge, les pastilles passent sous les barres ; seul le clavier remonte le contenu.
+                            int bottom = bleed ? (wi.isVisible(android.view.WindowInsets.Type.ime()) ? b.bottom : 0) : b.bottom;
+                            int topPad = bleed ? 0 : b.top;
+                            if (top != null) top.setPadding(b.left, topPad, b.right, bottom);
+                            else v.setPadding(b.left, topPad, b.right, bottom);
+                            Runnable hook = insetsHook;
+                            if (hook != null) hook.run();
                             return android.view.WindowInsets.CONSUMED;
                         }
                     });
@@ -364,6 +375,18 @@ final class Theme {
     static android.graphics.drawable.Drawable backdrop(float radius) {
         return new ThemeBackdrop(THEME_ID, BG, CODEC, radius);
     }
+
+    /** Idem, avec les coins du haut droits : l'écran du haut touche la barre d'état (Tsuru). */
+    static android.graphics.drawable.Drawable backdropFlushTop(float radius) {
+        return new ThemeBackdrop(THEME_ID, BG, CODEC, radius).squareTop(true);
+    }
+
+    /** Hauteur des barres système (gauche, haut, droite, bas) mesurée par la fenêtre classique. */
+    static final int[] INSETS = new int[4];
+    /** Vrai en Tsuru : le contenu passe sous les barres, c'est lui qui se marge (pas la racine). */
+    static boolean bleed;
+    /** Appelé après chaque mesure des barres ; l'accueil y recale ses marges. */
+    static Runnable insetsHook;
 
     /** Les cinq thèmes : identifiant, nom, puis fond, panneau, panneau clair, accent, touches. */
     static final String[] THEMES = {"codec", "arctique", "ecarlate", "sakura", "ambre"};

@@ -433,7 +433,7 @@ final class ControlDeckView extends ViewGroup {
     private void syncView() {
         if (layout == null || getWidth() <= 0) return;
         layout.viewW = getWidth() / cell;
-        layout.viewH = getHeight() / cell;
+        layout.viewH = (getHeight() - bottomInset) / cell;
         layout.viewBottomCenter = overlay;
         if (source != null) ConsolePad.ergo = source.ergoTriggers();
     }
@@ -441,6 +441,16 @@ final class ControlDeckView extends ViewGroup {
     private float[] box(float[][] all, ControlLayout.Control c) {
         int i = layout.controls.indexOf(c);
         return i >= 0 && i < all.length ? all[i] : new float[] {0, 0, c.w, c.h};
+    }
+
+    /** Zone du bas prise par la barre de navigation : le fond passe dessous, les touches restent au-dessus. */
+    private int bottomInset;
+
+    void setBottomInset(int px) {
+        if (px == bottomInset) return;
+        bottomInset = px;
+        requestLayout();
+        invalidate();
     }
 
     @Override
@@ -460,7 +470,7 @@ final class ControlDeckView extends ViewGroup {
         // La grille est centrée : la marge restante se répartit des deux côtés.
         // Calcul en flottants puis un seul arrondi : chaque touche tombe au pixel près.
         float ox = ((r - l) - cols * cell) / 2f;
-        float oy = ((b - t) - rows * cell) / 2f;
+        float oy = ((b - t) - bottomInset - rows * cell) / 2f;
         float[][] all = boxes();
         for (int i = 0; i < getChildCount(); i++) {
             ControlView v = (ControlView) getChildAt(i);
@@ -478,7 +488,7 @@ final class ControlDeckView extends ViewGroup {
     }
 
     private float originY() {
-        return Math.round((getHeight() - rows * cell) / 2f);
+        return Math.round((getHeight() - bottomInset - rows * cell) / 2f);
     }
 
     // ------------------------------------------------------------------ fond et grille

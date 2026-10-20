@@ -2,6 +2,10 @@
 
 Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
 
+## 0.65.9
+
+Menu fantôme corrigé, Tsuru sous les barres, formats sans déplacement, mesures de performance dans les journaux.
+
 ## 0.65.8
 
 PS3 : correction de la course entre fenêtre et initialisation du moteur (écran noir).

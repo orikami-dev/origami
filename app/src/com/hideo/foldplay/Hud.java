@@ -185,6 +185,10 @@ final class Hud {
 
     private static File[] cpuZones, gpuZones;
 
+    static String readLine(String path) {
+        return readLine(new File(path));
+    }
+
     private static String readLine(File f) {
         BufferedReader r = null;
         try {
