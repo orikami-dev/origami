@@ -2,6 +2,10 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.2
+
+- Menus et Réglages : seul l'interrupteur réagit au toucher, plus la ligne entière, pour éviter les appuis involontaires. À la manette, la ligne sélectionnée bascule toujours.
+
 ## 0.66.1
 
 - PS3 : moteur mis à jour (ARMSX3 1.3.1), avec les derniers correctifs des SPU (boîtes aux lettres, réveil des fils) et du rendu Vulkan.

@@ -1589,7 +1589,9 @@ public class SettingsActivity extends Activity {
         bp.setMargins(dp(8), 0, 0, 0);
         row.addView(box, bp);
         final boolean[] on = {value};
-        row.setOnClickListener(new View.OnClickListener() {
+        // Seul l'interrupteur est cliquable : la ligne ne réagit pas (évite les faux appuis).
+        box.setClickable(true);
+        box.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 on[0] = !on[0];

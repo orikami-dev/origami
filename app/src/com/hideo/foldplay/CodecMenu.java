@@ -617,7 +617,17 @@ final class CodecMenu extends FrameLayout {
         if (it.mark == 1 || it.mark == 2) {
             LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(px(48), px(compact ? 44 : 48));
             sp.setMargins(px(8), 0, 0, 0);
-            r.addView(new ThemeSwitch(getContext(), it.mark == 1), sp);
+            ThemeSwitch sw = new ThemeSwitch(getContext(), it.mark == 1);
+            // Seul l'interrupteur réagit au doigt ; la manette et le clavier passent par activate(focus).
+            sw.setClickable(true);
+            sw.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    setFocus(i);
+                    activate(i);
+                }
+            });
+            r.addView(sw, sp);
         }
         r.setOnTouchListener(new OnTouchListener() {
             @Override
@@ -629,7 +639,8 @@ final class CodecMenu extends FrameLayout {
         r.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                activate(i);
+                // Ligne d'interrupteur : le corps de la ligne ne fait rien (évite les faux appuis).
+                if (it.mark != 1 && it.mark != 2) activate(i);
             }
         });
         if (it.dim) r.setAlpha(0.45f);

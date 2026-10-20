@@ -36,7 +36,6 @@ final class ThemeSwitch extends View {
         still = s;
         this.on = on;
         pos = on ? 1f : 0f;
-        setClickable(false);
         setFocusable(false);
         setMinimumWidth(Math.round(48 * dp));
         setMinimumHeight(Math.round(48 * dp));
