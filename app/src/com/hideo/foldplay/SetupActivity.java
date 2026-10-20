@@ -59,11 +59,11 @@ public class SetupActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackground(Theme.backdrop(0));
-        root.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(Theme.pill(Theme.BG, dp(28)));
+        // Plein cadre, coins droits : les coins arrondis laissaient voir le fond derrière (0.65.30).
+        card.setBackgroundColor(Theme.BG);
         card.setClipToOutline(true);
 
         LinearLayout head = new LinearLayout(this);

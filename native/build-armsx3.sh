@@ -24,7 +24,15 @@ git -C "$SRC" submodule update --init --depth 1 --jobs 4
   git clone -q --depth 1 https://github.com/SnowflakePowered/librashader "$SRC/3rdparty/librashader"
 for p in "$HERE"/native/armsx3-patches/*.patch; do [ -f "$p" ] && git -C "$SRC" apply "$p"; done
 
+# ccache (0.66) : une recompilation après un petit correctif ne refait que les fichiers touchés.
+# tools/native-cache.sh restore/save garde le cache entre deux conteneurs.
+LAUNCH=()
+if command -v ccache >/dev/null; then
+  export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}" CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-12G}" CCACHE_SLOPPINESS=time_macros,include_file_mtime
+  LAUNCH=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+fi
 cmake -S "$SRC" -B "$WORK/core" -G Ninja \
+  "${LAUNCH[@]}" \
   -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM="android-$API" -DCMAKE_BUILD_TYPE=Release \
   -DUSE_NATIVE_INSTRUCTIONS=OFF -DUSE_SDL=OFF -DUSE_SYSTEM_SDL=OFF -DUSE_GAMEMODE=OFF \

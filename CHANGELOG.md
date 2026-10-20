@@ -2,6 +2,9 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.30
+- Assistant de démarrage : les coins ne laissent plus voir le fond derrière.
+
 ## 0.65.29
 - Journal : le bouton « Copier le journal » retire le bruit système et garde les lignes utiles ; la musique n’inonde plus le journal.
 
