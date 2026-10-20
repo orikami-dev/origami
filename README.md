@@ -67,6 +67,9 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 
 | Version | Ce qu'elle a apporté |
 |---|---|
+| [0.65.24](https://github.com/orikami-dev/origami/releases/tag/v0.65.24) | Sons système propres à chaque thème (suivant, onglet, activé, erreur, terminé). |
+| [0.65.18](https://github.com/orikami-dev/origami/releases/tag/v0.65.18) | Andon : lumière d'ambiance autour de l'écran du jeu. |
+| [0.65.11](https://github.com/orikami-dev/origami/releases/tag/v0.65.11) | Préversions dans l'app : les nouveaux builds apparaissent seuls. |
 | [0.62.0](https://github.com/orikami-dev/origami/releases/tag/v0.62.0) | Sons et musiques par thème, Remote Play par plateforme, jaquettes Xbox 360. |
 | [0.60.0](https://github.com/orikami-dev/origami/releases/tag/v0.60.0) | Xbox 360 intégrée (portage Android de Xenia). |
 | [0.50.1](https://github.com/orikami-dev/origami/releases/tag/v0.50.1) | PS3 intégrée (ARMSX3). |

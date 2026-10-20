@@ -22,7 +22,7 @@ Studio : KAMI-WORKS.
 - Andon : la lumière suit l'image réelle du jeu et se reforme selon le format (rotation, pliage), sans couper l'interface.
 - Menu codec : en portrait, la carte s'ajuste à son contenu au lieu de prendre tout l'écran, avec des entrées plus serrées.
 
-## 0.65.24
+## 0.65.24 ⭐
 - Sons système propres à chaque thème pour les actions : suivant, changement d'onglet, option activée ou désactivée, erreur, opération terminée, fermeture d'un menu.
 
 ## 0.65.23
@@ -43,7 +43,7 @@ Studio : KAMI-WORKS.
 - Apparition de la bulle propre à chaque thème (balayage Codec, givre Arctique, éventail Écarlate, éclosion Sakura, scintillement Ambre).
 - Sous-textes des menus réécrits pour être plus clairs.
 
-## 0.65.18
+## 0.65.18 ⭐
 - Andon : lumière d'ambiance autour de l'écran du jeu, qui reprend les couleurs de l'image. Modes Éteinte, Thème, Image, Image et thème, Douce, dans le menu Codec en jeu et dans le menu Thème de l'accueil.
 - Manette de l'accueil : L et R descendus en haricot, un de chaque côté.
 
@@ -67,7 +67,7 @@ Studio : KAMI-WORKS.
 ## 0.65.12
 - Le canal des builds de test s'appelle « Préversions » (Réglages > Mises à jour) ; « bêta » reste réservé à la future bêta publique.
 
-## 0.65.11
+## 0.65.11 ⭐
 - Préversions dans l'app (Réglages > Mises à jour > Préversions) : les nouvelles versions apparaissent seules, avec notification.
 - Format et mode : le message précédent est remplacé tout de suite, plus de notifications qui s'enchaînent en retard.
 - PS3 et Xbox 360 : l'écran et la manette se replacent d'après la hauteur réelle de la scène (plus de chevauchement au pliage).
