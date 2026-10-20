@@ -22,7 +22,7 @@ URL="$(git -C "$REPO_DIR" remote get-url origin)"
 push() { for d in 0 2 4 8 16; do sleep $d; git "$@" && return 0; done; return 1; }
 
 echo "== 1/3 sources ($V sur $BR)"
-for d in app native docs tools CHANGELOG.md PASSATION.md README.md; do
+for d in app native docs tools CHANGELOG.md; do
   [ -e "$SRC/$d" ] && cp -a "$SRC/$d" "$REPO_DIR/"
 done
 git -C "$REPO_DIR" add -A
