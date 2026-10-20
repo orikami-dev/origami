@@ -133,7 +133,7 @@ public class GameActivity extends Activity {
 
     private void build() {
         FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(Theme.GAP);
+        frame.setBackground(Theme.gap());
         rootFrame = frame;
         LinearLayout root = new LinearLayout(this);
         column = root;
@@ -197,6 +197,7 @@ public class GameActivity extends Activity {
 
         deck = new ControlDeckView(this);
         deck.setSystem(system);
+        formatKey();
         deck.setSource(store);
         deck.setKeyListener(new ControlView.Listener() {
             @Override
@@ -274,6 +275,8 @@ public class GameActivity extends Activity {
         int m = line ? dp(6) : dp(20);
         lp.setMargins(m, m, m, 0);
         hud.setLayoutParams(lp);
+        hud.setTranslationY(0);
+        Hud.avoidCutout(hud, m);
         hud.setTextSize(Hud.SIZES[Math.max(0, Math.min(2, store.hudSize()))]);
         hud.setSingleLine(line);
         hud.setMaxLines(line ? 1 : 20);
@@ -301,7 +304,7 @@ public class GameActivity extends Activity {
         int run = framesRun;
         int shown = framesShown;
         boolean block = "block".equals(store.hudStyle());
-        int label = Hud.labelColor(store.hudColor());
+        int label = Hud.labelColor(this, store.hudColor());
         if (lastHudAt == 0) {
             lastHudAt = now;
             lastCpuMs = cpu;
@@ -348,6 +351,8 @@ public class GameActivity extends Activity {
             h.charging = bat.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0;
             h.tempC = bat.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
         }
+        h.fahrenheit = "f".equals(store.tempUnit());
+        if (items.contains("heat")) h.chipC = Hud.chipC();
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
             h.heat = pm.getCurrentThermalStatus();
@@ -356,6 +361,7 @@ public class GameActivity extends Activity {
         h.width = frameW;
         h.height = frameH;
         hud.setText(Hud.compose(h, items, block, label));
+        Hud.avoidCutout(hud, block ? dp(20) : dp(6));
     }
     private LinearLayout column;
     private View gap;
@@ -861,6 +867,21 @@ public class GameActivity extends Activity {
 
     // ------------------------------------------------------------------ touches
 
+    private ScreenFormat.Key formatKey;
+
+    private ScreenFormat.Key formatKey() {
+        if (formatKey == null) {
+            formatKey = new ScreenFormat.Key(store, system, DISPLAY_KEYS, new ScreenFormat.Host() {
+                public void applyFormat() { applyDisplay(); }
+
+                public void say(String text) { toastUi(text); }
+
+                public void refreshKeys() { if (deck != null) deck.refreshKeys(); }
+            });
+        }
+        return formatKey;
+    }
+
     private void press(String key, boolean down) {
         CodecMenu open = CodecMenu.find(stage);
         if (open != null) {
@@ -870,6 +891,10 @@ public class GameActivity extends Activity {
         }
         if (key.equals("HOME")) {
             if (down) homePressed();
+            return;
+        }
+        if (key.equals("ASPECT")) {
+            formatKey().press(down);
             return;
         }
         if (key.equals("FAST")) {
@@ -1142,9 +1167,9 @@ public class GameActivity extends Activity {
                 CodecMenu p = codec("Manette", null).onBack(back);
                 String cur = store.activeLayout();
                 for (final ControlLayout l : store.layouts()) {
-                    // Mini : en chantier, visible mais pas sélectionnable (0.60.3).
+                    // Mini : en construction, visible mais pas sélectionnable (0.60.3).
                     if (l.floating()) {
-                        p.soon(null, l.name, "En chantier");
+                        p.soon(null, l.name, "🚧🏗️");
                         continue;
                     }
                     p.radio(l.name, l.kind.equals("flex") && !l.split ? "La manette de la console du jeu" : null, l.name.equals(cur), new Runnable() {

@@ -272,7 +272,7 @@
  "Efface les fiches gardées, elles reviendront à la sélection": "Borra las fichas guardadas; volverán al seleccionar",
  "Effacer le journal": "Borrar el registro",
  "Effet cathodique": "Efecto CRT",
- "En chantier : arrive avec le store de thèmes. Les icônes suivent le thème.": "En obras: llega con la tienda de temas. Los iconos siguen el tema.",
+ "🚧🏗️ Arrive avec le store de thèmes. Les icônes suivent le thème.": "🚧🏗️ llega con la tienda de temas. Los iconos siguen el tema.",
  "En haut au centre": "Arriba en el centro",
  "En haut à droite": "Arriba a la derecha",
  "En haut à gauche": "Arriba a la izquierda",
@@ -885,5 +885,10 @@
  "＋ Ajouter un code": "＋ Añadir un código",
  "＋ Flex divisée": "＋ Flex dividida",
  "＋ Nouvelle": "＋ Nueva",
- "＋ Taille": "＋ Tamaño"
+ "＋ Taille": "＋ Tamaño",
+ "Son": "Sonido",
+ "Musique": "Música",
+ "Monitoring": "Monitorización",
+ "ATH en jeu": "HUD en juego",
+ "Switch : Eden, intégré comme les autres cœurs, bientôt.": "Switch: Eden, próximamente, integrado como los demás núcleos."
 }

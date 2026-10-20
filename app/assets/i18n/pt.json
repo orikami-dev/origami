@@ -272,7 +272,7 @@
  "Efface les fiches gardées, elles reviendront à la sélection": "Apaga as fichas guardadas, elas voltam quando o jogo for selecionado",
  "Effacer le journal": "Limpar o log",
  "Effet cathodique": "Efeito CRT",
- "En chantier : arrive avec le store de thèmes. Les icônes suivent le thème.": "Em obras: chega com a loja de temas. Os ícones seguem o tema.",
+ "🚧🏗️ Arrive avec le store de thèmes. Les icônes suivent le thème.": "🚧🏗️ chega com a loja de temas. Os ícones seguem o tema.",
  "En haut au centre": "No topo, ao centro",
  "En haut à droite": "No topo, à direita",
  "En haut à gauche": "No topo, à esquerda",
@@ -885,5 +885,10 @@
  "＋ Ajouter un code": "＋ Adicionar um código",
  "＋ Flex divisée": "＋ Flex dividido",
  "＋ Nouvelle": "＋ Novo",
- "＋ Taille": "＋ Tamanho"
+ "＋ Taille": "＋ Tamanho",
+ "Son": "Som",
+ "Musique": "Música",
+ "Monitoring": "Monitorização",
+ "ATH en jeu": "HUD em jogo",
+ "Switch : Eden, intégré comme les autres cœurs, bientôt.": "Switch: Eden, em breve, integrado como os outros núcleos."
 }

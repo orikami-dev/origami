@@ -74,3 +74,68 @@ Dernière version livrée : **0.60.13** (`dist/origami-0.60.13-debug.apk`, ancie
 ## Règles d'installation (BOSS, 19/10)
 - « ORI » écrit par BOSS = lancer l'installation de la dernière version par adb (session du PC, commandes et barre de progression montrées).
 - À chaque installation, les versions précédentes vont tout de suite dans l'archive : dist/archive/ ici, FoldPlay\releases\archives sur le PC.
+
+## 0.61 en cours (arrêté le 19/10 soir, branche wip-0.61)
+
+Liste de BOSS du 19/10 22h12 (une seule grosse mise à jour, numéro 0.61.0). Le code compile (`bash app/build.sh`, VERSION 0.61.0-wip) mais n'a pas été essayé sur le Fold.
+
+### Fait dans le code (non testé sur l'appareil)
+- Menu Thème : doublon « Couleurs de la manette » retiré (MainActivity.themeMenu), il reste « Couleurs du logo et de la manette ».
+- Xbox 360 : profil joueur connecté d'office (patch Xenia profile_manager.cc, 02-origami-fixes.patch) pour supprimer la fenêtre « No gamer profile » qui bloquait DMC 4 ; JNI `nativeSetFill` (présentation étirée). libxenia-app.so reconstruit avec ces deux changements.
+- Touche FORMAT (type ASPECT) sur toutes les manettes sauf l'accueil : appui court = format suivant, appui long = verrouille. Classes ScreenFormat, ControlLayout.ensureAspect (migration layouts_v0610), PadDesign/ConsolePad.center, ControlView. Moteurs libretro : modes existants de GameActivity ; PS3/360 : Auto, 16:9, 4:3, Étirer (Ps3Activity/X360Activity.applyFormat ; PS3 passe par le réglage « Video@@Stretch To Display Area », effet en direct non vérifié).
+- Gâchettes en arc autour des joysticks (haricots inclinés, ConsolePad.arc/beans, Out.tilted, rotation de vue dans ControlDeckView) sauf GameCube et accueil ; Store.ergoTriggers() (par défaut oui). RESTE : l'interrupteur « Gâchettes d'origine » pour la Flex dans Réglages (le code lit déjà Store.ergoTriggers).
+- Save/Load/×2 : sur Xbox 360 et ×2 PS3, message clair « le moteur ne l'offre pas » (Xenia et RPCS3 n'ont ni état sauvegardé ni accélération). SAVE/LOAD PS3 appellent nativeSaveState : à vérifier sur appareil (BOSS dit qu'ils ne font rien).
+- Sons : tools/make-sounds.py a généré app/assets/sounds/<thème>/{move,select,back,open,launch}.ogg et app/assets/music/<thème>.ogg (64 s en boucle, 2,9 Mo). RESTE : le code qui les joue (remplacer CodecSound, lecture en boucle de la musique à l'accueil, volumes séparés dans Réglages), jamais écoutés.
+
+### Reste de la liste de BOSS
+1. PS3 : écran noir après la première cinémat. de Demon's Souls, son qui saccade, entrées reconnues. Demander le journal (Réglages > Débogage > Partager). Piste : vidéo en jeu / présentation du moteur.
+2. DMC 4 : image d'épilepsie, cinématique audio seule, écran-titre OK, Start sans réponse, fenêtre verte si on plie/déplie. Le correctif de profil devrait la supprimer ; à confirmer.
+3. Xbox 360 : écran bleu/noir et zones noires (voir ci-dessous).
+4. Menu codec PS3/360 encore plus pauvre que les autres plateformes : ajouter les mêmes entrées (format, ATH, manette, thèmes…).
+5. Jaquettes Xbox 360 absentes (PS3 OK) ; remplacer le bruit unique du codec par des bruits par thème + volume des sons d'interface.
+6. Remote Play : renommer PlayStation, XBOX, Steam ; au clic : solutions officielles (apps à télécharger), puis alternatives détectées sur le téléphone, puis « en choisir une à la main » (BOSS a PXPlay) ; montrer qu'un client de chaque plateforme sera intégré (choix grisé ou message).
+7. Cohérence de l'interface avec les thèmes, lignes qui se croisent, débordements, logo plus fluide.
+8. Logo et bouton Home de la manette (au lancement d'un jeu) qui brillent/scintillent pour montrer que ce sont des boutons.
+9. Refonte de l'assistant de démarrage : installation basique et avancée.
+10. RetroAchievements.
+11. Musiques en boucle par thème (fichiers faits), harmoniser les menus, tri du code mort à la toute fin.
+12. Shaders PS3 très longs à compiler au premier lancement (BOSS : à optimiser). Le moteur PS3 recompilé avec la sauvegarde périodique du cache (prebuilt/armsx3, 19:44) n'est PAS encore dans un APK livré : l'inclure dans la 0.61.0.
+
+### Pistes Xbox 360 (écran bleu DMC 4, zones noires Skyrim)
+- Format du swapchain Android = R8G8B8A8 (format 37), pas de souci d'échange rouge/bleu trouvé dans vulkan_presenter.cc.
+- Soupçon principal : pipelines « placeholder » du hot-swap asynchrone (shader pixel qui écrit du noir transparent) quand le vrai pipeline échoue ou tarde ; réglage « Shaders en arrière-plan » (async_shader_compilation) à décocher pour tester. Autre piste : chemin de rendu FBO/FSI sur Adreno (réglage « Rendu des cibles »).
+- Il faut le journal de DMC 4 (logcat-x360.txt) pour voir les erreurs « Failed to create Vulkan pipeline » et les fonctions d'extension manquantes.
+
+### Outils
+- Ghidra : non installable dans ce fil (github.com bloqué par le réseau). BOSS a changé l'environnement du projet ; le nouveau fil doit réessayer (release officielle NSA, JDK 21, `analyzeHeadless`). En attendant radare2 est installé (apt).
+- Le journal du build Xenia est dans ~/x360/build.log, les sources dans ~/x360/src (patch regénéré par `git diff b323729`).
+
+## À reparler avec BOSS (20/10)
+- Génération d'images PS3 : ARMSX3 embarque la génération d'images de Lossless Scaling (LSFG ; réglages Frame Generation, Target Rate, Flow Scale, Performance Mode, Lossless Path ; fonction exportée `_rpcsx_frameGenImportShaders`). Il faut le fichier Lossless.dll de l'utilisateur (app Steam payante, interdite de redistribution). À faire : option « Génération d'images » dans le menu PS3, bouton « Importer Lossless.dll », appel câblé dans le pont natif (native/ps3/foldplay_ps3.cpp), désactivée par défaut et réservée aux jeux à 30 images/s. BOSS est intéressé.
+- Proton (jeux PC) : partie 2.0, après la fin de l'émulation.
+- Recompilation native bloquée tant que dl.google.com (NDK) est refusé par le réseau du cloud ; correctif son 360 déjà prêt dans native/xenia-patches/02-origami-fixes.patch.
+
+## Consignes de BOSS pour la 0.65 (prochain fil, 20/10 04h18)
+À appliquer dans le prochain fil, ouvert seulement quand BOSS le dit.
+- Sens de la main (droitier/gaucher) sur toute la navigation des menus et sous-menus, pas seulement les flèches retour.
+- Manette 2D manquante dans les puces de l'éditeur (seules Flex, 3D, Mini apparaissent) : la remettre.
+- Remplacer partout les mentions « en chantier » par deux emoji (🚧🏗️).
+- Ambre : la nouvelle image de la manette Ambre (soleil art déco) devient le fond de l'écran du haut ; recréer une nouvelle manette Ambre.
+- Le dépôt devient public : la mise à jour depuis les Réglages (Updater) doit marcher dans la prochaine version.
+- Sortir tout le monitoring (ATH/RTSS) des réglages d'Affichage vers sa propre catégorie.
+- Fusionner les catégories Émulateurs et Cœurs ; simplifier et supprimer les redondances.
+- Format et ×2 : pictogrammes centrés (retirer le décalage vers le coin), bords des boutons un peu plus épais.
+- Demon's Souls : à peine mieux, gros ralentis en cassant des tonneaux (destruction, effets), le son suit les ralentis. ATH : 30 i/s, 33 ms, VIT 50 %, CPU 239 %.
+- DMC 4 rame dès l'écran-titre, plus qu'avant.
+- Revérifier les résolutions de chaque profil sur tous les émulateurs 3D (Demon's Souls trop haut selon BOSS).
+
+## Ce que montre le journal du 20/10 06h12
+- Plantage du bouton Format : récursion infinie (StackOverflowError). Dans Ps3Activity.java:437 et X360Activity.java:303, la classe anonyme ScreenFormat.Host appelle `applyFormat()` qui se rappelle elle-même. Corriger en `Ps3Activity.this.applyFormat()` / `X360Activity.this.applyFormat()`.
+- PS3 : `settingsSet: node Core@@XFloat Accuracy not found` et `Video@@Asynchronous Texture Streaming 2 not found`. Ces deux réglages de profil ne s'appliquent pas : retrouver le vrai nom de nœud (section/clé) dans libarmsx3-core.so.
+- PS3 : profil Équilibré = Resolution Scale 150, Qualité = 200. Pour Demon's Souls (CPU 239 %, limité par le processeur), descendre à 100 % partout sauf Qualité, et 75 % en Performance si le cœur l'accepte.
+- 360 (DMC 4, 06h01) : le config dump au lancement affiche encore `readback_resolve = "none"` et `render_target_path_vulkan = ""`. Les valeurs de profil de 0.62.5 (fast / fbo) ne sont donc peut-être pas transmises au cœur, ou le dump passe avant elles : à vérifier. Aussi « Skipped 88 frames » sur le fil principal au lancement.
+- Règle BOSS (20/10 04h31) : chaque profil doit coller à la fois aux capacités du téléphone ET aux limites réelles de chaque cœur. Utiliser Ghidra/REA sur les .so pour comprendre ces limites (réglages réellement lus, valeurs acceptées) avant de régler les profils. Monter un environnement de test dès que possible (banc d'essai : adb sur le Fold quand il est branché, sinon mode débogage de l'app et journaux).
+
+## 0.65.0 (20/10, fil « Versions 0.65 »)
+- Fait : voir docs/releases/0.65.0.md. APK dist/origami-0.65.0-debug.apk (versionCode 80). dl.google.com répond (200) dans cet environnement : NDK installable (non fait).
+- Reste : image Ambre non reçue (manette et fond recréés en vectoriel, à remplacer), valeurs xenia cvars effectives non vérifiées (le dump du journal précède les surcharges), profils par cœur (Ghidra) et banc d'essai, Demon's Souls/DMC 4 à retester, recompilation Xenia avec le correctif son.

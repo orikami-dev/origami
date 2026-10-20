@@ -482,8 +482,8 @@ final class Facets {
             float ax = cx + (float) Math.cos(t0) * r * 0.32f, ay = cy + (float) Math.sin(t0) * r * 0.32f;
             float bx = cx + (float) Math.cos(t1) * r * 0.32f, by = cy + (float) Math.sin(t1) * r * 0.32f;
             float mx = cx + (float) Math.cos(tm) * r * 0.32f, my = cy + (float) Math.sin(tm) * r * 0.32f;
-            tri(ax, ay, ex, ey, mx, my, a(sh[1], 0x1A));
-            tri(mx, my, ex, ey, bx, by, a(sh[2], 0x1A));
+            tri(ax, ay, ex, ey, mx, my, a(sh[1], (i & 1) == 0 ? 0x34 : 0x22));
+            tri(mx, my, ex, ey, bx, by, a(sh[3], (i & 1) == 0 ? 0x3C : 0x28));
         }
         // Gradins : demi-octogones concentriques, chaque marche en deux facettes.
         int steps = 4, sides = 8;
@@ -493,10 +493,21 @@ final class Facets {
                 double t0 = -Math.PI + Math.PI * i / (sides / 2), t1 = -Math.PI + Math.PI * (i + 1) / (sides / 2);
                 tri(cx, cy, cx + (float) Math.cos(t0) * r, cy + (float) Math.sin(t0) * r,
                         cx + (float) Math.cos(t1) * r, cy + (float) Math.sin(t1) * r,
-                        a(sh[(i < sides / 4) ? 1 + (st & 1) : 2 + (st & 1)], 0x20));
+                        a(sh[(i < sides / 4) ? 1 + (st & 1) : 2 + (st & 1)], 0x2C + st * 6));
             }
         }
         line(cx, cy - R * 0.3f, cx, cy, Math.max(1f, u / 700f), a(fold, 0x34));
+        // Anneaux dorés : arcs fins autour du soleil, comme sur l'affiche.
+        p.setStyle(Paint.Style.STROKE);
+        android.graphics.RectF ring = new android.graphics.RectF();
+        for (int i = 1; i <= 3; i++) {
+            float rr = R * (0.3f + 0.17f * i);
+            p.setStrokeWidth(Math.max(1f, u / (i == 1 ? 520f : 900f)));
+            p.setColor(a(fold, 0x40 - i * 0xC));
+            ring.set(cx - rr, cy - rr, cx + rr, cy + rr);
+            c.drawArc(ring, 180, 180, false, p);
+        }
+        p.setStyle(Paint.Style.FILL);
         // Frise de chevrons pliés le long du bord haut.
         float cw = m * 0.05f;
         for (float x = -cw; x < w + cw; x += cw * 2) {
@@ -548,6 +559,9 @@ final class Facets {
         else f.radar(w, h);
     }
 
+    /** Vrai pendant le dessin du décor fixe d'un fond animé : ce qui bouge n'y est pas dessiné. */
+    static boolean MOVING;
+
     /** Radar : anneaux octogonaux en facettes, faisceau en éventail plié, échos en losanges. */
     private void radar(float w, float h) {
         float u = Math.max(w, h);
@@ -567,6 +581,11 @@ final class Facets {
                 tri(ax, ay, bx, by, ix, iy, a(sh[left ? 0 : 2], al));
                 tri(bx, by, jx, jy, ix, iy, a(sh[left ? 1 : 3], al));
             }
+        }
+        // Fond animé (0.62.3) : faisceau et échos sont dessinés en mouvement par BackdropMotion.
+        if (MOVING) {
+            scan(w, h);
+            return;
         }
         // Faisceau : éventail de triangles qui s'éteint en tournant.
         int blades = 9;

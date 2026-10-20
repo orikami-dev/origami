@@ -118,6 +118,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         DebugLog.sync(this);
         store = new Store(this);
         if (!store.setupDone()) startActivity(new Intent(this, SetupActivity.class));
+        Updater.autoCheck(this);
         if (Libretro.available()) store.adoptBuiltinOnce();
         launcher = new Launcher(this, store);
         covers = new CoverLoader(getContentResolver(), getPackageManager());
@@ -147,6 +148,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         super.onResume();
         resumed = true;
         Theme.orientation(this);
+        UiSound.musicStart(this);
         // Couleurs de la manette changées dans l'éditeur : l'interface suit.
         if (Theme.sync(this) && root != null && posture != null) rebuild();
         // Manette changée dans l'éditeur : Mini et Flex font passer l'accueil en plein écran.
@@ -189,11 +191,11 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         new Thread(new Runnable() {
             public void run() {
                 final List<Game> m = MobileApps.games(ctx, custom);
-                final List<Game> r = MobileApps.remote(ctx, custom);
+                final List<Game> r = MobileApps.remote(ctx, store);
                 StringBuilder sig = new StringBuilder();
                 for (Game g : m) sig.append(g.uri).append('|');
                 sig.append('#');
-                for (Game g : r) sig.append(g.uri).append('|');
+                for (Game g : r) sig.append(g.uri).append(g.note).append('|');
                 final String now = sig.toString();
                 runOnUiThread(new Runnable() {
                     public void run() {
@@ -212,6 +214,61 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     /**
+     * Menu d'une plateforme de Remote Play (0.62) : l'app préférée en tête, les solutions officielles
+     * (ouvrir ou télécharger), les alternatives trouvées sur le téléphone, le choix manuel, puis le
+     * client libre qu'Origami intégrera (grisé tant qu'il n'est pas prêt).
+     */
+    private void remoteMenu(final String group) {
+        final Runnable self = new Runnable() { public void run() { remoteMenu(group); } };
+        String name = MobileApps.groupName(group);
+        CodecMenu m = new CodecMenu(this).title(name, "REMOTE PLAY");
+        int px = dp(32);
+        android.content.pm.PackageManager pm = getPackageManager();
+        final MobileApps.Client pref = MobileApps.preferred(this, store, group);
+        if (pref != null) {
+            m.item(appIcon(pm, pref.uri, px), "Lancer " + pref.label, "Ton app préférée pour " + name, new Runnable() {
+                public void run() { MobileApps.open(MainActivity.this, store, pref.game()); }
+            });
+        }
+        boolean anyAlt = false;
+        for (final MobileApps.Client c : MobileApps.clients(this, store, group)) {
+            if (!c.official) anyAlt = true;
+            String kind = c.official ? (c.installed ? "Officielle" : "Officielle · à télécharger sur le Play Store")
+                    : c.custom ? "Choisie par toi" : "Alternative détectée sur le téléphone";
+            boolean isPref = pref != null && pref.uri.equals(c.uri);
+            m.item(c.installed ? appIcon(pm, c.uri, px) : null, (isPref ? "★ " : "") + c.label, kind + " · " + c.note,
+                    new Runnable() {
+                public void run() {
+                    if (c.installed) {
+                        store.setRemotePreferred(group, c.uri);
+                        appsSig = "";
+                        loadApps();
+                    }
+                    MobileApps.open(MainActivity.this, store, c.game());
+                }
+            });
+        }
+        if (!anyAlt) m.item("Aucune alternative détectée", "Aucun client non officiel trouvé sur le téléphone", null);
+        m.sub("En choisir une manuellement…", "N'importe quelle app installée, par exemple PXPlay", new Runnable() {
+            public void run() { addClientMenu(group); }
+        });
+        m.soon(null, "Client intégré à Origami", "🚧🏗️ " + MobileApps.builtinName(group)
+                + " sera intégré directement dans l'app, avec ta manette Origami");
+        m.show(menuHost());
+    }
+
+    private android.graphics.drawable.Drawable appIcon(android.content.pm.PackageManager pm, String uri, int px) {
+        try {
+            android.content.ComponentName cn = android.content.ComponentName.unflattenFromString(uri.substring(4));
+            android.graphics.drawable.Drawable d = pm.getActivityIcon(cn);
+            d.setBounds(0, 0, px, px);
+            return d;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * « Ajouter un client… » d'une section de Remote Play : n'importe quelle app installée, pour
      * utiliser un client non officiel (chiaki-ng, Greenlight, …) à la place de celui du constructeur.
      */
@@ -219,7 +276,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         CodecMenu m = new CodecMenu(this).title("Ajouter un client", "REMOTE PLAY · " + MobileApps.groupName(group).toUpperCase());
         int px = dp(32);
         java.util.Set<String> taken = new java.util.HashSet<String>();
-        for (Game g : remote) if (g.uri.startsWith("app:")) taken.add(g.uri);
+        for (MobileApps.Client c : MobileApps.clients(this, store, group)) if (c.installed) taken.add(c.uri);
         List<HomeApps.App> apps = HomeApps.apps(this);
         // Un client libre déjà installé (chiaki-ng…) passe en tête de liste.
         List<HomeApps.App> first = new ArrayList<HomeApps.App>(), rest = new ArrayList<HomeApps.App>();
@@ -236,7 +293,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             m.item(d, app.label, null, new Runnable() {
                 public void run() {
                     store.setRemoteClient(MobileApps.customKey(group, uri), true);
-                    toast(app.label + " ajouté à Remote Play.");
+                    store.setRemotePreferred(group, uri);
+                    toast(app.label + " : app préférée pour " + MobileApps.groupName(group) + ".");
                     appsSig = "";
                     loadApps();
                 }
@@ -260,6 +318,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             announceScan = true;
             toast("Actualisation de la bibliothèque…");
             scan(Uri.parse(store.treeUri()));
+        } else if (g.uri.startsWith("action:remote:")) {
+            remoteMenu(g.group);
         } else if (g.uri.startsWith("action:addclient:")) {
             addClientMenu(g.group);
         } else if (g.isApp()) {
@@ -273,6 +333,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     protected void onPause() {
         super.onPause();
         resumed = false;
+        UiSound.musicPause();
         if (hinge != null) sensors.unregisterListener(this);
         if (pads != null) pads.input().unregisterInputDeviceListener(padListener);
     }
@@ -483,6 +544,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     private void cycleFilter(int dir) {
         List<String> keys = filterKeys();
         int i = keys.indexOf(filter);
+        UiSound.play(this, UiSound.MOVE);
         switchFilter(keys.get(((i < 0 ? 0 : i) + dir + keys.size()) % keys.size()), dir);
     }
 
@@ -710,7 +772,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         stage.addView(stageCol, new FrameLayout.LayoutParams(-1, -1));
         if (store.scanlines()) stage.addView(new Scanlines(), new FrameLayout.LayoutParams(-1, -1));
         // Deux « pilules » aux coins arrondis, séparées par un mince filet au niveau de la charnière.
-        col.setBackgroundColor(Theme.GAP);
+        col.setBackground(Theme.gap());
         col.setPadding(dp(4), dp(4), dp(4), dp(4));
         stage.setBackground(Theme.backdrop(dp(28)));
         stage.setClipToOutline(true);
@@ -862,6 +924,15 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                             });
                 }
                 r.show(CodecMenu.hostFor(MainActivity.this));
+            }
+        });
+        m.check("Gâchettes en arc", "Posées autour des joysticks comme X et Y sur une manette GameCube, plus faciles "
+                + "à atteindre. Décoche pour retrouver la place d'origine, en haut", store.ergoTriggers(), new Runnable() {
+            public void run() {
+                store.setErgoTriggers(!store.ergoTriggers());
+                ConsolePad.ergo = store.ergoTriggers();
+                padChanged();
+                self.run();
             }
         });
         m.check("Vibrations", "Retour haptique sur les touches tactiles", store.haptics(), new Runnable() {
@@ -1144,6 +1215,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             int next = Math.max(0, Math.min(barButtons.size() - 1, barFocus + (key.equals("LEFT") ? -1 : 1)));
             if (next != barFocus) {
                 barFocus = next;
+                UiSound.play(this, UiSound.MOVE);
                 haptic();
                 paintBarFocus();
             }
@@ -1202,7 +1274,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     private void select(int i) {
         if (shown.isEmpty()) return;
+        int before = selected;
         selected = Math.max(0, Math.min(shown.size() - 1, i));
+        if (selected != before) UiSound.play(this, UiSound.MOVE);
         haptic();
         updateFlex(true);
     }
@@ -1214,6 +1288,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     /** B : retour à « Tous » depuis un filtre. */
     private void back() {
+        UiSound.play(this, UiSound.BACK);
         if (!filter.equals("all")) {
             switchFilter("all", -1);
             status("B · retour à Tous");
@@ -1785,7 +1860,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         logo.setTypeface(Fonts.logo(this));
         postureTag = text(postureText(), 11, Theme.MUTED, true);
         android.widget.ImageView mark = new android.widget.ImageView(this);
-        mark.setImageDrawable(new Crane.Logo());
+        Crane.Logo crane = new Crane.Logo();
+        mark.setImageDrawable(crane);
+        // Le logo est un bouton (applications) : un reflet le traverse régulièrement (0.62).
+        crane.animate(mark, 5000);
         LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(40), dp(40));
         mlp.rightMargin = dp(10);
         // Le logo ouvre les applications du téléphone (0.60.4, à la place du bouton « Applications »).
@@ -1847,7 +1925,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         return bar;
     }
 
-    /** Les cinq thèmes, et l'interface aux couleurs de la manette en dernier choix. */
+    /** Les cinq thèmes, puis les couleurs du logo et de la manette (un seul panneau, 0.61). */
     private void themeMenu() {
         CodecMenu m = new CodecMenu(this).title("Thème", "COULEURS DE L'INTERFACE");
         final boolean sync = store.syncUi();
@@ -1857,6 +1935,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             m.radio(Theme.THEME_NAMES[i], Theme.THEME_HELP[i], !sync && id.equals(cur), new Runnable() {
                 public void run() {
                     store.setTheme(id);
+                    UiSound.refresh(MainActivity.this);
                     store.setSyncUi(false);
                     // L'icône du lanceur change seulement une fois l'app quittée : pas de redémarrage.
                     Theme.queueIcon(MainActivity.this, id);
@@ -1864,16 +1943,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
             });
         }
-        m.radio("Couleurs de la manette", "Menus, titres, logo et emblèmes reprennent les couleurs de la manette active ; "
-                + "elles se règlent en direct", sync, new Runnable() {
-                    public void run() {
-                        store.setSyncUi(true);
-                        CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));
-                        if (open != null) open.dismiss();
-                        if (Theme.sync(MainActivity.this)) rebuild();
-                        ColorSheet.show(MainActivity.this, MainActivity.this, false, sheetHeight());
-                    }
-                });
         m.sub("Couleurs du logo et de la manette", store.logoColor() == 0 ? "Logo : suit le thème" : "Logo : couleur perso", new Runnable() {
             public void run() {
                 CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));
@@ -1883,9 +1952,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         });
         // Choix du pack à part : rouvert avec le store de thèmes communautaires (décision BOSS,
         // 0.60.6). D'ici là, les icônes suivent le thème (iconPackMenu reste prêt).
-        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "En chantier : arrive avec le store de thèmes. Les icônes suivent le thème.");
+        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "🚧🏗️ Arrive avec le store de thèmes. Les icônes suivent le thème.");
         // Partage de thèmes entre joueurs : annoncé, pas encore ouvert.
-        m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "En chantier : partager et récupérer des thèmes");
+        m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "🚧🏗️ Partager et récupérer des thèmes");
         m.show(CodecMenu.hostFor(this));
     }
 

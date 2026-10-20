@@ -78,6 +78,8 @@ final class HudOverlay {
         int m = line ? dp(6) : dp(20);
         lp.setMargins(m, m, m, 0);
         hud.setLayoutParams(lp);
+        hud.setTranslationY(0);
+        Hud.avoidCutout(hud, m);
         hud.setTextSize(Hud.SIZES[Math.max(0, Math.min(2, store.hudSize()))]);
         hud.setSingleLine(line);
         hud.setMaxLines(line ? 1 : 20);
@@ -112,7 +114,7 @@ final class HudOverlay {
         long now = android.os.SystemClock.elapsedRealtime();
         long cpu = android.os.Process.getElapsedCpuTime();
         boolean block = "block".equals(store.hudStyle());
-        int label = Hud.labelColor(store.hudColor());
+        int label = Hud.labelColor(activity, store.hudColor());
         if (lastAt == 0) {
             lastAt = now;
             lastCpuMs = cpu;
@@ -138,9 +140,13 @@ final class HudOverlay {
 
         java.util.Set<String> items = store.hudItems();
         if (items.contains("mhz")) h.mhz = Hud.cpuMhz();
-        Runtime rt = Runtime.getRuntime();
-        h.ramMb = (int) ((android.os.Debug.getNativeHeapAllocatedSize() >> 20)
-                + ((rt.totalMemory() - rt.freeMemory()) >> 20));
+        // Les moteurs réservent leur mémoire hors du tas mesuré : on lit la mémoire résidente du processus.
+        h.ramMb = Hud.residentMb();
+        if (h.ramMb <= 0) {
+            Runtime rt = Runtime.getRuntime();
+            h.ramMb = (int) ((android.os.Debug.getNativeHeapAllocatedSize() >> 20)
+                    + ((rt.totalMemory() - rt.freeMemory()) >> 20));
+        }
         Intent bat = activity.registerReceiver(null, new android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         if (bat != null) {
             int level = bat.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1);
@@ -149,6 +155,8 @@ final class HudOverlay {
             h.charging = bat.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0;
             h.tempC = bat.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
         }
+        h.fahrenheit = "f".equals(store.tempUnit());
+        if (items.contains("heat")) h.chipC = Hud.chipC();
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             android.os.PowerManager pm = (android.os.PowerManager) activity.getSystemService(Activity.POWER_SERVICE);
             h.heat = pm.getCurrentThermalStatus();
@@ -159,5 +167,6 @@ final class HudOverlay {
             h.height = screen.getHeight();
         }
         hud.setText(Hud.compose(h, items, block, label));
+        Hud.avoidCutout(hud, block ? dp(20) : dp(6));
     }
 }

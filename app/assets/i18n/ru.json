@@ -272,7 +272,7 @@
  "Efface les fiches gardées, elles reviendront à la sélection": "Удаляет сохранённые описания, они вернутся при выборе игры",
  "Effacer le journal": "Очистить журнал",
  "Effet cathodique": "Эффект ЭЛТ",
- "En chantier : arrive avec le store de thèmes. Les icônes suivent le thème.": "В разработке: появится вместе с магазином тем. Значки следуют теме.",
+ "🚧🏗️ Arrive avec le store de thèmes. Les icônes suivent le thème.": "🚧🏗️ появится вместе с магазином тем. Значки следуют теме.",
  "En haut au centre": "Сверху по центру",
  "En haut à droite": "Сверху справа",
  "En haut à gauche": "Сверху слева",
@@ -885,5 +885,10 @@
  "＋ Ajouter un code": "＋ Добавить код",
  "＋ Flex divisée": "＋ Flex раздельный",
  "＋ Nouvelle": "＋ Новая",
- "＋ Taille": "＋ Размер"
+ "＋ Taille": "＋ Размер",
+ "Son": "Звук",
+ "Musique": "Музыка",
+ "Monitoring": "Мониторинг",
+ "ATH en jeu": "HUD в игре",
+ "Switch : Eden, intégré comme les autres cœurs, bientôt.": "Switch: Eden, скоро, встроен как и другие ядра."
 }

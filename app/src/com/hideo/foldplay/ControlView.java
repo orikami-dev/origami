@@ -49,6 +49,8 @@ final class ControlView extends View {
         text.setTextAlign(Paint.Align.CENTER);
         ring.setStyle(Paint.Style.STROKE);
         setContentDescription(control.type);
+        // Home est un bouton : la grue brille régulièrement, dès le lancement du jeu (0.62).
+        if (control.type.equals("HOME")) logo.animate(this, 6000);
     }
 
     void setListener(Listener l, boolean haptics) {
@@ -160,6 +162,7 @@ final class ControlView extends View {
         }
         else if (t.startsWith("STICK")) drawStick(c, w, h);
         else if (t.equals("TOUCHPAD")) drawPad(c, w, h);
+        else if (t.equals("FAST") || t.equals("ASPECT")) drawCornerKey(c, w, h, t);
         else if (ControlLayout.pill(t)) drawPill(c, w, h, control.cap != null ? pillCap(control.cap) : pillLabel(t));
         else drawShoulder(c, w, h, t);
 
@@ -204,6 +207,7 @@ final class ControlView extends View {
         if (t.equals("FAST")) return "≫ ×2";
         if (t.equals("QSAVE")) return "SAVE";
         if (t.equals("QLOAD")) return "LOAD";
+        if (t.equals("ASPECT")) return ScreenFormat.caption;
         return t;
     }
 
@@ -323,7 +327,8 @@ final class ControlView extends View {
     private void drawHome(Canvas c, float w, float h) {
         float rad = Math.min(w, h) / 2f - 2 * dp;
         if (skin) rad = rad / 1.18f;
-        halo(c, w / 2, h / 2, rad, pressed ? 1f : 0.3f);
+        float glow = logo.shine >= 0f && logo.shine <= 1f ? (float) Math.sin(Math.PI * logo.shine) : 0f;
+        halo(c, w / 2, h / 2, rad, pressed ? 1f : 0.3f + 0.5f * glow);
         c.drawCircle(w / 2, h / 2, rad, body(pressed ? panelHi : Theme.BG, h / 2 - rad, h / 2 + rad));
         ring.setColor(accent);
         ring.setStrokeWidth(2 * dp);
@@ -352,7 +357,108 @@ final class ControlView extends View {
         c.drawText(t, w / 2, h / 2 - (text.descent() + text.ascent()) / 2, text);
     }
 
+    /**
+     * Format d'image et Accélérer (0.62.3) : petite touche ronde à icône, sans texte, pour un coin
+     * de l'écran. Accélérer : deux flèches d'avance rapide ; Format : un cadre aux quatre angles.
+     */
+    private void drawCornerKey(Canvas c, float w, float h, String t) {
+        r.set(dp, dp, w - dp, h - dp);
+        // Elle épouse le coin arrondi de la manette (0.62.5) : grand arrondi côté coin (Format en
+        // haut à gauche, Accélérer en haut à droite), petits arrondis vers l'intérieur.
+        boolean left = t.equals("ASPECT");
+        float big = Math.min(r.width(), r.height()) * 0.62f, small = 6 * dp;
+        float[] radii = left ? new float[] {big, big, small, small, small, small, small, small}
+                : new float[] {small, small, big, big, small, small, small, small};
+        path.reset();
+        path.addRoundRect(r, radii, android.graphics.Path.Direction.CW);
+        c.drawPath(path, body(pressed ? steel : panelHi, r.top, r.bottom));
+        ring.setShader(null);
+        ring.setColor(0x4DFFFFFF);
+        ring.setStrokeWidth(2f * dp);
+        c.drawPath(path, ring);
+        // Pictogramme centré dans le rond (0.65).
+        float u = Math.min(w, h) * 0.22f, cx = w / 2, cy = h / 2;
+        plain(Theme.MUTED);
+        path.reset();
+        if (t.equals("FAST")) {
+            for (int i = 0; i < 2; i++) {
+                float x0 = cx - u + i * u;
+                path.moveTo(x0, cy - u * 0.8f);
+                path.lineTo(x0 + u, cy);
+                path.lineTo(x0, cy + u * 0.8f);
+                path.close();
+            }
+            c.drawPath(path, fill);
+        } else {
+            ring.setColor(Theme.MUTED);
+            ring.setStrokeWidth(Math.max(1.5f * dp, u * 0.22f));
+            float a = u * 1.05f, b = u * 0.75f, l = u * 0.5f;
+            for (int sx = -1; sx <= 1; sx += 2) {
+                for (int sy = -1; sy <= 1; sy += 2) {
+                    path.moveTo(cx + sx * a, cy + sy * (b - l));
+                    path.lineTo(cx + sx * a, cy + sy * b);
+                    path.lineTo(cx + sx * (a - l), cy + sy * b);
+                }
+            }
+            c.drawPath(path, ring);
+        }
+    }
+
+    /** Haricot (0.62.3) : rayon de courbure et épaisseur en fractions de la largeur, demi-angle en degrés. */
+    private float beanR, beanTh, beanPhi;
+    private final android.graphics.RectF arcBox = new android.graphics.RectF();
+
+    void setBean(float rOverW, float thOverW, float phiDeg) {
+        if (rOverW == beanR && thOverW == beanTh && phiDeg == beanPhi) return;
+        beanR = rOverW;
+        beanTh = thOverW;
+        beanPhi = phiDeg;
+        invalidate();
+    }
+
+    /** Gâchette en haricot, façon X et Y de la GameCube : une bande incurvée aux bouts arrondis. */
+    private void drawBean(Canvas c, float w, float h, String t) {
+        float R = beanR * w, th = beanTh * w, phi = beanPhi;
+        float ro = R + th / 2, ri = R - th / 2;
+        float cx = w / 2, cy = ro;                              // centre du groupe, sous la bande
+        path.reset();
+        arcBox.set(cx - ro, cy - ro, cx + ro, cy + ro);
+        path.arcTo(arcBox, -90 - phi, 2 * phi, true);
+        double e = Math.toRadians(-90 + phi);
+        float ex = cx + (float) (R * Math.cos(e)), ey = cy + (float) (R * Math.sin(e));
+        arcBox.set(ex - th / 2, ey - th / 2, ex + th / 2, ey + th / 2);
+        path.arcTo(arcBox, -90 + phi, 180, false);
+        arcBox.set(cx - ri, cy - ri, cx + ri, cy + ri);
+        path.arcTo(arcBox, -90 + phi, -2 * phi, false);
+        double sA = Math.toRadians(-90 - phi);
+        float sx = cx + (float) (R * Math.cos(sA)), sy = cy + (float) (R * Math.sin(sA));
+        arcBox.set(sx - th / 2, sy - th / 2, sx + th / 2, sy + th / 2);
+        path.arcTo(arcBox, 90 - phi, 180, false);
+        path.close();
+        body(pressed ? Theme.lighten(steel, 0.25f) : steel, 0, h);
+        c.drawPath(path, fill);
+        ring.setShader(null);
+        ring.setStrokeWidth(1.2f * dp);
+        ring.setColor(pressed ? accent : 0x30FFFFFF);
+        if (skin) {
+            c.save();
+            c.clipRect(0, 0, w, th * 0.45f);
+            c.drawPath(path, ring);
+            c.restore();
+        }
+        text.setTypeface(Fonts.logo(getContext()));
+        text.setTextSize(Math.min(th * 0.5f, 17 * dp));
+        text.setColor(Theme.TEXT);
+        String cap = control.cap != null ? control.cap
+                : t.equals("L") ? (triggers ? "L1" : "L") : t.equals("R") ? (triggers ? "R1" : "R") : t;
+        c.drawText(cap, cx, th / 2 - (text.descent() + text.ascent()) / 2, text);
+    }
+
     private void drawShoulder(Canvas c, float w, float h, String t) {
+        if (beanR > 0) {
+            drawBean(c, w, h, t);
+            return;
+        }
         body(pressed ? Theme.lighten(steel, 0.25f) : steel, dp, h - dp);
         boolean leftSide = t.startsWith("L");
         float big = Math.min(h * 0.6f, 22 * dp);
@@ -470,6 +576,17 @@ final class ControlView extends View {
             ay = Math.max(0f, Math.min(1f, e.getY() / getHeight()));
             listener.onAxis(control.type, ax, ay);
         }
+        if (Theme.LATCH && (control.type.equals("L2") || control.type.equals("R2"))) {
+            // Gâchette à bascule (Accessibilité) : un appui l'enfonce, le suivant la relâche.
+            if (action == MotionEvent.ACTION_DOWN) {
+                pressed = !pressed;
+                if (haptics) Haptics.tap(this);
+                if (pressed) listener.onDown(control.type);
+                else listener.onUp(control.type);
+                invalidate();
+            }
+            return true;
+        }
         if (action == MotionEvent.ACTION_DOWN) {
             pressed = true;
             if (haptics) Haptics.tap(this);
@@ -507,7 +624,8 @@ final class ControlView extends View {
                 listener.onUp(control.type.equals("STICK_R") ? "R3" : "L3");
             }
         } else {
-            float rad = Math.min(getWidth(), getHeight()) / 2f * 0.58f;
+            // Course réduite (Accessibilité) : un petit geste suffit pour pousser à fond.
+            float rad = Math.min(getWidth(), getHeight()) / 2f * 0.58f * Theme.STICK_REACH;
             float dx = (x - getWidth() / 2f) / rad;
             float dy = (y - getHeight() / 2f) / rad;
             float len = (float) Math.sqrt(dx * dx + dy * dy);

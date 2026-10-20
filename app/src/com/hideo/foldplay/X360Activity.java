@@ -45,6 +45,8 @@ public class X360Activity extends WindowedAppActivity {
     private String path, title;
     private boolean started, menuOpen;
     private HudOverlay hud;
+    private FramePeak peak;
+    private Boolean lastFill;
     private long lastFrames = -1;
     private int buttons, lt, rt;
     private float lx, ly, rx, ry;
@@ -56,6 +58,9 @@ public class X360Activity extends WindowedAppActivity {
 
     /** Images du jeu présentées depuis le lancement (moteur 0.60.12 et suivants). */
     static native long nativeFrames();
+
+    /** Étirer : le moteur remplit la surface au lieu de garder le rapport du jeu. */
+    static native void nativeSetFill(boolean fill);
 
     /** Le moteur Xenia est livré dans l'APK : sinon pas de Xbox 360 intégrée. */
     static boolean present(Context ctx) {
@@ -107,6 +112,9 @@ public class X360Activity extends WindowedAppActivity {
             purgeEmpty(cache);
             purgeEmpty(new File(r, "cache"));
             cvars.putString("hid", "origami");
+            // Les fenêtres du système 360 (« connectez-vous au Xbox LIVE »…) ne se touchent pas :
+            // en mode headless, le moteur choisit tout seul le bouton par défaut (0.62.1).
+            cvars.putBoolean("headless", true);
             // Profil et réglages graphiques choisis dans le menu Home (0.60.14).
             EngineSettings.putCvars(this, cvars);
             getIntent().putExtra(EXTRA_CVARS, cvars);
@@ -180,7 +188,18 @@ public class X360Activity extends WindowedAppActivity {
         status.setPadding(p, p, p, p);
         stage.addView(status, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
         setContentView(stage);
+        stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                if (r - l != or - ol || b - t != ob - ot) applyFormat();
+            }
+        });
+        formatKey();
         // ATH : le moteur compte les images que le jeu présente.
+        peak = new FramePeak(new FramePeak.Probe() {
+            public long read() {
+                return started ? nativeFrames() : -1;
+            }
+        }, true);
         hud = new HudOverlay(this, stage, store, "xenia", new HudOverlay.Source() {
             public float fps(float seconds) {
                 if (!started) return -1;
@@ -195,7 +214,8 @@ public class X360Activity extends WindowedAppActivity {
             }
 
             public float frameMaxMs() {
-                return -1;
+                peak.start();
+                return peak.takeMs();
             }
 
             public boolean paused() {
@@ -210,7 +230,7 @@ public class X360Activity extends WindowedAppActivity {
     /** Même règle que les autres consoles : portrait = manette en bas, paysage = superposée. */
     private void place() {
         boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        boolean pad = pads != null && pads.any();
+        boolean pad = pads != null && pads.any() && store.padFullscreen();
         FrameLayout.LayoutParams sl = (FrameLayout.LayoutParams) screen.getLayoutParams();
         FrameLayout.LayoutParams dl = (FrameLayout.LayoutParams) deck.getLayoutParams();
         int h = getResources().getDisplayMetrics().heightPixels;
@@ -228,6 +248,15 @@ public class X360Activity extends WindowedAppActivity {
         deck.setVisibility(pad ? View.GONE : View.VISIBLE);
         screen.setLayoutParams(sl);
         deck.setLayoutParams(dl);
+        // Messages du moteur (chargement, compilation) : au milieu de l'écran du haut en portrait,
+        // au milieu de l'écran en paysage (demande BOSS, 0.62).
+        if (status != null) {
+            FrameLayout.LayoutParams tl = (FrameLayout.LayoutParams) status.getLayoutParams();
+            tl.height = sl.height;
+            tl.gravity = Gravity.TOP;
+            status.setLayoutParams(tl);
+        }
+        applyFormat();
     }
 
     @Override
@@ -263,15 +292,60 @@ public class X360Activity extends WindowedAppActivity {
                 .show(stage);
     }
 
+
+    // ------------------------------------------------------------------ format d'image (touche FORMAT)
+
+    private ScreenFormat.Key formatKey;
+
+    private ScreenFormat.Key formatKey() {
+        if (formatKey == null) {
+            formatKey = new ScreenFormat.Key(store, "x360", ScreenFormat.KEYS, new ScreenFormat.Host() {
+                public void applyFormat() { X360Activity.this.applyFormat(); }
+
+                public void say(String text) {
+                    I18n.toast(X360Activity.this, text, android.widget.Toast.LENGTH_SHORT).show();
+                }
+
+                public void refreshKeys() { if (deck != null) deck.refreshKeys(); }
+            });
+        }
+        return formatKey;
+    }
+
+    /** Cadre la surface du moteur selon le format choisi (Auto, 16:9, 4:3 ou Étirer). */
+    private void applyFormat() {
+        if (stage == null || screen == null) return;
+        boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        boolean full = land || (pads != null && pads.any() && store.padFullscreen());
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int w = stage.getWidth() > 0 ? stage.getWidth() : dm.widthPixels;
+        int h = full ? (stage.getHeight() > 0 ? stage.getHeight() : dm.heightPixels) : dm.heightPixels / 2;
+        boolean fill = ScreenFormat.fit(screen, w, h, ScreenFormat.gravityFor(full), store.displayMode("x360"));
+        if (lastFill != null && lastFill == fill) return;
+        lastFill = fill;
+        try { nativeSetFill(fill); } catch (Throwable ignored) { }
+    }
+
     // ------------------------------------------------------------------ manette
 
     /** Les touches Origami portent déjà les noms Xbox (A, B, X, Y) : correspondance directe. */
     private void press(String key, boolean down) {
+        if (key.equals("ASPECT")) {
+            formatKey().press(down);
+            return;
+        }
         if (key.equals("HOME")) {
             if (down) home();
             return;
         }
         int b = 0;
+        if (key.equals("QSAVE") || key.equals("QLOAD") || key.equals("FAST")) {
+            if (down) {
+                I18n.toast(this, "Pas de sauvegarde rapide ni d'accélération sur Xbox 360 : le moteur ne les offre pas.",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         if (key.equals("A")) b = A;
         else if (key.equals("B")) b = B;
         else if (key.equals("X")) b = X;
@@ -404,6 +478,24 @@ public class X360Activity extends WindowedAppActivity {
                 .item("Reprendre", null, new Runnable() {
                     public void run() { resumeGame(); }
                 })
+                .sub("Format d'image", ScreenFormat.label(store.displayMode("x360"))
+                        + (store.formatLocked() ? " · verrouillé" : ""), new Runnable() {
+                    public void run() {
+                        EngineMenus.format(X360Activity.this, stage, store, "x360", backHome(), new Runnable() {
+                            public void run() {
+                                applyFormat();
+                                if (deck != null) deck.refreshKeys();
+                            }
+                        });
+                    }
+                })
+                .sub("Options contrôleur", "Manette, transparence, gâchettes", new Runnable() {
+                    public void run() {
+                        EngineMenus.controller(X360Activity.this, stage, store, deck, backHome(), new Runnable() {
+                            public void run() { place(); }
+                        });
+                    }
+                })
                 .sub("Profil et réglages", EngineSettings.profileName(this, EngineSettings.X360), new Runnable() {
                     public void run() {
                         EngineSettings.menu(X360Activity.this, stage, EngineSettings.X360, "XBOX 360", backHome());
@@ -462,12 +554,18 @@ public class X360Activity extends WindowedAppActivity {
         super.onResume();
         if (hud != null) hud.apply();
         Theme.fullscreen(this);
+        // Retour de l'éditeur de manette : la disposition a pu changer.
+        if (deck != null) {
+            deck.reloadFromSource();
+            place();
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if (hud != null) hud.stop();
+        if (peak != null) peak.stop();
         Theme.inGame = false;
         // Le processus « :x360 » ne sert qu'au jeu : Xenia ne sait pas s'arrêter proprement, on
         // termine le processus pour rendre sa mémoire.

@@ -120,7 +120,7 @@ final class ControlDeckView extends ViewGroup {
     }
 
     /** Consoles montrées tour à tour par l'aperçu de la Flex, avec leur nom. */
-    private static final String[][] TOUR = {
+    static final String[][] TOUR = {
         {"psx", "PlayStation"}, {"snes", "Super Nintendo"}, {"x360", "Xbox 360"}, {"n64", "Nintendo 64"},
         {"ps2", "PlayStation 2"}, {"gc", "GameCube"}, {"md", "Mega Drive"}, {"gba", "Game Boy Advance"},
         {"ps3", "PlayStation 3"}, {"switch", "Switch"}, {"saturn", "Saturn"}, {"nes", "NES"},
@@ -154,6 +154,11 @@ final class ControlDeckView extends ViewGroup {
             }
         };
         tour.run();
+    }
+
+    /** Redessine les touches dont le texte change (FORMAT). */
+    void refreshKeys() {
+        for (int i = 0; i < getChildCount(); i++) getChildAt(i).invalidate();
     }
 
     void stopTour() {
@@ -430,6 +435,7 @@ final class ControlDeckView extends ViewGroup {
         layout.viewW = getWidth() / cell;
         layout.viewH = getHeight() / cell;
         layout.viewBottomCenter = overlay;
+        if (source != null) ConsolePad.ergo = source.ergoTriggers();
     }
 
     private float[] box(float[][] all, ControlLayout.Control c) {
@@ -462,6 +468,8 @@ final class ControlDeckView extends ViewGroup {
             int x = Math.round(ox + bx[0] * cell);
             int y = Math.round(oy + bx[1] * cell);
             v.layout(x, y, x + Math.round(bx[2] * cell), y + Math.round(bx[3] * cell));
+            v.setRotation(bx.length > 4 ? bx[4] : 0f);
+            v.setBean(bx.length > 7 ? bx[5] : 0f, bx.length > 7 ? bx[6] : 0f, bx.length > 7 ? bx[7] : 0f);
         }
     }
 
@@ -570,13 +578,24 @@ final class ControlDeckView extends ViewGroup {
                 for (float x = box.left + step / 2; x < box.right; x += step) c.drawCircle(x, y, dot, skinPaint);
             }
         }
-        // Liseré d'accent en haut, qui s'efface vers les côtés.
+        // Liseré d'accent en haut, qui s'efface vers les côtés et respire lentement (0.62.5, tous
+        // les thèmes) : une fine bande de lumière qui s'allume et s'éteint en 5 secondes, avec un halo.
+        float breath = 1f;
+        if (Theme.ANIMATE && !editing) {
+            double t = (android.os.SystemClock.uptimeMillis() % 5200L) / 5200.0;
+            breath = 0.3f + 0.7f * (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * t));
+        }
+        int rgb = accent & 0x00FFFFFF;
+        int core = Math.round(0xCC * breath), glow = Math.round(0x40 * breath);
         skinPaint.setShader(new android.graphics.LinearGradient(box.left, 0, box.right, 0,
-                new int[] {accent & 0x00FFFFFF, (accent & 0x00FFFFFF) | 0x99000000, accent & 0x00FFFFFF},
-                null, android.graphics.Shader.TileMode.CLAMP));
-        c.drawRect(box.left + radius, box.top, box.right - radius, box.top + 2 * dp, skinPaint);
+                new int[] {rgb, rgb | (glow << 24), rgb}, null, android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(box.left + radius * 0.6f, box.top, box.right - radius * 0.6f, box.top + 7 * dp, skinPaint);
+        skinPaint.setShader(new android.graphics.LinearGradient(box.left, 0, box.right, 0,
+                new int[] {rgb, rgb | (core << 24), rgb}, null, android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(box.left + radius * 0.6f, box.top, box.right - radius * 0.6f, box.top + 1.5f * dp, skinPaint);
         skinPaint.setShader(null);
         c.restore();
+        if (Theme.ANIMATE && !editing) postInvalidateDelayed(50);
         skinPaint.setStyle(Paint.Style.STROKE);
         skinPaint.setStrokeWidth(dp);
         skinPaint.setColor(0x1FFFFFFF);

@@ -44,6 +44,12 @@ Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la 
 
 ⭐ = mise à jour majeure.
 
+- [**0.62.5**](https://github.com/orikami-dev/origami/releases/tag/v0.62.5) : bouton Format sans plantage, manettes prédéfinies de retour, Accessibilité et Mises à jour dans les réglages, Sakura et Ambre refaites, liseré qui respire, sons du thème au doigt, ATH aux couleurs du téléphone, profils calés sur le Fold 8.
+- [**0.62.4**](https://github.com/orikami-dev/origami/releases/tag/v0.62.4) : son PS3 sans grésillement ni saturation, Demon's Souls calé à 30 images/s, ATH PS3/360 complet (moyenne, pic, mémoire réelle).
+- [**0.62.3**](https://github.com/orikami-dev/origami/releases/tag/v0.62.3) : gâchettes en haricots façon GameCube, Format et ×2 en icônes de coin, musique dès le choix du thème, sonar sans ligne fixe, éditeur de manette allégé.
+- [**0.62.2**](https://github.com/orikami-dev/origami/releases/tag/v0.62.2) : moteurs PS3/360 qui plantaient au lancement, sons seulement en mode sonnerie, curseurs de volume, fonds animés.
+- [**0.62.1**](https://github.com/orikami-dev/origami/releases/tag/v0.62.1) : fenêtres 360 validées seules (DMC 4), jaquettes 360, taille de manette corrigée, catégorie Son, flèche retour, musique sans coupure, nouvelle musique Écarlate, emblèmes Remote Play.
+- ⭐ [**0.62.0**](https://github.com/orikami-dev/origami/releases/tag/v0.62.0) : sons et musique par thème, assistant simple ou avancé, logo animé, Remote Play par plateforme, jaquettes 360, gâchettes en arc, touche FORMAT, menus Home PS3/360 enrichis, sauvegarde rapide PS3, décors PS3 sans interpréteur, profil joueur 360 (DMC 4), journal en un seul fichier.
 - [**0.60.14**](https://github.com/orikami-dev/origami/releases/tag/v0.60.14) : profils et réglages PS3 et Xbox 360 dans le menu Home, ATH depuis le menu.
 - [**0.60.13**](https://github.com/orikami-dev/origami/releases/tag/v0.60.13) : Xbox 360 : Skyrim corrigé, son AAudio (DMC 4), images/s dans l'ATH.
 - [**0.60.12**](https://github.com/orikami-dev/origami/releases/tag/v0.60.12) : (19/10/2026)

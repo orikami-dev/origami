@@ -272,7 +272,7 @@
  "Efface les fiches gardées, elles reviendront à la sélection": "保存した情報を消去 (選択時に再取得)",
  "Effacer le journal": "ログを消去",
  "Effet cathodique": "ブラウン管エフェクト",
- "En chantier : arrive avec le store de thèmes. Les icônes suivent le thème.": "準備中：テーマストアと同時に登場。アイコンはテーマに合わせます。",
+ "🚧🏗️ Arrive avec le store de thèmes. Les icônes suivent le thème.": "🚧🏗️ テーマストアと同時に登場。アイコンはテーマに合わせます。",
  "En haut au centre": "上中央",
  "En haut à droite": "右上",
  "En haut à gauche": "左上",
@@ -884,5 +884,10 @@
  "＋ Ajouter un code": "＋ コードを追加",
  "＋ Flex divisée": "＋ Flex 分割",
  "＋ Nouvelle": "＋ 新規",
- "＋ Taille": "＋ サイズ"
+ "＋ Taille": "＋ サイズ",
+ "Son": "サウンド",
+ "Musique": "音楽",
+ "Monitoring": "モニタリング",
+ "ATH en jeu": "ゲーム内HUD",
+ "Switch : Eden, intégré comme les autres cœurs, bientôt.": "Switch：Eden。他のコアと同様に内蔵予定です。"
 }

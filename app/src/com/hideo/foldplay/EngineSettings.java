@@ -57,15 +57,19 @@ final class EngineSettings {
 
     private static final String[][][] X360_PROFILES = {
             // performance
+            // Relecture « aucune » en Performance et Équilibré (0.65) : la relecture rapide de la 0.62.5
+            // faisait ramer DMC 4 dès l'écran-titre (chaque résolution d'image repasse par le processeur).
+            // Elle reste en Qualité, pour les jeux qui sinon n'affichent que du noir. FBO partout :
+            // le chemin FSI demande une extension absente des puces Adreno.
             {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "none"},
                     {"anisotropic_override", "0"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
             // balanced
-            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", ""}, {"readback_resolve", "fast"},
+            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "none"},
                     {"anisotropic_override", "-1"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
             // quality
-            {{"draw_resolution_scale", "2"}, {"render_target_path_vulkan", ""}, {"readback_resolve", "fast"},
+            {{"draw_resolution_scale", "2"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "16"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
     };
@@ -74,10 +78,10 @@ final class EngineSettings {
             new Opt("Video@@Resolution Scale", "Définition interne", "En pourcentage de la définition du jeu (720p).",
                     "uint", new String[]{"100", "150", "200", "300"}, new String[]{"100 %", "150 %", "200 %", "300 %"}),
             new Opt("Video@@Shader Mode", "Préparation des shaders",
-                    "Avec interpréteur : le jeu s'affiche tout de suite pendant la préparation. Interpréteur seul : aucune attente, plus lent.",
+                    "En arrière-plan : recommandé, décors complets. Avec interpréteur : image plus tôt mais certains décors restent noirs (textures de sommets).",
                     "string",
-                    new String[]{"Async Recompiler with Shader Interpreter", "Async Recompiler (multi-threaded)", "Shader Interpreter only"},
-                    new String[]{"En arrière-plan avec interpréteur", "En arrière-plan", "Interpréteur seul"}),
+                    new String[]{"Async Recompiler (multi-threaded)", "Async Recompiler with Shader Interpreter", "Shader Interpreter only"},
+                    new String[]{"En arrière-plan", "En arrière-plan avec interpréteur", "Interpréteur seul"}),
             new Opt("Video@@Anisotropic Filter Override", "Filtrage anisotrope", "Netteté des textures vues de biais.",
                     "uint", new String[]{"0", "4", "8", "16"}, new String[]{"Jeu", "×4", "×8", "×16"}),
             new Opt("Video@@Output Scaling Mode", "Mise à l'échelle", "FSR : agrandissement net (AMD FidelityFX).",
@@ -94,15 +98,15 @@ final class EngineSettings {
     };
 
     private static final String[][][] PS3_PROFILES = {
-            {{"Video@@Resolution Scale", "100"}, {"Video@@Shader Mode", "Async Recompiler with Shader Interpreter"},
+            {{"Video@@Resolution Scale", "100"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "0"}, {"Video@@Output Scaling Mode", "Bilinear"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
-            {{"Video@@Resolution Scale", "150"}, {"Video@@Shader Mode", "Async Recompiler with Shader Interpreter"},
+            {{"Video@@Resolution Scale", "150"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "4"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution 1"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
-            {{"Video@@Resolution Scale", "200"}, {"Video@@Shader Mode", "Async Recompiler with Shader Interpreter"},
+            {{"Video@@Resolution Scale", "200"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "16"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution 1"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
@@ -164,12 +168,61 @@ final class EngineSettings {
     }
 
     /** PS3 : les réglages sont écrits dans la configuration du moteur avant le lancement du jeu. */
-    static void applyPs3(Context ctx) {
+    static void applyPs3(Context ctx, String game) {
+        String g = game == null ? "" : game.toUpperCase(java.util.Locale.ROOT);
+        boolean demons = g.contains("DEMON") || g.contains("BLES00932") || g.contains("BLUS30443")
+                || g.contains("BCJS30022") || g.contains("BCAS20071");
         for (Opt o : PS3_OPTS) {
             try {
-                Ps3Core.nativeSettingsSet(o.key, get(ctx, PS3, o));
+                String v = get(ctx, PS3, o);
+                boolean mine = prefs(ctx, PS3).getString("v_" + o.key, null) != null;
+                // Correctifs par jeu, sauf si BOSS a choisi lui-même la valeur (0.62.1) :
+                // Demon's Souls a besoin des tampons de couleur pour dessiner le monde après la cinématique,
+                // et tourne à 30 images/s : calé dessus, il ne saute plus entre 30, 40 et 60 (0.62.3).
+                if (demons && !mine && o.key.equals("Video@@Write Color Buffers")) v = "true";
+                if (demons && !mine && o.key.equals("Video@@Frame limit")) v = "30";
+                // Limité par le processeur (journal du 20/10 : CPU 239 %) : monter la définition ne
+                // rend rien de plus fluide et chauffe pour rien, donc 100 % sauf choix de BOSS.
+                if (demons && !mine && o.key.equals("Video@@Resolution Scale")) v = "100";
+                Ps3Core.nativeSettingsSet(o.key, v);
             } catch (Throwable ignored) {
                 // Réglage inconnu de cette version du moteur : on garde le sien.
+            }
+        }
+        // Sauvegardes rapides : sans ce mode, le moteur n'arrive pas à figer les SPU.
+        // Son (0.62.3) : un tampon plus long et l'étirement du temps évitent les craquements et
+        // les coupures quand le jeu ralentit ; volume à 80 % pour ne plus saturer.
+        String[][] fixed = {
+                {"Savestate@@Compatible Savestate Mode", "true"},
+                {"Audio@@Enable Buffering", "true"},
+                {"Audio@@Desired Audio Buffer Duration", "150"},
+                {"Audio@@Enable Time Stretching", "true"},
+                {"Audio@@Time Stretching Threshold", "75"},
+                {"Audio@@Master Volume", "80"},
+        };
+        // Réglages processeur par profil, calés sur la puce du Fold 8 (8 cœurs Oryon, 0.62.5) :
+        // blocs SPU plus gros et calcul flottant allégé en Performance, threads de compilation
+        // des shaders sur 6 cœurs, flux de textures asynchrone pour éviter les à-coups.
+        int prof = CoreProfiles.index(profile(ctx, PS3));
+        String[][] cpu = {
+                {"Core@@SPU Block Size", new String[] {"Mega", "Mega", "Safe"}[prof]},
+                {"Core@@SPU XFloat Accuracy", new String[] {"Relaxed", "Approximate", "Approximate"}[prof]},
+                {"Core@@Max SPURS Threads", new String[] {"4", "6", "6"}[prof]},
+                {"Core@@Preferred SPU Threads", new String[] {"0", "0", "0"}[prof]},
+                {"Video@@Shader Compiler Threads", "6"},
+                {"Video@@Relaxed ZCULL Sync", new String[] {"true", "true", "false"}[prof]},
+                {"Video@@Asynchronous Texture Streaming", "true"},
+        };
+        for (String[] kv : cpu) {
+            try {
+                Ps3Core.nativeSettingsSet(kv[0], kv[1]);
+            } catch (Throwable ignored) {
+            }
+        }
+        for (String[] kv : fixed) {
+            try {
+                Ps3Core.nativeSettingsSet(kv[0], kv[1]);
+            } catch (Throwable ignored) {
             }
         }
     }

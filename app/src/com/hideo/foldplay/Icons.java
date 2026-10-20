@@ -255,6 +255,52 @@ final class Icons extends Drawable {
                 c.drawLine(12, 16, 12, 19, stroke);
                 c.drawLine(8, 19.5f, 16, 19.5f, stroke);
                 break;
+            case "monitoring":
+                // Courbe de mesures dans un cadre (ATH, RTSS).
+                r.set(3.5f, 4.5f, 20.5f, 19.5f);
+                c.drawRoundRect(r, 2, 2, stroke);
+                path.moveTo(6.5f, 14.5f);
+                path.lineTo(9.5f, 14.5f);
+                path.lineTo(11, 9.5f);
+                path.lineTo(13.5f, 16);
+                path.lineTo(15, 12.5f);
+                path.lineTo(17.5f, 12.5f);
+                c.drawPath(path, stroke);
+                break;
+            case "sound":
+                // Haut-parleur et deux ondes.
+                path.moveTo(4, 9.5f);
+                path.lineTo(7.5f, 9.5f);
+                path.lineTo(12, 5.5f);
+                path.lineTo(12, 18.5f);
+                path.lineTo(7.5f, 14.5f);
+                path.lineTo(4, 14.5f);
+                path.close();
+                c.drawPath(path, stroke);
+                r.set(11, 8.5f, 18, 15.5f);
+                c.drawArc(r, -50, 100, false, stroke);
+                r.set(10, 5, 21.5f, 19);
+                c.drawArc(r, -50, 100, false, stroke);
+                break;
+            case "a11y":
+                // Silhouette bras ouverts dans un cercle (accessibilité).
+                c.drawCircle(12, 12, 9.5f, stroke);
+                c.drawCircle(12, 7.2f, 1.4f, fill);
+                c.drawLine(6.5f, 9.8f, 17.5f, 9.8f, stroke);
+                c.drawLine(12, 9.8f, 12, 13.5f, stroke);
+                c.drawLine(12, 13.5f, 9.5f, 18, stroke);
+                c.drawLine(12, 13.5f, 14.5f, 18, stroke);
+                break;
+            case "updates":
+                // Flèche circulaire et flèche vers le bas.
+                r.set(4, 4, 20, 20);
+                c.drawArc(r, -60, 300, false, stroke);
+                c.drawLine(16, 4.2f, 20, 5.3f, stroke);
+                c.drawLine(16, 4.2f, 17, 8.2f, stroke);
+                c.drawLine(12, 8, 12, 15.5f, stroke);
+                c.drawLine(9, 12.8f, 12, 15.8f, stroke);
+                c.drawLine(15, 12.8f, 12, 15.8f, stroke);
+                break;
             case "about":
                 c.drawCircle(12, 12, 8.5f, stroke);
                 c.drawLine(12, 11, 12, 16.5f, stroke);

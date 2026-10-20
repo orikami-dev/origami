@@ -89,6 +89,9 @@ final class ConsolePad {
         }
     }
 
+    /** Gâchettes en arc autour des commandes des pouces (réglé par le deck depuis Store.ergoTriggers). */
+    static boolean ergo = true;
+
     /** Valeur par défaut hors jeu (accueil, éditeur) : une manette moderne neutre. */
     static final String GENERIC = "generic";
     /** Manette réservée à l'écran d'accueil. */
@@ -272,6 +275,7 @@ final class ConsolePad {
         if (!s.nav) {
             l.add("QSAVE", 12, 1, 5, 2, c, r);
             l.add("FAST", 19, 8, 6, 2, c, r);
+            l.add("ASPECT", 19, 11, 6, 2, c, r);
             l.add("QLOAD", 26, 1, 5, 2, c, r);
         }
         l.kind = "flex";
@@ -284,6 +288,8 @@ final class ConsolePad {
     // Mêmes tailles que PadDesign (cases de 16 dp).
     private static final float M = 1.25f, G = 0.5f, STICK = 8f, DPAD = 8.5f, LEVER = 9f, FACE = 3.6f;
     private static final float SH_W = 5.75f, SH_H = 2.5f, PILL_W = 4f, PILL_H = 1.75f, HOME = 3.5f;
+    /** Format et Accélérer : petites icônes rondes calées dans les coins du haut (0.62.3). */
+    static final float ICON = 2.6f, CORNER = 0.8f;
 
     /** Rayon du groupe de boutons (à l'échelle 1), depuis son centre. */
     private static float faceRadius(Spec s) {
@@ -304,21 +310,146 @@ final class ConsolePad {
     /** Cases [x, y, l, h] de chaque touche de la manette Flex, pour une zone de w × h cases. */
     static void place(ControlLayout l, PadDesign.Out o, float w, float h, boolean bottom) {
         Spec s = of(l.family);
-        if (bottom && solve(s, w, h, true) < 0.85f && solve(s, w, h, false) > solve(s, w, h, true) + 0.02f) bottom = false;
-        float k = solve(s, w, h, bottom);
+        // Les haricots ne doivent pas rapetisser franchement la manette (0.62.1) : sinon, empilées.
+        boolean arc = arc(s) && solve(s, w, h, bottom, true) >= solve(s, w, h, bottom, false) * 0.9f;
+        if (bottom && solve(s, w, h, true, arc) < 0.85f && solve(s, w, h, false, arc) > solve(s, w, h, true, arc) + 0.02f) bottom = false;
+        float k = solve(s, w, h, bottom, arc);
         float m = M * k, g = G * k;
-        // Gâchettes empilées dans les coins du haut.
         float sw = SH_W * k, sh = SH_H * k;
-        for (int i = 0; i < s.shL.size(); i++) o.box(s.shL.get(i)[0], m, m + i * (sh + g), sw, sh);
-        for (int i = 0; i < s.shR.size(); i++) o.box(s.shR.get(i)[0], w - m - sw, m + i * (sh + g), sw, sh);
         float[] left = side(s, w, h, k, size(s.leftOut, s) * k / 2, size(s.leftIn, s) * k / 2);
         float[] right = side(s, w, h, k, faceRadius(s) * k, size(s.rightIn, s) * k / 2);
+        if (arc) {
+            float[][] bl = beans(s.shL, left[0], left[1], size(s.leftOut, s) * k / 2, true, k, left[0]);
+            float[][] br = beans(s.shR, w - right[0], right[1], faceRadius(s) * k, false, k, right[0]);
+            for (int i = 0; i < bl.length; i++) o.bean(s.shL.get(i)[0], bl[i]);
+            for (int i = 0; i < br.length; i++) o.bean(s.shR.get(i)[0], br[i]);
+        } else {
+            // Gâchettes empilées dans les coins du haut (disposition d'origine de la manette).
+            for (int i = 0; i < s.shL.size(); i++) o.box(s.shL.get(i)[0], m, m + i * (sh + g), sw, sh);
+            for (int i = 0; i < s.shR.size(); i++) o.box(s.shR.get(i)[0], w - m - sw, m + i * (sh + g), sw, sh);
+        }
         if (s.leftOut != null) o.circle(s.leftOut, left[0], left[1], size(s.leftOut, s) * k / 2);
         if (s.leftIn != null) o.circle(s.leftIn, left[2], left[3], size(s.leftIn, s) * k / 2);
         float fx = w - right[0], fy = right[1];
         for (Key key : s.face) o.circle(key.type, fx + key.x * FACE * k, fy + key.y * FACE * k, key.size * FACE * k / 2);
         if (s.rightIn != null) o.circle(s.rightIn, w - right[2], right[3], size(s.rightIn, s) * k / 2);
         center(o, w, h, k, bottom);
+        corners(o, w, k, arc ? 0 : Math.max(s.shL.size(), s.shR.size()));
+    }
+
+    /**
+     * Format d'image (coin gauche) et Accélérer (coin droit) : petites icônes collées aux coins
+     * du haut, loin des pouces, pour ne pas les toucher par erreur ; sous les gâchettes empilées
+     * s'il y en a (stack rangées).
+     */
+    static void corners(PadDesign.Out o, float w, float k, int stack) {
+        float m = (stack == 0 ? CORNER : M) * k, g = G * k, ic = ICON * k;
+        float y = m + stack * (SH_H * k + g);
+        o.box("ASPECT", m, y, ic, ic);
+        o.box("FAST", w - m - ic, y, ic, ic);
+    }
+
+    /** Variante à côté des gâchettes empilées, vers le centre, à leur hauteur. */
+    static void cornersBeside(PadDesign.Out o, float w, float k) {
+        float m = M * k, g = G * k, ic = ICON * k, x = m + SH_W * k + g;
+        o.box("ASPECT", x, m, ic, ic);
+        o.box("FAST", w - x - ic, m, ic, ic);
+    }
+
+    /** Bas des icônes de coin (avec l'écart), pour stack rangées de gâchettes empilées au-dessus. */
+    static float cornerBottom(float k, int stack) {
+        return (stack == 0 ? CORNER : M) * k + stack * (SH_H * k + G * k) + ICON * k + G * k;
+    }
+
+    /** Un cercle (centre x depuis le bord, y) ne touche pas l'icône de coin. */
+    static boolean cornerClear(float x, float y, float r, float k, int stack) {
+        float m = (stack == 0 ? CORNER : M) * k, g = G * k, ic = ICON * k;
+        float top = m + stack * (SH_H * k + g);
+        float dx = Math.max(0, Math.max(m - x, x - (m + ic)));
+        float dy = Math.max(0, Math.max(top - y, y - (top + ic)));
+        return dx * dx + dy * dy >= (r + g) * (r + g);
+    }
+
+    /** Une gâchette tournée (boîte englobante centrée cx, cy, demi-tailles ex, ey) évite les coins. */
+    static boolean cornerClear(float cx, float cy, float ex, float ey, float w, float k) {
+        float m = CORNER * k, g = G * k, ic = ICON * k;
+        if (cy - ey >= m + ic + g) return true;
+        return cx - ex >= m + ic + g && cx + ex <= w - m - ic - g;
+    }
+
+    /** Gâchettes en arc : pour toutes les consoles sauf la GameCube, dont les gâchettes sont déjà basses. */
+    private static boolean arc(Spec s) {
+        return ergo && !s.family.equals("gc") && !s.family.equals(HOME_PAD) && (!s.shL.isEmpty() || !s.shR.isEmpty())
+                && (s.leftOut != null || s.leftIn != null);
+    }
+
+    /** Haricot : longueur le long de l'arc et épaisseur, en cases (0.62.3). */
+    static final float BEAN_LEN = 4.6f, BEAN_TH = 2.1f;
+
+    /**
+     * Gâchettes en haricots, comme les touches X et Y de la manette GameCube autour de leur gros
+     * bouton : de vraies bandes incurvées qui épousent le groupe (centre cx, cy, rayon r), côte à
+     * côte sans se toucher. Les premières de la liste sont les plus proches du bord de l'écran.
+     */
+    private static float[][] beans(List<String[]> list, float cx, float cy, float r, boolean left, float k, float room) {
+        int n = list.size();
+        String[] types = new String[n];
+        for (int i = 0; i < n; i++) types[i] = list.get(i)[0];
+        return beanArc(n, cx, cy, r, left, k, G * k, room);
+    }
+
+    /** n haricots sur l'arc au-dessus d'un groupe ; chacun : [x, y, l, h, degrés, R/l, épaisseur/l, demi-angle]. */
+    static float[][] beanArc(int n, float cx, float cy, float r, boolean left, float k, float g) {
+        return beanArc(n, cx, cy, r, left, k, g, Float.MAX_VALUE);
+    }
+
+    /** Idem, en tournant tout l'arc vers le centre tant que le premier haricot dépasse le bord (room : centre → bord). */
+    static float[][] beanArc(int n, float cx, float cy, float r, boolean left, float k, float g, float room) {
+        float len = BEAN_LEN * k, th = BEAN_TH * k;
+        float rad = r + g + th / 2;
+        float step = (float) Math.toDegrees((len + th + 1.5f * g) / rad);
+        // Vers le centre de l'écran : le premier presque à la verticale, le suivant à côté.
+        float start = n > 1 ? -0.2f * step : 0.25f * step;
+        for (int t = 0; t < 40 && start < 0.6f * step; t++) {
+            float[] b = bean(cx, cy, rad, start, len, th);
+            if (leftmost(b) - cx + room >= g) break;
+            start += 1;
+        }
+        float[][] out = new float[n][];
+        for (int i = 0; i < n; i++) out[i] = bean(cx, cy, rad, (left ? 1 : -1) * (start + (n > 1 ? i * step : 0)), len, th);
+        return out;
+    }
+
+    /** Bord gauche d'un haricot tourné (boîte englobante), en x. */
+    private static float leftmost(float[] b) {
+        double a = Math.toRadians(b[4]);
+        float ex = (float) (Math.abs(b[2] * Math.cos(a)) + Math.abs(b[3] * Math.sin(a))) / 2;
+        return b[0] + b[2] / 2 - ex;
+    }
+
+    /** Un haricot centré sur l'arc de rayon rad, à deg degrés de la verticale, autour de (cx, cy). */
+    static float[] bean(float cx, float cy, float rad, float deg, float len, float th) {
+        float phi = len / 2 / rad;                                   // demi-angle de la bande
+        float ro = rad + th / 2;
+        float bw = 2 * (rad * (float) Math.sin(phi) + th / 2);
+        float top = -ro, bottom = -(rad * (float) Math.cos(phi) - th / 2);
+        float bh = bottom - top;
+        float my = (top + bottom) / 2;                               // centre de la boîte, repère non tourné
+        double a = Math.toRadians(deg);
+        float x = cx - (float) (my * Math.sin(a)), y = cy + (float) (my * Math.cos(a));
+        return new float[] {x - bw / 2, y - bh / 2, bw, bh, deg, rad / bw, th / bw, (float) Math.toDegrees(phi)};
+    }
+
+    /** Une gâchette tournée tient-elle dans la zone et hors de la rangée du centre ? */
+    private static boolean beanFits(float[] b, float w, float ch, float cBottom, float g, float k) {
+        double a = Math.toRadians(b[4]);
+        float ex = (float) (Math.abs(b[2] * Math.cos(a)) + Math.abs(b[3] * Math.sin(a))) / 2;
+        float ey = (float) (Math.abs(b[2] * Math.sin(a)) + Math.abs(b[3] * Math.cos(a))) / 2;
+        float cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
+        if (cx - ex < g || cx + ex > w - g || cy - ey < g) return false;
+        if (!cornerClear(cx, cy, ex, ey, w, k)) return false;
+        boolean beside = cx + ex <= w / 2 - ch - g || cx - ex >= w / 2 + ch + g;
+        return beside || cy - ey >= cBottom + g;
     }
 
     /**
@@ -339,7 +470,7 @@ final class ConsolePad {
         return new float[] {m + rOut, yIn - dy, m + rOut + dx, yIn};
     }
 
-    /** Maison au milieu, Select et Start de chaque côté, Accélérer et sauvegardes rapides à côté. */
+    /** Maison au milieu, Select et Start de chaque côté, sauvegarde et chargement rapides dessous. */
     private static void center(PadDesign.Out o, float w, float h, float s, boolean bottom) {
         float m = M * s, g = G * s, hm = HOME * s, pw = PILL_W * s, ph = PILL_H * s;
         float homeY = bottom ? h - m - hm : m;
@@ -349,29 +480,29 @@ final class ConsolePad {
         o.box("SELECT", w / 2 - sideX - pw / 2, cy - ph / 2, pw, ph);
         o.box("START", w / 2 + sideX - pw / 2, cy - ph / 2, pw, ph);
         float rowY = bottom ? homeY - g - ph : homeY + hm + g;
-        o.box("FAST", w / 2 - pw / 2, rowY, pw, ph);
-        o.box("QSAVE", w / 2 - sideX - pw / 2, rowY, pw, ph);
-        o.box("QLOAD", w / 2 + sideX - pw / 2, rowY, pw, ph);
+        o.box("QSAVE", w / 2 - g / 2 - pw, rowY, pw, ph);
+        o.box("QLOAD", w / 2 + g / 2, rowY, pw, ph);
     }
 
     /** La plus grande échelle (0,45 à 1,15, 1,35 en rétro) à laquelle tout tient sans chevauchement. */
-    private static float solve(Spec s, float w, float h, boolean bottom) {
+    private static float solve(Spec s, float w, float h, boolean bottom, boolean arc) {
         // Manettes rétro (croix et boutons seulement) : plus de place, touches un peu plus grandes.
         float lo = 0.45f, hi = s.leftIn == null && s.rightIn == null ? 1.35f : 1.15f;
-        if (fits(s, w, h, hi, bottom)) return hi;
+        if (fits(s, w, h, hi, bottom, arc)) return hi;
         for (int i = 0; i < 18; i++) {
             float mid = (lo + hi) / 2;
-            if (fits(s, w, h, mid, bottom)) lo = mid;
+            if (fits(s, w, h, mid, bottom, arc)) lo = mid;
             else hi = mid;
         }
         return lo;
     }
 
-    private static boolean fits(Spec s, float w, float h, float k, boolean bottom) {
+    private static boolean fits(Spec s, float w, float h, float k, boolean bottom, boolean arc) {
         float m = M * k, g = G * k;
-        float ch = (HOME / 2 + G + PILL_W) * k, cH = (HOME + G + PILL_H) * k;
-        int stack = Math.max(s.shL.size(), s.shR.size());
+        float ch = (HOME / 2 + G + PILL_W) * k, cH = (HOME + 2 * G + 2 * PILL_H) * k;
+        int stack = arc ? 0 : Math.max(s.shL.size(), s.shR.size());
         float shBottom = stack == 0 ? 0 : m + stack * SH_H * k + (stack - 1) * g;
+        if (stack > 0) shBottom = cornerBottom(k, stack) - g;
         if (stack > 0 && !bottom && m + SH_W * k + g > w / 2 - ch) return false;
         float cTop = bottom ? h - m - cH : m, cBottom = bottom ? h - m : m + cH;
         float[] rOut = {size(s.leftOut, s) * k / 2, faceRadius(s) * k};
@@ -382,10 +513,25 @@ final class ConsolePad {
                 if (p[0] + rOut[i] > w / 2 - g / 2) return false;
                 if (p[1] - rOut[i] < shBottom + g) return false;
                 if (!clear(p[0], p[1], rOut[i], w, ch, cTop, cBottom, g)) return false;
+                if (!cornerClear(p[0], p[1], rOut[i], k, stack)) return false;
             }
             if (rIn[i] > 0) {
                 if (p[2] + rIn[i] > w / 2 - g / 2) return false;
                 if (!clear(p[2], p[3], rIn[i], w, ch, cTop, cBottom, g)) return false;
+                if (!cornerClear(p[2], p[3], rIn[i], k, stack)) return false;
+            }
+            if (arc && rOut[i] > 0) {
+                float[][] bs = i == 0 ? beans(s.shL, p[0], p[1], rOut[i], true, k, p[0])
+                        : beans(s.shR, w - p[0], p[1], rOut[i], false, k, p[0]);
+                for (float[] b : bs) {
+                    if (!beanFits(b, w, ch, cBottom, g, k)) return false;
+                    // Ni sur la commande intérieure du même pouce.
+                    if (rIn[i] > 0) {
+                        float ix = i == 0 ? p[2] : w - p[2];
+                        float dx = b[0] + b[2] / 2 - ix, dy = b[1] + b[3] / 2 - p[3];
+                        if (Math.sqrt(dx * dx + dy * dy) < rIn[i] + b[3] / 2 + g) return false;
+                    }
+                }
             }
         }
         return true;

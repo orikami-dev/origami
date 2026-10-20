@@ -111,7 +111,7 @@ final class CodecMenu extends FrameLayout {
         return this;
     }
 
-    /** Une entrée visible mais fermée (fonction annoncée, « en chantier ») : rien ne s'ouvre. */
+    /** Une entrée visible mais fermée (fonction annoncée, « en construction ») : rien ne s'ouvre. */
     CodecMenu soon(android.graphics.drawable.Drawable icon, String label, String detail) {
         Item it = new Item(label, detail, 0, null, true);
         it.icon = icon;
@@ -222,7 +222,7 @@ final class CodecMenu extends FrameLayout {
                             .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
                 }
             }).start();
-            CodecSound.call(getContext());
+            UiSound.play(getContext(), UiSound.OPEN);
         }
         setFocus(0);
     }
@@ -268,7 +268,27 @@ final class CodecMenu extends FrameLayout {
         // En-tête : barre verte, titre au pochoir, sous-titre.
         LinearLayout head = new LinearLayout(getContext());
         head.setGravity(Gravity.CENTER_VERTICAL);
-        head.setPadding(px(18), 0, px(18), px(8));
+        head.setPadding(px(10), 0, px(18), px(8));
+        // Flèche retour aux couleurs du thème, sur chaque menu et sous-menu (0.62.1).
+        android.widget.ImageView backBtn = new android.widget.ImageView(getContext());
+        backBtn.setImageDrawable(Icons.of(getContext(), "back", Theme.CODEC, 22));
+        backBtn.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+        backBtn.setContentDescription(I18n.tr("Retour"));
+        backBtn.setBackground(Theme.pill(Theme.alpha(Theme.CODEC, 0x1A), px(20)));
+        backBtn.setOnClickListener(new OnClickListener() {
+            public void onClick(View v) {
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                goBack();
+            }
+        });
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(px(40), px(40));
+        // Droitier : la flèche passe en haut à droite, sous le pouce (Réglages > Accessibilité).
+        boolean backRight = Theme.RIGHT_HANDED;
+        if (backRight) blp.leftMargin = px(10);
+        else {
+            blp.rightMargin = px(10);
+            head.addView(backBtn, blp);
+        }
         View bar = new View(getContext());
         bar.setBackgroundColor(Theme.CODEC);
         head.addView(bar, new LinearLayout.LayoutParams(px(4), px(26)));
@@ -306,6 +326,7 @@ final class CodecMenu extends FrameLayout {
             });
             head.addView(hb, new LinearLayout.LayoutParams(px(44), px(44)));
         }
+        if (backRight) head.addView(backBtn, blp);
         card.addView(head);
         messageView = null;
         if (message != null) {
@@ -321,6 +342,12 @@ final class CodecMenu extends FrameLayout {
 
         LinearLayout list = new LinearLayout(getContext());
         list.setOrientation(LinearLayout.VERTICAL);
+        // Navigation au sens de la main (0.65) : droitier = entrées alignées à droite, marque et icône
+        // côté pouce, colonnes lues de droite à gauche ; gaucher = tout à gauche. Le texte reste lu normalement.
+        if (Theme.RIGHT_HANDED) {
+            list.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            list.setTextDirection(View.TEXT_DIRECTION_LTR);
+        }
         int hw = host != null && host.getWidth() > 0 ? host.getWidth() : px(600);
         // Toute la pilule du haut : deux colonnes dès qu'il y a la place, pour voir plus d'entrées.
         columns = hw >= px(620) && items.size() > 3 ? 2 : 1;
@@ -571,7 +598,9 @@ final class CodecMenu extends FrameLayout {
 
     private void setFocus(int i) {
         if (rows.isEmpty()) return;
+        int before = focus;
         focus = Math.max(0, Math.min(rows.size() - 1, i));
+        if (focus != before && isShown()) UiSound.play(getContext(), UiSound.MOVE);
         for (int k = 0; k < rows.size(); k++) {
             View r = rows.get(k);
             if (k == focus) {
@@ -601,6 +630,7 @@ final class CodecMenu extends FrameLayout {
     private void activate(int i) {
         if (i < 0 || i >= items.size()) return;
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        UiSound.play(getContext(), UiSound.SELECT);
         Item it = items.get(i);
         if (!it.keepOpen) {
             // On ferme d'abord : l'action peut ouvrir un autre menu à la place.
@@ -640,6 +670,7 @@ final class CodecMenu extends FrameLayout {
     }
 
     private void goBack() {
+        UiSound.play(getContext(), UiSound.BACK);
         if (back != null) back.run();
         else dismiss();
     }

@@ -125,4 +125,40 @@ final class BiosImport {
         Integer k = r.done.get(to[2]);
         r.done.put(to[2], k == null ? 1 : k + 1);
     }
+
+    /** Copie dans system/ les fichiers choisis par le sélecteur de documents. */
+    static Report fromIntent(android.content.Context ctx, android.content.Intent data) {
+        java.util.List<android.net.Uri> uris = new java.util.ArrayList<android.net.Uri>();
+        if (data.getClipData() != null) {
+            for (int i = 0; i < data.getClipData().getItemCount(); i++) uris.add(data.getClipData().getItemAt(i).getUri());
+        } else if (data.getData() != null) {
+            uris.add(data.getData());
+        }
+        File base = ctx.getExternalFilesDir(null);
+        File system = new File(base != null ? base : ctx.getFilesDir(), "system");
+        Report report = new Report();
+        for (android.net.Uri u : uris) {
+            String name = "bios.bin";
+            android.database.Cursor c = ctx.getContentResolver().query(u,
+                    new String[] {android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null);
+            if (c != null) {
+                try {
+                    if (c.moveToFirst() && c.getString(0) != null) name = new File(c.getString(0)).getName();
+                } finally {
+                    c.close();
+                }
+            }
+            try {
+                InputStream in = ctx.getContentResolver().openInputStream(u);
+                try {
+                    add(system, name, in, report);
+                } finally {
+                    in.close();
+                }
+            } catch (IOException | SecurityException e) {
+                report.skipped++;
+            }
+        }
+        return report;
+    }
 }

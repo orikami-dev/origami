@@ -173,18 +173,38 @@ final class DebugLog {
     }
 
     /** Partage les journaux et les rapports de plantage, précédés d'une fiche de l'appareil. */
+    /** Part la plus récente d'un journal gardée dans l'envoi (assez pour un retour de bug). */
+    private static final int KEEP = 1536 * 1024;
+
+    /**
+     * Un seul fichier texte (text/plain) : fiche de l'appareil, puis chaque journal et rapport à la
+     * suite. En texte, l'envoi est accepté par toutes les apps, Claude compris (0.62) ; les
+     * rapports binaires (.pb) restent sur le téléphone.
+     */
     static void share(Activity a) {
         List<SaveImport.Out> outs = new ArrayList<SaveImport.Out>();
         try {
-            outs.add(new SaveImport.Out("origami-appareil.txt", info(a).getBytes("UTF-8")));
+            StringBuilder all = new StringBuilder(info(a)).append('\n');
             File[] fs = dir(a).listFiles();
-            if (fs != null) for (File f : fs) outs.add(new SaveImport.Out("origami-" + f.getName(), read(f)));
+            if (fs != null) {
+                java.util.Arrays.sort(fs);
+                for (File f : fs) {
+                    // Rapports de plantage natifs au format binaire : illisibles dans un envoi texte.
+                    if (f.getName().endsWith(".pb")) continue;
+                    byte[] b = read(f);
+                    int from = Math.max(0, b.length - KEEP);
+                    all.append("\n===== ").append(f.getName());
+                    if (from > 0) all.append(" (fin du fichier, ").append(KEEP / 1024).append(" Ko)");
+                    all.append(" =====\n").append(new String(b, from, b.length - from, "UTF-8")).append('\n');
+                }
+            }
+            outs.add(0, new SaveImport.Out("origami-journal-" + stamp() + ".txt", all.toString().getBytes("UTF-8")));
         } catch (IOException e) {
             I18n.toast(a, "Lecture du journal impossible : " + e.getMessage(),
                     android.widget.Toast.LENGTH_LONG).show();
             return;
         }
-        SaveTransfer.share(a, outs, "Envoyer le journal");
+        SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain");
     }
 
     private static byte[] read(File f) throws IOException {
