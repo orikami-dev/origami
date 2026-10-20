@@ -205,6 +205,13 @@ final class CodecMenu extends FrameLayout {
         }
         build();
         where.addView(this, new FrameLayout.LayoutParams(-1, -1));
+        // Voile sombre sur tout l'écran, barres d'état et de navigation comprises (0.65).
+        where.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                post(new Runnable() { public void run() { extend(); } });
+            }
+        });
+        post(new Runnable() { public void run() { extend(); } });
         if (replacing) {
             // Sous-menu : simple fondu, sans relancer l'appel.
             card.setAlpha(0f);
@@ -225,6 +232,29 @@ final class CodecMenu extends FrameLayout {
             UiSound.play(getContext(), UiSound.OPEN);
         }
         setFocus(0);
+    }
+
+    /**
+     * Étend le voile jusqu'aux bords de la fenêtre : marges négatives égales à ce qui dépasse de la zone
+     * hôte, et la même marge en remplissage pour que la carte reste à sa place.
+     */
+    private void extend() {
+        if (host == null || getParent() != host || host.getWidth() == 0) return;
+        View decor = host.getRootView();
+        int[] at = new int[2];
+        host.getLocationInWindow(at);
+        int l = Math.max(0, at[0]), t = Math.max(0, at[1]);
+        int r = Math.max(0, decor.getWidth() - (at[0] + host.getWidth()));
+        int b = Math.max(0, decor.getHeight() - (at[1] + host.getHeight()));
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
+        if (lp.leftMargin == -l && lp.topMargin == -t && lp.rightMargin == -r && lp.bottomMargin == -b) return;
+        for (android.view.ViewParent p = host; p instanceof android.view.ViewGroup; p = p.getParent()) {
+            ((android.view.ViewGroup) p).setClipChildren(false);
+            ((android.view.ViewGroup) p).setClipToPadding(false);
+        }
+        lp.setMargins(-l, -t, -r, -b);
+        setLayoutParams(lp);
+        setPadding(l, t, r, b);
     }
 
     static CodecMenu find(FrameLayout where) {
