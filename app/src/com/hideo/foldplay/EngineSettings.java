@@ -58,15 +58,13 @@ final class EngineSettings {
 
     private static final String[][][] X360_PROFILES = {
             // performance
-            // Relecture « aucune » en Performance et Équilibré (0.65) : la relecture rapide de la 0.62.5
-            // faisait ramer DMC 4 dès l'écran-titre (chaque résolution d'image repasse par le processeur).
-            // Elle reste en Qualité, pour les jeux qui sinon n'affichent que du noir. FBO partout :
-            // le chemin FSI demande une extension absente des puces Adreno.
-            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "none"},
+            // Relecture « rapide » partout (0.65.3) : avec « aucune », DMC 4 n'affichait aucune image en Performance.
+            // FBO partout : le chemin FSI demande une extension absente des puces Adreno.
+            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "0"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
             // balanced
-            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "none"},
+            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "-1"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
             // quality

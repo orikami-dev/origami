@@ -2,6 +2,10 @@
 
 Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
 
+## 0.65.3
+
+360 : relecture rapide en Performance et Équilibré (image noire corrigée).
+
 ## 0.65.2
 
 Moteur Xbox 360 recompilé (correctif du son 360 embarqué).
