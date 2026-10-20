@@ -289,7 +289,7 @@ final class ConsolePad {
     private static final float M = 1.25f, G = 0.5f, STICK = 8f, DPAD = 8.5f, LEVER = 9f, FACE = 3.6f;
     private static final float SH_W = 5.75f, SH_H = 2.5f, PILL_W = 4f, PILL_H = 1.75f, HOME = 3.5f;
     /** Format et Accélérer : petites icônes rondes calées dans les coins du haut (0.62.3). */
-    static final float ICON = 2.25f;
+    static final float ICON = 2.6f, CORNER = 0.8f;
 
     /** Rayon du groupe de boutons (à l'échelle 1), depuis son centre. */
     private static float faceRadius(Spec s) {
@@ -343,7 +343,7 @@ final class ConsolePad {
      * s'il y en a (stack rangées).
      */
     static void corners(PadDesign.Out o, float w, float k, int stack) {
-        float m = (stack == 0 ? G : M) * k, g = G * k, ic = ICON * k;
+        float m = (stack == 0 ? CORNER : M) * k, g = G * k, ic = ICON * k;
         float y = m + stack * (SH_H * k + g);
         o.box("ASPECT", m, y, ic, ic);
         o.box("FAST", w - m - ic, y, ic, ic);
@@ -358,12 +358,12 @@ final class ConsolePad {
 
     /** Bas des icônes de coin (avec l'écart), pour stack rangées de gâchettes empilées au-dessus. */
     static float cornerBottom(float k, int stack) {
-        return (stack == 0 ? G : M) * k + stack * (SH_H * k + G * k) + ICON * k + G * k;
+        return (stack == 0 ? CORNER : M) * k + stack * (SH_H * k + G * k) + ICON * k + G * k;
     }
 
     /** Un cercle (centre x depuis le bord, y) ne touche pas l'icône de coin. */
     static boolean cornerClear(float x, float y, float r, float k, int stack) {
-        float m = (stack == 0 ? G : M) * k, g = G * k, ic = ICON * k;
+        float m = (stack == 0 ? CORNER : M) * k, g = G * k, ic = ICON * k;
         float top = m + stack * (SH_H * k + g);
         float dx = Math.max(0, Math.max(m - x, x - (m + ic)));
         float dy = Math.max(0, Math.max(top - y, y - (top + ic)));
@@ -372,7 +372,7 @@ final class ConsolePad {
 
     /** Une gâchette tournée (boîte englobante centrée cx, cy, demi-tailles ex, ey) évite les coins. */
     static boolean cornerClear(float cx, float cy, float ex, float ey, float w, float k) {
-        float m = G * k, g = G * k, ic = ICON * k;
+        float m = CORNER * k, g = G * k, ic = ICON * k;
         if (cy - ey >= m + ic + g) return true;
         return cx - ex >= m + ic + g && cx + ex <= w - m - ic - g;
     }

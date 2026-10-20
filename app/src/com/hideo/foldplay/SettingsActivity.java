@@ -34,6 +34,8 @@ public class SettingsActivity extends Activity {
         {"covers", "Jaquettes et fiches"},
         {"display", "Affichage"},
         {"sound", "Son"},
+        {"a11y", "Accessibilité"},
+        {"updates", "Mises à jour"},
         {"about", "À propos"},
     };
 
@@ -79,9 +81,13 @@ public class SettingsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.HORIZONTAL);
         root.setBackground(Theme.backdrop(0));
+        // Droitier : la liste des catégories passe à droite, sous le pouce (Réglages > Accessibilité).
+        boolean listRight = twoPane && Theme.RIGHT_HANDED;
+        View list = null;
+        int listW = twoPane ? Math.max(240, Math.min(340, Math.round(wDp * 0.32f))) : -1;
         if (twoPane || listOnly) {
-            int listW = twoPane ? Math.max(240, Math.min(340, Math.round(wDp * 0.32f))) : -1;
-            root.addView(categories(twoPane), new LinearLayout.LayoutParams(listW < 0 ? -1 : dp(listW), -1));
+            list = categories(twoPane);
+            if (!listRight) root.addView(list, new LinearLayout.LayoutParams(listW < 0 ? -1 : dp(listW), -1));
         }
         if (!listOnly) {
             LinearLayout main = vertical();
@@ -100,7 +106,16 @@ public class SettingsActivity extends Activity {
             }
             TextView title = text(sectionTitle(section).toUpperCase(), 20, Theme.CODEC);
             title.setTypeface(Fonts.logo(this));
-            bar.addView(title);
+            if (!twoPane && Theme.RIGHT_HANDED && bar.getChildCount() > 0) {
+                // Droitier : la flèche retour passe à droite du titre.
+                View back = bar.getChildAt(0);
+                bar.removeView(back);
+                bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
+                ((TextView) back).setText("→");
+                bar.addView(back);
+            } else {
+                bar.addView(title);
+            }
             main.addView(bar);
             body = vertical();
             body.setPadding(dp(twoPane ? 20 : 16), dp(8), dp(twoPane ? 24 : 16), dp(32));
@@ -108,6 +123,7 @@ public class SettingsActivity extends Activity {
             sv.addView(body);
             main.addView(sv, new LinearLayout.LayoutParams(-1, 0, 1f));
             root.addView(main, new LinearLayout.LayoutParams(0, -1, 1f));
+            if (listRight && list != null) root.addView(list, new LinearLayout.LayoutParams(dp(listW), -1));
 
             if (section.equals("library")) library();
             else if (section.equals("emulators")) emulators();
@@ -115,6 +131,8 @@ public class SettingsActivity extends Activity {
             else if (section.equals("covers")) covers();
             else if (section.equals("display")) display();
             else if (section.equals("sound")) sound();
+            else if (section.equals("a11y")) accessibility();
+            else if (section.equals("updates")) updates();
             else if (section.equals("pads")) pads();
             else about();
         }
@@ -967,6 +985,11 @@ public class SettingsActivity extends Activity {
                 store.setHudColor(Hud.COLOR_KEYS[i]);
             }
         });
+        choice("Unité de température", Hud.UNIT_LABELS, Hud.index(Hud.UNIT_KEYS, store.tempUnit()), new Choice() {
+            public void set(int i) {
+                store.setTempUnit(Hud.UNIT_KEYS[i]);
+            }
+        });
         int rate = 1;
         for (int i = 0; i < Hud.RATES.length; i++) if (Hud.RATES[i] == store.hudRate()) rate = i;
         choice("Mise à jour", Hud.RATE_LABELS, rate, new Choice() {
@@ -1031,6 +1054,117 @@ public class SettingsActivity extends Activity {
     }
 
     /** Son (0.62.1) : sa propre catégorie, demandée par BOSS. */
+    /**
+     * Accessibilité (0.62.5) : tenue à une main (droitier ou gaucher), textes, contraste,
+     * animations, et aides de jeu pour qui a du mal à maintenir un appui ou à faire de grands gestes.
+     */
+    private void accessibility() {
+        header("Tenue à une main");
+        choice("Main qui tient le téléphone", new String[] {"Droitier", "Gaucher"}, store.rightHanded() ? 0 : 1,
+                new Choice() {
+                    public void set(int i) {
+                        store.setRightHanded(i == 0);
+                        a11yChanged();
+                    }
+                });
+        note("La flèche retour et la liste des réglages passent du côté du pouce.");
+        header("Lecture");
+        choice("Taille des textes", new String[] {"Normale", "Grande", "Très grande"}, store.a11yText(), new Choice() {
+            public void set(int i) {
+                store.setA11yText(i);
+                a11yChanged();
+            }
+        });
+        toggle("Contraste élevé", "Textes secondaires plus clairs, plus faciles à lire", store.highContrast(), new Toggle() {
+            public void set(boolean on) {
+                store.setHighContrast(on);
+                a11yChanged();
+            }
+        });
+        toggle("Réduire les animations", "Fonds fixes, liseré de la manette immobile", store.reduceMotion(), new Toggle() {
+            public void set(boolean on) {
+                store.setReduceMotion(on);
+                a11yChanged();
+            }
+        });
+        header("En jeu");
+        toggle("Gâchettes à bascule", "L2 et R2 : un appui les enfonce, le suivant les relâche, sans garder le doigt dessus",
+                store.latchTriggers(), new Toggle() {
+                    public void set(boolean on) {
+                        store.setLatchTriggers(on);
+                        Theme.sync(SettingsActivity.this);
+                    }
+                });
+        choice("Course des joysticks", new String[] {"Normale", "Courte", "Très courte"}, store.stickReach(), new Choice() {
+            public void set(int i) {
+                store.setStickReach(i);
+                Theme.sync(SettingsActivity.this);
+            }
+        });
+        note("Une course courte pousse le joystick à fond avec un petit geste du pouce.");
+        toggle("Vibrations renforcées", "Retour plus fort et plus long à chaque appui sur la manette", store.strongHaptics(),
+                new Toggle() {
+                    public void set(boolean on) {
+                        store.setStrongHaptics(on);
+                        Theme.sync(SettingsActivity.this);
+                    }
+                });
+    }
+
+    private void a11yChanged() {
+        Theme.sync(this);
+        Theme.textScale(this);
+        render();
+    }
+
+    /** Mises à jour (0.62.5) : version installée, recherche, téléchargement et installation. */
+    private void updates() {
+        header("Version installée");
+        note("Origami " + Updater.installed(this));
+        toggle("Rechercher automatiquement", "Au démarrage, deux fois par jour au plus, avec une notification et un résumé des nouveautés",
+                store.autoUpdates(), new Toggle() {
+                    public void set(boolean on) {
+                        store.setAutoUpdates(on);
+                        if (on && android.os.Build.VERSION.SDK_INT >= 33) {
+                            requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, 62);
+                        }
+                    }
+                });
+        final LinearLayout result = vertical();
+        action("Rechercher une mise à jour", "Compare avec la dernière version publiée", new Runnable() {
+            public void run() {
+                result.removeAllViews();
+                result.addView(text(I18n.tr("Recherche…"), 14, Theme.MUTED));
+                Updater.check(SettingsActivity.this, new Updater.Done() {
+                    public void done(final Updater.Release r) {
+                        result.removeAllViews();
+                        if (r.error != null) {
+                            result.addView(text(I18n.tr(r.error), 14, Theme.MUTED));
+                        } else if (!r.newer) {
+                            result.addView(text(I18n.tr("Origami est à jour."), 14, Theme.TEXT));
+                        } else {
+                            result.addView(text("Origami " + r.version, 18, Theme.CODEC));
+                            if (r.summary != null && !r.summary.isEmpty()) result.addView(text(r.summary, 14, Theme.TEXT));
+                            TextView go = text(I18n.tr("Télécharger et installer"), 16, Theme.BG);
+                            go.setBackground(Theme.pill(Theme.CODEC, dp(20)));
+                            go.setPadding(dp(18), dp(10), dp(18), dp(10));
+                            go.setOnClickListener(new View.OnClickListener() {
+                                public void onClick(View v) {
+                                    Updater.install(SettingsActivity.this, r);
+                                    toast(I18n.tr("Téléchargement lancé : l'installation s'ouvrira à la fin."));
+                                }
+                            });
+                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+                            lp.topMargin = dp(12);
+                            result.addView(go, lp);
+                        }
+                    }
+                });
+            }
+        });
+        body.addView(result);
+    }
+
     private void sound() {
         header("Interface");
         toggle("Bruits de l'interface", "Déplacement, validation, retour, ouverture d'un menu et lancement d'un jeu, "

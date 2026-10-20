@@ -133,7 +133,7 @@ public class GameActivity extends Activity {
 
     private void build() {
         FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(Theme.GAP);
+        frame.setBackground(Theme.gap());
         rootFrame = frame;
         LinearLayout root = new LinearLayout(this);
         column = root;
@@ -275,6 +275,8 @@ public class GameActivity extends Activity {
         int m = line ? dp(6) : dp(20);
         lp.setMargins(m, m, m, 0);
         hud.setLayoutParams(lp);
+        hud.setTranslationY(0);
+        Hud.avoidCutout(hud, m);
         hud.setTextSize(Hud.SIZES[Math.max(0, Math.min(2, store.hudSize()))]);
         hud.setSingleLine(line);
         hud.setMaxLines(line ? 1 : 20);
@@ -302,7 +304,7 @@ public class GameActivity extends Activity {
         int run = framesRun;
         int shown = framesShown;
         boolean block = "block".equals(store.hudStyle());
-        int label = Hud.labelColor(store.hudColor());
+        int label = Hud.labelColor(this, store.hudColor());
         if (lastHudAt == 0) {
             lastHudAt = now;
             lastCpuMs = cpu;
@@ -349,6 +351,8 @@ public class GameActivity extends Activity {
             h.charging = bat.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0;
             h.tempC = bat.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
         }
+        h.fahrenheit = "f".equals(store.tempUnit());
+        if (items.contains("heat")) h.chipC = Hud.chipC();
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
             h.heat = pm.getCurrentThermalStatus();
@@ -357,6 +361,7 @@ public class GameActivity extends Activity {
         h.width = frameW;
         h.height = frameH;
         hud.setText(Hud.compose(h, items, block, label));
+        Hud.avoidCutout(hud, block ? dp(20) : dp(6));
     }
     private LinearLayout column;
     private View gap;

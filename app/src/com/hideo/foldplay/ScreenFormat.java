@@ -93,7 +93,7 @@ final class ScreenFormat {
 
     /**
      * Cadre la surface d'un moteur dans sa zone (w × h pixels) : Auto et Étirer la remplissent,
-     * 16:9 et 4:3 la ramènent à ce rapport. Renvoie vrai si le moteur doit remplir sa surface.
+     * 16:9 et 4:3 la ramènent à ce rapport, par mise à l'échelle de la vue. Renvoie vrai si le moteur doit remplir sa surface.
      */
     static boolean fit(View screen, int w, int h, int gravity, String mode) {
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) screen.getLayoutParams();
@@ -104,12 +104,18 @@ final class ScreenFormat {
             else sh = Math.round(w / ratio);
         }
         boolean fill = !mode.equals("core");
-        if (lp.width != sw || lp.height != sh || lp.gravity != gravity) {
-            lp.width = sw;
-            lp.height = sh;
+        // La surface garde toujours la taille de la zone : la redimensionner pendant le jeu recrée
+        // la surface du moteur, qui plantait (0.62.5). Le format passe par une mise à l'échelle de la vue.
+        if (lp.width != w || lp.height != h || lp.gravity != gravity) {
+            lp.width = w;
+            lp.height = h;
             lp.gravity = gravity;
             screen.setLayoutParams(lp);
         }
+        screen.setPivotX(w / 2f);
+        screen.setPivotY((gravity & Gravity.VERTICAL_GRAVITY_MASK) == Gravity.TOP ? 0 : h / 2f);
+        screen.setScaleX(w > 0 ? (float) sw / w : 1);
+        screen.setScaleY(h > 0 ? (float) sh / h : 1);
         return fill;
     }
 

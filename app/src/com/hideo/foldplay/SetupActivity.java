@@ -58,7 +58,7 @@ public class SetupActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Theme.GAP);
+        root.setBackground(Theme.gap());
         root.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         LinearLayout card = new LinearLayout(this);

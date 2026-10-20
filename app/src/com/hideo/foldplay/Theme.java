@@ -25,8 +25,11 @@ final class Theme {
     static String THEME_ID = "codec";
     /** Fonds animés en boucle (0.62.2, Réglages > Affichage). */
     static boolean ANIMATE = true;
-    static final int TEXT = 0xFFF1F1F1;
-    static final int MUTED = 0xFF8A8F9C;
+    static int TEXT = 0xFFF1F1F1;
+    static int MUTED = 0xFF8A8F9C;
+    /** Accessibilité (Réglages > Accessibilité) : main qui tient le téléphone, gâchettes à bascule, course des joysticks. */
+    static boolean RIGHT_HANDED = true, LATCH = false, STRONG_HAPTICS = false;
+    static float STICK_REACH = 1f;
     static final int YELLOW = 0xFFFFD23F;
     static final int RED = 0xFFFF5A5F;
 
@@ -52,6 +55,16 @@ final class Theme {
         d.setColor(color);
         d.setCornerRadius(radiusPx);
         return d;
+    }
+
+    /**
+     * Fond entre les pilules (0.62.5) : plus de noir franc, un fondu de la couleur du thème,
+     * plus marqué en haut et en bas, presque noir au milieu.
+     */
+    static android.graphics.drawable.Drawable gap() {
+        int edge = blend(GAP, CODEC, 0.26f), mid = blend(GAP, CODEC, 0.10f);
+        return new android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, new int[] {edge, mid, edge});
     }
 
     /** L'accent du thème avec une transparence donnée (0x00 à 0xFF). */
@@ -108,6 +121,8 @@ final class Theme {
         // La décoration doit exister avant getInsetsController (sinon NullPointerException dans
         // onCreate, avant setContentView : plantage des moteurs PS3 et 360 en 0.62.1).
         w.getDecorView();
+        TouchSound.install(a);
+        textScale(a);
         boolean game = a instanceof GameActivity || a instanceof Ps3Activity || a instanceof X360Activity;
         if (!game && !new Store(a).appFullscreen()) {
             // Fenêtre classique : l'app se redimensionne entre la barre d'état et la barre de
@@ -196,7 +211,13 @@ final class Theme {
         PAD_OWN = store.syncUi();
         LOGO = logo;
         THEME_ID = id;
-        ANIMATE = store.animatedBackdrop();
+        ANIMATE = store.animatedBackdrop() && !store.reduceMotion();
+        RIGHT_HANDED = store.rightHanded();
+        LATCH = store.latchTriggers();
+        STRONG_HAPTICS = store.strongHaptics();
+        STICK_REACH = new float[] {1f, 0.7f, 0.5f}[Math.max(0, Math.min(2, store.stickReach()))];
+        TEXT = store.highContrast() ? 0xFFFFFFFF : 0xFFF1F1F1;
+        MUTED = store.highContrast() ? 0xFFC9CDD6 : 0xFF8A8F9C;
         BG = bg;
         PANEL = panel;
         PANEL_HI = hi;
@@ -407,7 +428,23 @@ final class Theme {
      * une manette physique est branchée. L'écran interne tourne librement.
      */
     /** Rotation libre partout, écran externe compris (depuis la 0.26, à la demande de BOSS). */
+    /**
+     * Textes plus petits sur un écran étroit (écran externe d'un pliant, petit téléphone) : 85 %
+     * de la taille choisie dans Android, pour que les menus tiennent sans couper (0.62.5).
+     * Appelé à chaque changement d'écran ; les vues créées ensuite prennent la nouvelle taille.
+     */
+    @SuppressWarnings("deprecation")
+    static void textScale(android.content.Context ctx) {
+        android.content.res.Resources r = ctx.getResources();
+        android.content.res.Configuration c = r.getConfiguration();
+        android.util.DisplayMetrics dm = r.getDisplayMetrics();
+        float k = c.smallestScreenWidthDp < 480 ? 0.85f : c.smallestScreenWidthDp < 600 ? 0.92f : 1f;
+        k *= new float[] {1f, 1.15f, 1.3f}[Math.max(0, Math.min(2, new Store(ctx).a11yText()))];
+        dm.scaledDensity = dm.density * c.fontScale * k;
+    }
+
     static void orientation(android.app.Activity a) {
+        textScale(a);
         int want = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
         if (a.getRequestedOrientation() != want) a.setRequestedOrientation(want);
     }

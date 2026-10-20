@@ -282,8 +282,13 @@ final class CodecMenu extends FrameLayout {
             }
         });
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(px(40), px(40));
-        blp.rightMargin = px(10);
-        head.addView(backBtn, blp);
+        // Droitier : la flèche passe en haut à droite, sous le pouce (Réglages > Accessibilité).
+        boolean backRight = Theme.RIGHT_HANDED;
+        if (backRight) blp.leftMargin = px(10);
+        else {
+            blp.rightMargin = px(10);
+            head.addView(backBtn, blp);
+        }
         View bar = new View(getContext());
         bar.setBackgroundColor(Theme.CODEC);
         head.addView(bar, new LinearLayout.LayoutParams(px(4), px(26)));
@@ -321,6 +326,7 @@ final class CodecMenu extends FrameLayout {
             });
             head.addView(hb, new LinearLayout.LayoutParams(px(44), px(44)));
         }
+        if (backRight) head.addView(backBtn, blp);
         card.addView(head);
         messageView = null;
         if (message != null) {

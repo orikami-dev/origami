@@ -270,6 +270,25 @@ final class Icons extends Drawable {
                 r.set(10, 5, 21.5f, 19);
                 c.drawArc(r, -50, 100, false, stroke);
                 break;
+            case "a11y":
+                // Silhouette bras ouverts dans un cercle (accessibilité).
+                c.drawCircle(12, 12, 9.5f, stroke);
+                c.drawCircle(12, 7.2f, 1.4f, fill);
+                c.drawLine(6.5f, 9.8f, 17.5f, 9.8f, stroke);
+                c.drawLine(12, 9.8f, 12, 13.5f, stroke);
+                c.drawLine(12, 13.5f, 9.5f, 18, stroke);
+                c.drawLine(12, 13.5f, 14.5f, 18, stroke);
+                break;
+            case "updates":
+                // Flèche circulaire et flèche vers le bas.
+                r.set(4, 4, 20, 20);
+                c.drawArc(r, -60, 300, false, stroke);
+                c.drawLine(16, 4.2f, 20, 5.3f, stroke);
+                c.drawLine(16, 4.2f, 17, 8.2f, stroke);
+                c.drawLine(12, 8, 12, 15.5f, stroke);
+                c.drawLine(9, 12.8f, 12, 15.8f, stroke);
+                c.drawLine(15, 12.8f, 12, 15.8f, stroke);
+                break;
             case "about":
                 c.drawCircle(12, 12, 8.5f, stroke);
                 c.drawLine(12, 11, 12, 16.5f, stroke);

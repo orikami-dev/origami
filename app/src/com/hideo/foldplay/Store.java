@@ -523,6 +523,95 @@ final class Store {
         prefs.edit().putBoolean("animated_backdrop", on).apply();
     }
 
+    // ------------------------------------------------------------ Accessibilité (0.62.5)
+
+    /** Main qui tient le téléphone : droitier par défaut (flèche retour et listes à droite). */
+    boolean rightHanded() {
+        return prefs.getBoolean("a11y_right", true);
+    }
+
+    void setRightHanded(boolean on) {
+        prefs.edit().putBoolean("a11y_right", on).apply();
+    }
+
+    /** Taille des textes : 0 normale, 1 grande, 2 très grande. */
+    int a11yText() {
+        return prefs.getInt("a11y_text", 0);
+    }
+
+    void setA11yText(int v) {
+        prefs.edit().putInt("a11y_text", v).apply();
+    }
+
+    boolean highContrast() {
+        return prefs.getBoolean("a11y_contrast", false);
+    }
+
+    void setHighContrast(boolean on) {
+        prefs.edit().putBoolean("a11y_contrast", on).apply();
+    }
+
+    boolean reduceMotion() {
+        return prefs.getBoolean("a11y_motion", false);
+    }
+
+    void setReduceMotion(boolean on) {
+        prefs.edit().putBoolean("a11y_motion", on).apply();
+    }
+
+    /** Gâchettes à bascule : un appui les enfonce, le suivant les relâche. */
+    boolean latchTriggers() {
+        return prefs.getBoolean("a11y_latch", false);
+    }
+
+    void setLatchTriggers(boolean on) {
+        prefs.edit().putBoolean("a11y_latch", on).apply();
+    }
+
+    /** Joysticks : course réduite (0 normale, 1 courte, 2 très courte) pour les petits gestes. */
+    int stickReach() {
+        return prefs.getInt("a11y_reach", 0);
+    }
+
+    void setStickReach(int v) {
+        prefs.edit().putInt("a11y_reach", v).apply();
+    }
+
+    /** Vibration plus longue et plus forte à chaque appui. */
+    boolean strongHaptics() {
+        return prefs.getBoolean("a11y_haptics", false);
+    }
+
+    void setStrongHaptics(boolean on) {
+        prefs.edit().putBoolean("a11y_haptics", on).apply();
+    }
+
+    // ------------------------------------------------------------ Mises à jour (0.62.5)
+
+    boolean autoUpdates() {
+        return prefs.getBoolean("upd_auto", true);
+    }
+
+    void setAutoUpdates(boolean on) {
+        prefs.edit().putBoolean("upd_auto", on).apply();
+    }
+
+    long lastUpdateCheck() {
+        return prefs.getLong("upd_last", 0);
+    }
+
+    void setLastUpdateCheck(long t) {
+        prefs.edit().putLong("upd_last", t).apply();
+    }
+
+    String notifiedUpdate() {
+        return prefs.getString("upd_notified", "");
+    }
+
+    void setNotifiedUpdate(String v) {
+        prefs.edit().putString("upd_notified", v).apply();
+    }
+
     boolean setupAdvanced() {
         return prefs.getBoolean("setup_advanced", false);
     }
@@ -650,9 +739,18 @@ final class Store {
         prefs.edit().putInt("hud_size", s).apply();
     }
 
-    /** Couleur des libellés : "rtss" (orange), "codec" (vert) ou "white". */
+    /** Couleur des libellés : "phone" (accent du téléphone), "theme", "rtss" (orange), "codec" (vert) ou "white". */
     String hudColor() {
-        return prefs.getString("hud_color", "rtss");
+        return prefs.getString("hud_color", "phone");
+    }
+
+    /** Unité des températures de l'ATH : "c" ou "f". */
+    String tempUnit() {
+        return prefs.getString("temp_unit", "c");
+    }
+
+    void setTempUnit(String u) {
+        prefs.edit().putString("temp_unit", u).apply();
     }
 
     void setHudColor(String s) {

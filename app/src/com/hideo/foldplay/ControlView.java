@@ -363,11 +363,20 @@ final class ControlView extends View {
      */
     private void drawCornerKey(Canvas c, float w, float h, String t) {
         r.set(dp, dp, w - dp, h - dp);
-        RectF box = new RectF(r);
-        float rad = Math.min(r.width(), r.height()) / 2;
-        c.drawRoundRect(r, rad, rad, body(pressed ? steel : panelHi, r.top, r.bottom));
-        rimRect(c, box, rad);
-        float u = Math.min(w, h) * 0.26f, cx = w / 2, cy = h / 2;
+        // Elle épouse le coin arrondi de la manette (0.62.5) : grand arrondi côté coin (Format en
+        // haut à gauche, Accélérer en haut à droite), petits arrondis vers l'intérieur.
+        boolean left = t.equals("ASPECT");
+        float big = Math.min(r.width(), r.height()) * 0.62f, small = 6 * dp;
+        float[] radii = left ? new float[] {big, big, small, small, small, small, small, small}
+                : new float[] {small, small, big, big, small, small, small, small};
+        path.reset();
+        path.addRoundRect(r, radii, android.graphics.Path.Direction.CW);
+        c.drawPath(path, body(pressed ? steel : panelHi, r.top, r.bottom));
+        ring.setColor(0x33FFFFFF);
+        ring.setStrokeWidth(dp);
+        c.drawPath(path, ring);
+        // Le pictogramme se décale vers le coin, là où le pouce ne passe pas.
+        float u = Math.min(w, h) * 0.22f, cx = w / 2 + (left ? -1 : 1) * w * 0.06f, cy = h / 2 - h * 0.06f;
         plain(Theme.MUTED);
         path.reset();
         if (t.equals("FAST")) {
@@ -566,6 +575,17 @@ final class ControlView extends View {
             ay = Math.max(0f, Math.min(1f, e.getY() / getHeight()));
             listener.onAxis(control.type, ax, ay);
         }
+        if (Theme.LATCH && (control.type.equals("L2") || control.type.equals("R2"))) {
+            // Gâchette à bascule (Accessibilité) : un appui l'enfonce, le suivant la relâche.
+            if (action == MotionEvent.ACTION_DOWN) {
+                pressed = !pressed;
+                if (haptics) Haptics.tap(this);
+                if (pressed) listener.onDown(control.type);
+                else listener.onUp(control.type);
+                invalidate();
+            }
+            return true;
+        }
         if (action == MotionEvent.ACTION_DOWN) {
             pressed = true;
             if (haptics) Haptics.tap(this);
@@ -603,7 +623,8 @@ final class ControlView extends View {
                 listener.onUp(control.type.equals("STICK_R") ? "R3" : "L3");
             }
         } else {
-            float rad = Math.min(getWidth(), getHeight()) / 2f * 0.58f;
+            // Course réduite (Accessibilité) : un petit geste suffit pour pousser à fond.
+            float rad = Math.min(getWidth(), getHeight()) / 2f * 0.58f * Theme.STICK_REACH;
             float dx = (x - getWidth() / 2f) / rad;
             float dy = (y - getHeight() / 2f) / rad;
             float len = (float) Math.sqrt(dx * dx + dy * dy);

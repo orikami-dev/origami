@@ -46,6 +46,7 @@ public class X360Activity extends WindowedAppActivity {
     private boolean started, menuOpen;
     private HudOverlay hud;
     private FramePeak peak;
+    private Boolean lastFill;
     private long lastFrames = -1;
     private int buttons, lt, rt;
     private float lx, ly, rx, ry;
@@ -320,6 +321,8 @@ public class X360Activity extends WindowedAppActivity {
         int w = stage.getWidth() > 0 ? stage.getWidth() : dm.widthPixels;
         int h = full ? (stage.getHeight() > 0 ? stage.getHeight() : dm.heightPixels) : dm.heightPixels / 2;
         boolean fill = ScreenFormat.fit(screen, w, h, ScreenFormat.gravityFor(full), store.displayMode("x360"));
+        if (lastFill != null && lastFill == fill) return;
+        lastFill = fill;
         try { nativeSetFill(fill); } catch (Throwable ignored) { }
     }
 

@@ -17,7 +17,12 @@ final class UiSound {
     private static SoundPool pool;
     private static String poolTheme;
     private static final int[] ids = new int[NAMES.length];
-    private static long lastMove;
+    private static long lastMove, lastAny;
+
+    /** Un bruit de l'interface a-t-il été demandé dans les ms dernières millisecondes ? */
+    static boolean playedRecently(long ms) {
+        return android.os.SystemClock.uptimeMillis() - lastAny < ms;
+    }
 
     private static String musicTheme;
     private static boolean wanted;
@@ -27,6 +32,7 @@ final class UiSound {
 
     /** Joue un bruit de l'interface du thème actif. */
     static void play(Context ctx, String name) {
+        lastAny = android.os.SystemClock.uptimeMillis();
         Store store = new Store(ctx);
         if (!store.menuSound() || !ringing(ctx)) return;
         float vol = store.uiVolume() / 100f;

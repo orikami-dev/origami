@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -39,7 +40,7 @@ public class LayoutEditorActivity extends Activity {
     private ControlDeckView deck;
     private final List<ControlLayout> layouts = new ArrayList<ControlLayout>();
     private ControlLayout current;
-    private LinearLayout chips;
+    private ViewGroup chips;
     private TextView info;
     private boolean ready;
     private LinearLayout styleBox;
@@ -61,7 +62,7 @@ public class LayoutEditorActivity extends Activity {
 
         LinearLayout root = vertical();
         // Mêmes proportions que la vue Flex : deux pilules séparées par un mince filet.
-        root.setBackgroundColor(Theme.GAP);
+        root.setBackground(Theme.gap());
         root.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         // Moitié haute : les outils.
@@ -84,9 +85,10 @@ public class LayoutEditorActivity extends Activity {
         bar.addView(title);
         tools.addView(bar);
 
-        chips = new LinearLayout(this);
+        // Rangée qui passe à la ligne, remplie à chaque renderChips (une copie détachée perdait les manettes).
+        chips = new FlowRow(this, 0);
         chips.setPadding(dp(12), dp(4), dp(12), dp(4));
-        tools.addView(scroller(chips));
+        tools.addView(chips);
 
         // Catégories : une seule page d'outils à la fois, plutôt qu'une longue liste.
         // Barre d'onglets fixe sous les dispositions ; seule la page de l'onglet défile.

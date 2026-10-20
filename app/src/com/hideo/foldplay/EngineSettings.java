@@ -57,15 +57,17 @@ final class EngineSettings {
 
     private static final String[][][] X360_PROFILES = {
             // performance
-            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "none"},
+            // Relecture « rapide » même en Performance (0.62.5) : sans elle, des jeux n'affichent plus
+            // que du noir. FBO partout : le chemin FSI demande une extension absente des puces Adreno.
+            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "0"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
             // balanced
-            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", ""}, {"readback_resolve", "fast"},
+            {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "-1"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
             // quality
-            {{"draw_resolution_scale", "2"}, {"render_target_path_vulkan", ""}, {"readback_resolve", "fast"},
+            {{"draw_resolution_scale", "2"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "16"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "true"}, {"vsync", "true"}},
     };
@@ -193,6 +195,25 @@ final class EngineSettings {
                 {"Audio@@Time Stretching Threshold", "75"},
                 {"Audio@@Master Volume", "80"},
         };
+        // Réglages processeur par profil, calés sur la puce du Fold 8 (8 cœurs Oryon, 0.62.5) :
+        // blocs SPU plus gros et calcul flottant allégé en Performance, threads de compilation
+        // des shaders sur 6 cœurs, flux de textures asynchrone pour éviter les à-coups.
+        int prof = CoreProfiles.index(profile(ctx, PS3));
+        String[][] cpu = {
+                {"Core@@SPU Block Size", new String[] {"Mega", "Mega", "Safe"}[prof]},
+                {"Core@@XFloat Accuracy", new String[] {"Relaxed", "Approximate", "Approximate"}[prof]},
+                {"Core@@Max SPURS Threads", new String[] {"4", "6", "6"}[prof]},
+                {"Core@@Preferred SPU Threads", new String[] {"0", "0", "0"}[prof]},
+                {"Video@@Shader Compiler Threads", "6"},
+                {"Video@@Relaxed ZCULL Sync", new String[] {"true", "true", "false"}[prof]},
+                {"Video@@Asynchronous Texture Streaming 2", "true"},
+        };
+        for (String[] kv : cpu) {
+            try {
+                Ps3Core.nativeSettingsSet(kv[0], kv[1]);
+            } catch (Throwable ignored) {
+            }
+        }
         for (String[] kv : fixed) {
             try {
                 Ps3Core.nativeSettingsSet(kv[0], kv[1]);

@@ -47,6 +47,7 @@ public class Ps3Activity extends Activity {
     private boolean menuOpen;
     private HudOverlay hud;
     private FramePeak peak;
+    private Boolean lastFill;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -454,6 +455,8 @@ public class Ps3Activity extends Activity {
         int w = stage.getWidth() > 0 ? stage.getWidth() : dm.widthPixels;
         int h = full ? (stage.getHeight() > 0 ? stage.getHeight() : dm.heightPixels) : dm.heightPixels / 2;
         boolean fill = ScreenFormat.fit(screen, w, h, ScreenFormat.gravityFor(full), store.displayMode("ps3"));
+        if (lastFill != null && lastFill == fill) return;
+        lastFill = fill;
         try { Ps3Core.nativeSettingsSet("Video@@Stretch To Display Area", String.valueOf(fill)); } catch (Throwable ignored) { }
     }
 

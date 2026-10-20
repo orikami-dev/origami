@@ -118,6 +118,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         DebugLog.sync(this);
         store = new Store(this);
         if (!store.setupDone()) startActivity(new Intent(this, SetupActivity.class));
+        Updater.autoCheck(this);
         if (Libretro.available()) store.adoptBuiltinOnce();
         launcher = new Launcher(this, store);
         covers = new CoverLoader(getContentResolver(), getPackageManager());
@@ -771,7 +772,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         stage.addView(stageCol, new FrameLayout.LayoutParams(-1, -1));
         if (store.scanlines()) stage.addView(new Scanlines(), new FrameLayout.LayoutParams(-1, -1));
         // Deux « pilules » aux coins arrondis, séparées par un mince filet au niveau de la charnière.
-        col.setBackgroundColor(Theme.GAP);
+        col.setBackground(Theme.gap());
         col.setPadding(dp(4), dp(4), dp(4), dp(4));
         stage.setBackground(Theme.backdrop(dp(28)));
         stage.setClipToOutline(true);

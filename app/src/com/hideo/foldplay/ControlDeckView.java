@@ -578,13 +578,24 @@ final class ControlDeckView extends ViewGroup {
                 for (float x = box.left + step / 2; x < box.right; x += step) c.drawCircle(x, y, dot, skinPaint);
             }
         }
-        // Liseré d'accent en haut, qui s'efface vers les côtés.
+        // Liseré d'accent en haut, qui s'efface vers les côtés et respire lentement (0.62.5, tous
+        // les thèmes) : une fine bande de lumière qui s'allume et s'éteint en 5 secondes, avec un halo.
+        float breath = 1f;
+        if (Theme.ANIMATE && !editing) {
+            double t = (android.os.SystemClock.uptimeMillis() % 5200L) / 5200.0;
+            breath = 0.3f + 0.7f * (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * t));
+        }
+        int rgb = accent & 0x00FFFFFF;
+        int core = Math.round(0xCC * breath), glow = Math.round(0x40 * breath);
         skinPaint.setShader(new android.graphics.LinearGradient(box.left, 0, box.right, 0,
-                new int[] {accent & 0x00FFFFFF, (accent & 0x00FFFFFF) | 0x99000000, accent & 0x00FFFFFF},
-                null, android.graphics.Shader.TileMode.CLAMP));
-        c.drawRect(box.left + radius, box.top, box.right - radius, box.top + 2 * dp, skinPaint);
+                new int[] {rgb, rgb | (glow << 24), rgb}, null, android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(box.left + radius * 0.6f, box.top, box.right - radius * 0.6f, box.top + 7 * dp, skinPaint);
+        skinPaint.setShader(new android.graphics.LinearGradient(box.left, 0, box.right, 0,
+                new int[] {rgb, rgb | (core << 24), rgb}, null, android.graphics.Shader.TileMode.CLAMP));
+        c.drawRect(box.left + radius * 0.6f, box.top, box.right - radius * 0.6f, box.top + 1.5f * dp, skinPaint);
         skinPaint.setShader(null);
         c.restore();
+        if (Theme.ANIMATE && !editing) postInvalidateDelayed(50);
         skinPaint.setStyle(Paint.Style.STROKE);
         skinPaint.setStrokeWidth(dp);
         skinPaint.setColor(0x1FFFFFFF);
