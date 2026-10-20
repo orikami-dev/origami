@@ -321,6 +321,13 @@ final class ConsolePad {
         if (arc) {
             float[][] bl = beans(s.shL, left[0], left[1], size(s.leftOut, s) * k / 2, true, k, left[0]);
             float[][] br = beans(s.shR, w - right[0], right[1], faceRadius(s) * k, false, k, right[0]);
+            if (s.family.equals(HOME_PAD)) {
+                // Accueil (20/10) : L et R plus bas, à hauteur de la flèche droite et du X, côté centre.
+                float rl = size(s.leftOut, s) * k / 2, rr = faceRadius(s) * k;
+                float len = BEAN_LEN * k, th = BEAN_TH * k;
+                bl = new float[][] {bean(left[0], left[1], rl + G * k + th / 2, 90f, len, th)};
+                br = new float[][] {bean(w - right[0], right[1], rr + G * k + th / 2, -90f, len, th)};
+            }
             for (int i = 0; i < bl.length; i++) o.bean(s.shL.get(i)[0], bl[i]);
             for (int i = 0; i < br.length; i++) o.bean(s.shR.get(i)[0], br[i]);
         } else {

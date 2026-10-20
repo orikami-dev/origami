@@ -2,6 +2,9 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.20
+- Manette de l'accueil : les haricots L et R descendent à hauteur de la flèche droite et du X, côté centre.
+
 ## 0.65.19
 - Bulle du synopsis dynamique : elle suit la longueur du texte, sans dépasser la zone, et défile au-delà.
 - Apparition de la bulle propre à chaque thème (balayage Codec, givre Arctique, éventail Écarlate, éclosion Sakura, scintillement Ambre).
