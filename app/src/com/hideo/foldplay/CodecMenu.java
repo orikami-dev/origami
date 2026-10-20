@@ -243,9 +243,10 @@ final class CodecMenu extends FrameLayout {
         View decor = host.getRootView();
         int[] at = new int[2];
         host.getLocationInWindow(at);
-        int l = Math.max(0, at[0]), t = Math.max(0, at[1]);
-        int r = Math.max(0, decor.getWidth() - (at[0] + host.getWidth()));
-        int b = Math.max(0, decor.getHeight() - (at[1] + host.getHeight()));
+        // La zone hôte peut avoir sa propre marge (sa racine laisse la place aux barres) : on la compte aussi.
+        int l = Math.max(0, at[0]) + host.getPaddingLeft(), t = Math.max(0, at[1]) + host.getPaddingTop();
+        int r = Math.max(0, decor.getWidth() - (at[0] + host.getWidth())) + host.getPaddingRight();
+        int b = Math.max(0, decor.getHeight() - (at[1] + host.getHeight())) + host.getPaddingBottom();
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
         if (lp.leftMargin == -l && lp.topMargin == -t && lp.rightMargin == -r && lp.bottomMargin == -b) return;
         for (android.view.ViewParent p = host; p instanceof android.view.ViewGroup; p = p.getParent()) {
