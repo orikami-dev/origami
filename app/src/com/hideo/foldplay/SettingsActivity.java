@@ -282,8 +282,6 @@ public class SettingsActivity extends Activity {
                 }
             });
         }
-        note("Astuce : range tes jeux par console (ps2/, gamecube/…). Les .iso, .chd et .rvz "
-                + "sont aussi reconnus par leur contenu.");
     }
 
     private void emulators() {

@@ -629,10 +629,14 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Tsuru : l'écran du haut passe sous la barre d'état et la manette sous la barre de navigation. */
     private void applyBleed() {
         int t = Theme.bleed ? Theme.INSETS[1] : 0, b = Theme.bleed ? Theme.INSETS[3] : 0;
-        if (homeStageCol != null) homeStageCol.setPadding(0, t, 0, 0);
+        // Portrait : la pastille du haut garde ses coins ronds et commence sous la barre d'état (BOSS, 20/10).
+        if (homeStageCol != null) homeStageCol.setPadding(0, 0, 0, 0);
         if (homeDeckView != null) homeDeckView.setBottomInset(b);
-        if (homeStage != null) {
-            homeStage.setBackground(Theme.bleed ? Theme.backdropFlushTop(dp(28)) : Theme.backdrop(dp(28)));
+        if (homeCol != null && homeDeck != null && homeDeck.getVisibility() == View.VISIBLE) {
+            homeCol.setPadding(homeCol.getPaddingLeft(), t, homeCol.getPaddingRight(), 0);
+        }
+        if (homeStage != null && homeDeck != null && homeDeck.getVisibility() == View.VISIBLE) {
+            homeStage.setBackground(Theme.backdrop(dp(28)));
         }
     }
 
@@ -760,9 +764,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             row.addView(grid, new LinearLayout.LayoutParams(0, -1, 1f));
         }
         col.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
-        TextView tip = text("Astuce : plie l'écran à moitié pour le mode Tsuru.", 12, Theme.MUTED, false);
-        tip.setPadding(dp(16), dp(6), dp(16), dp(10));
-        col.addView(tip);
         return col;
     }
 
@@ -1100,8 +1101,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         homeDeck.setVisibility(pad ? View.GONE : View.VISIBLE);
         homeGap.setVisibility(pad ? View.GONE : View.VISIBLE);
         int p = pad ? 0 : dp(4);
-        homeCol.setPadding(p, 0, p, 0);
-        homeStage.setBackground(pad ? Theme.backdrop(0) : Theme.bleed ? Theme.backdropFlushTop(dp(28)) : Theme.backdrop(dp(28)));
+        // Paysage / plein écran : aucune pastille ; portrait : pastille ronde sous la barre d'état.
+        homeCol.setPadding(p, pad || !Theme.bleed ? 0 : Theme.INSETS[1], p, 0);
+        if (homeStageCol != null) homeStageCol.setPadding(0, pad && Theme.bleed ? Theme.INSETS[1] : 0, 0, 0);
+        homeStage.setBackground(pad ? Theme.backdrop(0) : Theme.backdrop(dp(28)));
         // Plein écran : la fiche du jeu en haut sur l'illustration, le carrousel en bas comme un dock.
         if (homeHero != null) {
             homeHero.setOrientation(pad ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);

@@ -2,6 +2,10 @@
 
 Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
 
+## 0.65.14
+- Accueil en portrait : la pastille du haut retrouve ses coins ronds et commence sous la barre d'état ; en paysage, plus aucune pastille, plein écran.
+- Astuces retirées de l'app (accueil et Réglages).
+
 ## 0.65.13
 - Après une mise à jour, une notification « Origami <version> installé » permet de rouvrir l'app d'un geste (Android ne la relance pas seul).
 
