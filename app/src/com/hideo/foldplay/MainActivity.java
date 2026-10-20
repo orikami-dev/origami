@@ -604,9 +604,12 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     private void rebuild() {
+        Posture before = posture;
         posture = computePosture();
         refilter();
-        root.removeAllViews();
+        View outgoing = (before != null && before != posture && splashDone && root.getChildCount() == 1)
+                ? root.getChildAt(0) : null;
+        if (outgoing == null) root.removeAllViews();
         // Deux pastilles (Tsuru) : entre elles et sous les barres, la couleur de séparation du thème,
         // pas un morceau du fond d'écran.
         root.setBackground(posture == Posture.FLEX ? Theme.gap() : Theme.backdrop(0));
@@ -628,6 +631,48 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         else if (posture == Posture.OPEN) v = buildOpen();
         else v = buildCover();
         root.addView(v, new FrameLayout.LayoutParams(-1, -1));
+        if (outgoing != null) transition(outgoing, v, posture == Posture.FLEX);
+    }
+
+    /** Passage Washi / Tsuru : l'ancien écran s'efface, le nouveau arrive, au rythme du thème. */
+    private void transition(final View out, View in, boolean toTsuru) {
+        float w = root.getWidth(), h = root.getHeight();
+        float dir = toTsuru ? 1f : -1f;
+        long ms = 420;
+        float inX = 0, inY = 0, inScale = 1f, outX = 0, outY = 0, outScale = 1f;
+        android.animation.TimeInterpolator ip = new android.view.animation.DecelerateInterpolator(1.6f);
+        String t = Theme.THEME_ID;
+        if ("arctique".equals(t)) {          // banquise : glissement vertical, glacé
+            inY = h * 0.08f * dir; outY = -h * 0.08f * dir; ms = 480;
+        } else if ("ecarlate".equals(t)) {   // éventail : le nouvel écran s'ouvre depuis le centre
+            inScale = toTsuru ? 0.88f : 1.12f; outScale = toTsuru ? 1.12f : 0.88f; ms = 460;
+            ip = new android.view.animation.OvershootInterpolator(0.8f);
+        } else if ("sakura".equals(t)) {     // pétales : dérive latérale douce
+            inX = w * 0.10f * dir; outX = -w * 0.10f * dir; ms = 520;
+            ip = new android.view.animation.AccelerateDecelerateInterpolator();
+        } else if ("ambre".equals(t)) {      // oscilloscope : bref scintillement
+            ms = 300; ip = new android.view.animation.CycleInterpolator(2.5f);
+        } else {                             // codec : balayage radio, léger zoom
+            inScale = 1.04f; ms = 380;
+        }
+        in.setAlpha(0f);
+        in.setTranslationX(inX);
+        in.setTranslationY(inY);
+        in.setScaleX(inScale);
+        in.setScaleY(inScale);
+        if ("ambre".equals(t)) {
+            in.setTranslationX(0); in.setScaleX(1f); in.setScaleY(1f);
+            in.animate().alpha(1f).setDuration(ms + 120).setInterpolator(new android.view.animation.LinearInterpolator()).start();
+            out.animate().alpha(0f).setDuration(ms).withEndAction(new Runnable() {
+                public void run() { root.removeView(out); }
+            }).start();
+            return;
+        }
+        in.animate().alpha(1f).translationX(0).translationY(0).scaleX(1f).scaleY(1f)
+                .setDuration(ms).setInterpolator(ip).start();
+        out.animate().alpha(0f).translationX(outX).translationY(outY).scaleX(outScale).scaleY(outScale)
+                .setDuration(ms * 3 / 4).setInterpolator(new android.view.animation.AccelerateInterpolator())
+                .withEndAction(new Runnable() { public void run() { root.removeView(out); } }).start();
     }
 
     private View buildCover() {
@@ -777,7 +822,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         if (store.scanlines()) stage.addView(new Scanlines(), new FrameLayout.LayoutParams(-1, -1));
         // Deux « pilules » aux coins arrondis, séparées par un mince filet au niveau de la charnière.
         col.setBackground(Theme.gap());
-        col.setPadding(dp(4), dp(4), dp(4), dp(4));
+        col.setPadding(dp(4), 0, dp(4), 0);
         stage.setBackground(Theme.backdrop(dp(28)));
         stage.setClipToOutline(true);
         col.addView(stage, new LinearLayout.LayoutParams(-1, 0, 1f));
@@ -1011,7 +1056,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         homeDeck.setVisibility(pad ? View.GONE : View.VISIBLE);
         homeGap.setVisibility(pad ? View.GONE : View.VISIBLE);
         int p = pad ? 0 : dp(4);
-        homeCol.setPadding(p, p, p, p);
+        homeCol.setPadding(p, 0, p, 0);
         homeStage.setBackground(Theme.backdrop(pad ? 0 : dp(28)));
         // Plein écran : la fiche du jeu en haut sur l'illustration, le carrousel en bas comme un dock.
         if (homeHero != null) {
