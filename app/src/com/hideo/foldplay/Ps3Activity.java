@@ -46,6 +46,7 @@ public class Ps3Activity extends Activity {
     private float lx, ly, rx, ry;
     private boolean menuOpen;
     private HudOverlay hud;
+    private FramePeak peak;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -155,9 +156,17 @@ public class Ps3Activity extends Activity {
         });
         formatKey();
         // ATH : le moteur donne la durée de sa dernière image.
+        peak = new FramePeak(new FramePeak.Probe() {
+            public long read() {
+                return ready ? Ps3Core.nativeFramePeriodNs() : -1;
+            }
+        }, false);
         hud = new HudOverlay(this, stage, store, "armsx3", new HudOverlay.Source() {
             public float fps(float seconds) {
                 if (!ready) return -1;
+                peak.start();
+                float avg = peak.takeFps();
+                if (avg > 0) return avg;
                 try {
                     long ns = Ps3Core.nativeFramePeriodNs();
                     return ns > 0 ? 1e9f / ns : -1;
@@ -167,7 +176,8 @@ public class Ps3Activity extends Activity {
             }
 
             public float frameMaxMs() {
-                return -1;
+                peak.start();
+                return peak.takeMs();
             }
 
             public boolean paused() {
@@ -751,6 +761,7 @@ public class Ps3Activity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         if (hud != null) hud.stop();
+        if (peak != null) peak.stop();
         Theme.inGame = false;
         // Le processus « :ps3 » ne sert qu'au jeu : on le termine pour libérer la mémoire du moteur.
         if (isFinishing() && booted) {

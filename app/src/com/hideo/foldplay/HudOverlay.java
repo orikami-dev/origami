@@ -138,9 +138,13 @@ final class HudOverlay {
 
         java.util.Set<String> items = store.hudItems();
         if (items.contains("mhz")) h.mhz = Hud.cpuMhz();
-        Runtime rt = Runtime.getRuntime();
-        h.ramMb = (int) ((android.os.Debug.getNativeHeapAllocatedSize() >> 20)
-                + ((rt.totalMemory() - rt.freeMemory()) >> 20));
+        // Les moteurs réservent leur mémoire hors du tas mesuré : on lit la mémoire résidente du processus.
+        h.ramMb = Hud.residentMb();
+        if (h.ramMb <= 0) {
+            Runtime rt = Runtime.getRuntime();
+            h.ramMb = (int) ((android.os.Debug.getNativeHeapAllocatedSize() >> 20)
+                    + ((rt.totalMemory() - rt.freeMemory()) >> 20));
+        }
         Intent bat = activity.registerReceiver(null, new android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         if (bat != null) {
             int level = bat.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1);

@@ -45,6 +45,7 @@ public class X360Activity extends WindowedAppActivity {
     private String path, title;
     private boolean started, menuOpen;
     private HudOverlay hud;
+    private FramePeak peak;
     private long lastFrames = -1;
     private int buttons, lt, rt;
     private float lx, ly, rx, ry;
@@ -193,6 +194,11 @@ public class X360Activity extends WindowedAppActivity {
         });
         formatKey();
         // ATH : le moteur compte les images que le jeu présente.
+        peak = new FramePeak(new FramePeak.Probe() {
+            public long read() {
+                return started ? nativeFrames() : -1;
+            }
+        }, true);
         hud = new HudOverlay(this, stage, store, "xenia", new HudOverlay.Source() {
             public float fps(float seconds) {
                 if (!started) return -1;
@@ -207,7 +213,8 @@ public class X360Activity extends WindowedAppActivity {
             }
 
             public float frameMaxMs() {
-                return -1;
+                peak.start();
+                return peak.takeMs();
             }
 
             public boolean paused() {
@@ -555,6 +562,7 @@ public class X360Activity extends WindowedAppActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (hud != null) hud.stop();
+        if (peak != null) peak.stop();
         Theme.inGame = false;
         // Le processus « :x360 » ne sert qu'au jeu : Xenia ne sait pas s'arrêter proprement, on
         // termine le processus pour rendre sa mémoire.

@@ -166,23 +166,38 @@ final class EngineSettings {
     /** PS3 : les réglages sont écrits dans la configuration du moteur avant le lancement du jeu. */
     static void applyPs3(Context ctx, String game) {
         String g = game == null ? "" : game.toUpperCase(java.util.Locale.ROOT);
+        boolean demons = g.contains("DEMON") || g.contains("BLES00932") || g.contains("BLUS30443")
+                || g.contains("BCJS30022") || g.contains("BCAS20071");
         for (Opt o : PS3_OPTS) {
             try {
                 String v = get(ctx, PS3, o);
+                boolean mine = prefs(ctx, PS3).getString("v_" + o.key, null) != null;
                 // Correctifs par jeu, sauf si BOSS a choisi lui-même la valeur (0.62.1) :
-                // Demon's Souls a besoin des tampons de couleur pour dessiner le monde après la cinématique.
-                if (o.key.equals("Video@@Write Color Buffers") && prefs(ctx, PS3).getString("v_" + o.key, null) == null
-                        && (g.contains("DEMON") || g.contains("BLES00932") || g.contains("BLUS30443") || g.contains("BCJS30022")
-                        || g.contains("BCAS20071"))) v = "true";
+                // Demon's Souls a besoin des tampons de couleur pour dessiner le monde après la cinématique,
+                // et tourne à 30 images/s : calé dessus, il ne saute plus entre 30, 40 et 60 (0.62.3).
+                if (demons && !mine && o.key.equals("Video@@Write Color Buffers")) v = "true";
+                if (demons && !mine && o.key.equals("Video@@Frame limit")) v = "30";
                 Ps3Core.nativeSettingsSet(o.key, v);
             } catch (Throwable ignored) {
                 // Réglage inconnu de cette version du moteur : on garde le sien.
             }
         }
         // Sauvegardes rapides : sans ce mode, le moteur n'arrive pas à figer les SPU.
-        try {
-            Ps3Core.nativeSettingsSet("Savestate@@Compatible Savestate Mode", "true");
-        } catch (Throwable ignored) {
+        // Son (0.62.3) : un tampon plus long et l'étirement du temps évitent les craquements et
+        // les coupures quand le jeu ralentit ; volume à 80 % pour ne plus saturer.
+        String[][] fixed = {
+                {"Savestate@@Compatible Savestate Mode", "true"},
+                {"Audio@@Enable Buffering", "true"},
+                {"Audio@@Desired Audio Buffer Duration", "150"},
+                {"Audio@@Enable Time Stretching", "true"},
+                {"Audio@@Time Stretching Threshold", "75"},
+                {"Audio@@Master Volume", "80"},
+        };
+        for (String[] kv : fixed) {
+            try {
+                Ps3Core.nativeSettingsSet(kv[0], kv[1]);
+            } catch (Throwable ignored) {
+            }
         }
     }
 

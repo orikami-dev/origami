@@ -110,6 +110,20 @@ final class Hud {
         return b;
     }
 
+    /** Mémoire résidente du processus en Mo (/proc/self/statm), ou -1. */
+    static int residentMb() {
+        BufferedReader r = null;
+        try {
+            r = new BufferedReader(new FileReader("/proc/self/statm"));
+            String[] f = r.readLine().trim().split("\\s+");
+            return (int) (Long.parseLong(f[1]) * android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE) >> 20);
+        } catch (Exception e) {
+            return -1;
+        } finally {
+            if (r != null) try { r.close(); } catch (Exception ignored) { }
+        }
+    }
+
     /** Fréquence actuelle du cœur le plus rapide, en MHz, ou -1 si Android la cache. */
     static int cpuMhz() {
         int best = -1;

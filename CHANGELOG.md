@@ -44,6 +44,7 @@ Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la 
 
 ⭐ = mise à jour majeure.
 
+- [**0.62.4**](https://github.com/orikami-dev/origami/releases/tag/v0.62.4) : son PS3 sans grésillement ni saturation, Demon's Souls calé à 30 images/s, ATH PS3/360 complet (moyenne, pic, mémoire réelle).
 - [**0.62.3**](https://github.com/orikami-dev/origami/releases/tag/v0.62.3) : gâchettes en haricots façon GameCube, Format et ×2 en icônes de coin, musique dès le choix du thème, sonar sans ligne fixe, éditeur de manette allégé.
 - [**0.62.2**](https://github.com/orikami-dev/origami/releases/tag/v0.62.2) : moteurs PS3/360 qui plantaient au lancement, sons seulement en mode sonnerie, curseurs de volume, fonds animés.
 - [**0.62.1**](https://github.com/orikami-dev/origami/releases/tag/v0.62.1) : fenêtres 360 validées seules (DMC 4), jaquettes 360, taille de manette corrigée, catégorie Son, flèche retour, musique sans coupure, nouvelle musique Écarlate, emblèmes Remote Play.
