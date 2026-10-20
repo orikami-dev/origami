@@ -19,7 +19,7 @@ final class GameLayout {
         int total = stageHeight > 0 ? stageHeight : a.getResources().getDisplayMetrics().heightPixels;
         int top = Theme.statusBarPx(a);
         int bottom = Theme.navBarPx(a);
-        int gap = Math.round(6 * a.getResources().getDisplayMetrics().density);
+        int gap = Math.round(4 * a.getResources().getDisplayMetrics().density);
         // Coupure exactement au milieu de l'écran, là où passe la charnière du pliant tenu en
         // portrait (BOSS, 20/10) : chaque pastille remplit sa moitié, barres système exceptées.
         int mid = total / 2;
