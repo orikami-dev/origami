@@ -52,6 +52,9 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 - ⚡ Profils Performance, Équilibré, Qualité et Personnalisé, réglages visibles en direct.
 - 📲 En portrait, écran du jeu et manette coupés pile sur la charnière ; en paysage, plein écran.
 - 🗂️ Lanceur d'apps avec tri et défilement rapide.
+- 🔔 Sons système propres à chaque thème : valider, retour, suivant, onglet, option activée ou désactivée, erreur, terminé.
+- 👇 Bibliothèque en mode Washi : tire vers le bas pour actualiser.
+- 🐞 « Copier le journal » en un clic (Réglages > Débogage) pour signaler un bug.
 - 📡 Colonne Remote Play (PlayStation, Xbox, Steam Link) et colonne Jeux mobiles.
 - 💾 Import et export des sauvegardes, import des BIOS et du firmware PS3.
 - 📐 Tous les pliants et tous les formats d'écran, changements à chaud.

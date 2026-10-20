@@ -2,6 +2,41 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.28
+- Bibliothèque : l’entrée « Actualiser la bibliothèque » de la catégorie Tous est retirée, le geste « tirer pour actualiser » la remplace.
+
+## 0.65.27
+- Bibliothèque en mode Washi : tire vers le bas pour actualiser la liste des jeux.
+
+## 0.65.26
+- Réglages > Débogage : nouveau bouton « Copier le journal », un clic pour copier la fin du journal et la coller dans une conversation.
+
+## 0.65.25
+- Gâchettes à bascule : elles marchent aussi avec L et R des jeux 2D.
+- Andon : la lumière suit l'image réelle du jeu et se reforme selon le format (rotation, pliage), sans couper l'interface.
+- Menu codec : en portrait, la carte s'ajuste à son contenu au lieu de prendre tout l'écran, avec des entrées plus serrées.
+
+## 0.65.24
+- Sons système propres à chaque thème pour les actions : suivant, changement d'onglet, option activée ou désactivée, erreur, opération terminée, fermeture d'un menu.
+
+## 0.65.23
+- Mises à jour : le bouton et sa barre de progression sont pleine largeur, texte centré.
+
+## 0.65.22
+- Haricots L et R : les lettres restent droites, quelle que soit l'inclinaison de la gâchette.
+
+## 0.65.21
+- Mises à jour : barre de progression dans l'interface, plus de notification de téléchargement Android.
+- Les APK téléchargés sont supprimés une fois la mise à jour installée.
+
+## 0.65.20
+- Manette de l'accueil : les haricots L et R descendent à hauteur de la flèche droite et du X, côté centre.
+
+## 0.65.19
+- Bulle du synopsis dynamique : elle suit la longueur du texte, sans dépasser la zone, et défile au-delà.
+- Apparition de la bulle propre à chaque thème (balayage Codec, givre Arctique, éventail Écarlate, éclosion Sakura, scintillement Ambre).
+- Sous-textes des menus réécrits pour être plus clairs.
+
 ## 0.65.18
 - Andon : lumière d'ambiance autour de l'écran du jeu, qui reprend les couleurs de l'image. Modes Éteinte, Thème, Image, Image et thème, Douce, dans le menu Codec en jeu et dans le menu Thème de l'accueil.
 - Manette de l'accueil : L et R descendus en haricot, un de chaque côté.
