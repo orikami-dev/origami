@@ -115,7 +115,7 @@ Liste de BOSS du 19/10 22h12 (une seule grosse mise à jour, numéro 0.61.0). Le
 - Proton (jeux PC) : partie 2.0, après la fin de l'émulation.
 - Recompilation native bloquée tant que dl.google.com (NDK) est refusé par le réseau du cloud ; correctif son 360 déjà prêt dans native/xenia-patches/02-origami-fixes.patch.
 
-## Consignes de BOSS pour le prochain fil (20/10 04h18)
+## Consignes de BOSS pour la 0.65 (prochain fil, 20/10 04h18)
 À appliquer dans le prochain fil, ouvert seulement quand BOSS le dit.
 - Sens de la main (droitier/gaucher) sur toute la navigation des menus et sous-menus, pas seulement les flèches retour.
 - Manette 2D manquante dans les puces de l'éditeur (seules Flex, 3D, Mini apparaissent) : la remettre.
