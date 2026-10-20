@@ -2,6 +2,9 @@
 
 Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
 
+## 0.65.13
+- Après une mise à jour, une notification « Origami <version> est installée » permet de rouvrir l'app d'un geste (Android ne la relance pas seul).
+
 ## 0.65.12
 - Le canal des builds de test s'appelle maintenant « Préversions » (Réglages > Mises à jour), « bêta » reste réservé à la future bêta publique.
 - Préversions lues sur la branche preview du dépôt ; la 0.65.11 les trouve encore par l'ancien canal pendant la transition.

@@ -210,6 +210,13 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        <receiver
+            android:name=".UpdatedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <provider
             android:name=".SaveProvider"
             android:authorities="com.hideo.foldplay.saves"
