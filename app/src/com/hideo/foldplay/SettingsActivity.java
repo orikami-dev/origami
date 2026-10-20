@@ -268,7 +268,7 @@ public class SettingsActivity extends Activity {
             }
         });
         if (tree != null) {
-            action("Rescanner la bibliothèque", "Relit le dossier", new Runnable() {
+            action("Rescanner la bibliothèque", "Cherche les nouveaux jeux dans ton dossier", new Runnable() {
                 public void run() {
                     store.requestRescan();
                     toast("Bibliothèque relue au retour à l'accueil.");
@@ -335,7 +335,7 @@ public class SettingsActivity extends Activity {
         // 4. Entretien.
         header("Entretien");
         if (Libretro.available()) {
-            action("Retélécharger les cœurs", "Un cœur ou tous", new Runnable() {
+            action("Retélécharger les cœurs", "Réinstalle un émulateur ou tous, en cas de souci", new Runnable() {
                 public void run() { pickRedownload(cores); }
             });
             action("Supprimer les cœurs téléchargés", (cores.installedSize() / (1024 * 1024)) + " Mo utilisés",
@@ -505,7 +505,7 @@ public class SettingsActivity extends Activity {
                     new Runnable() {
                         public void run() { redownload(cores, java.util.Collections.singletonList(core)); }
                     });
-            if (cores.installed(core)) m.item("Supprimer", "Il reviendra au prochain jeu", new Runnable() {
+            if (cores.installed(core)) m.item("Supprimer", "Retire l'émulateur ; il se réinstalle au prochain jeu", new Runnable() {
                 public void run() {
                     cores.delete(core);
                     toast(CoreCatalog.name(core) + " supprimé.");
@@ -679,7 +679,7 @@ public class SettingsActivity extends Activity {
                         store.setAutoCovers(on);
                     }
                 });
-        toggle("Fiches de jeux", "Synopsis et année (Wikipédia), en mode Tsuru",
+        toggle("Fiches de jeux", "Résumé et année de sortie de chaque jeu, sur l'accueil",
                 store.autoInfo(), new Toggle() {
                     public void set(boolean on) {
                         store.setAutoInfo(on);
@@ -699,7 +699,7 @@ public class SettingsActivity extends Activity {
                 screenScraperDialog();
             }
         });
-        action("Retélécharger les fiches", "Efface les fiches gardées", new Runnable() {
+        action("Retélécharger les fiches", "Efface les résumés enregistrés et les récupère à nouveau", new Runnable() {
             public void run() {
                 new GameInfo(SettingsActivity.this).clear();
                 toast("Fiches effacées.");
@@ -854,7 +854,7 @@ public class SettingsActivity extends Activity {
         new CodecMenu(this).title("Touche " + ControlLayout.label(f), wizard.name + " · " + (wizardStep + 1) + "/"
                 + Pads.FUNCTIONS.length)
                 .message("Appuie sur la touche de la manette qui doit servir de « " + ControlLayout.label(f) + " ».")
-                .sub("Passer", "Garder la touche automatique", new Runnable() {
+                .sub("Passer", "Garde l'attribution d'origine pour cette touche", new Runnable() {
                     public void run() {
                         wizardStep++;
                         wizardPrompt();
@@ -999,7 +999,7 @@ public class SettingsActivity extends Activity {
                 render();
             }
         });
-        toggle("Effet cathodique", "Lignes de balayage sur la moitié haute", store.scanlines(), new Toggle() {
+        toggle("Effet cathodique", "Lignes de balayage façon vieux téléviseur sur l'écran du haut", store.scanlines(), new Toggle() {
             public void set(boolean on) {
                 store.setScanlines(on);
             }
@@ -1051,7 +1051,7 @@ public class SettingsActivity extends Activity {
                 store.setHudRate(Hud.RATES[i]);
             }
         });
-        toggle("Bandeau sombre", "Sinon, texte ombré sur le jeu", store.hudBackground(),
+        toggle("Bandeau sombre", "Fond sombre derrière l'ATH ; sinon texte ombré sur l'image", store.hudBackground(),
                 new Toggle() {
                     public void set(boolean on) {
                         store.setHudBackground(on);
@@ -1087,7 +1087,7 @@ public class SettingsActivity extends Activity {
                 a11yChanged();
             }
         });
-        toggle("Réduire les animations", "Fonds fixes, liseré de la manette immobile", store.reduceMotion(), new Toggle() {
+        toggle("Réduire les animations", "Fonds et contour de la manette immobiles", store.reduceMotion(), new Toggle() {
             public void set(boolean on) {
                 store.setReduceMotion(on);
                 a11yChanged();
@@ -1127,7 +1127,7 @@ public class SettingsActivity extends Activity {
     private void updates() {
         header("Version installée");
         note("Origami " + Updater.installed(this));
-        toggle("Rechercher automatiquement", "Au démarrage, deux fois par jour max, avec notification",
+        toggle("Rechercher automatiquement", "Vérifie au démarrage et prévient par une notification",
                 store.autoUpdates(), new Toggle() {
                     public void set(boolean on) {
                         store.setAutoUpdates(on);

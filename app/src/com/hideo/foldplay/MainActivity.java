@@ -627,6 +627,65 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     private LinearLayout homeStageCol;
 
+    /**
+     * Apparition de la bulle du synopsis selon le thème (20/10) : Codec, signal qui s'allume en
+     * balayage ; Arctique, givre qui descend ; Écarlate, éventail qui s'ouvre ; Sakura, pétale qui éclot ;
+     * Ambre, lampe qui scintille. Animations réduites : simple fondu.
+     */
+    private void sheetEffect(final View v) {
+        v.animate().cancel();
+        v.setTranslationX(0);
+        v.setTranslationY(0);
+        v.setScaleX(1);
+        v.setScaleY(1);
+        v.setRotation(0);
+        if (store.reduceMotion()) {
+            v.setAlpha(0.4f);
+            v.animate().alpha(1f).setDuration(160).start();
+            return;
+        }
+        android.view.animation.Interpolator ease = new android.view.animation.DecelerateInterpolator(2f);
+        switch (Theme.THEME_ID) {
+            case "codec":
+                v.setPivotY(0);
+                v.setScaleY(0.04f);
+                v.setAlpha(0.6f);
+                v.animate().scaleY(1f).alpha(1f).setDuration(220).setInterpolator(ease).start();
+                break;
+            case "arctique":
+                v.setAlpha(0f);
+                v.setTranslationY(-dp(14));
+                v.animate().alpha(1f).translationY(0).setDuration(260).setInterpolator(ease).start();
+                break;
+            case "ecarlate":
+                v.setPivotX(v.getWidth());
+                v.setPivotY(v.getHeight());
+                v.setRotation(6f);
+                v.setAlpha(0.3f);
+                v.animate().rotation(0).alpha(1f).setDuration(240).setInterpolator(ease).start();
+                break;
+            case "sakura":
+                v.setPivotX(v.getWidth() / 2f);
+                v.setPivotY(v.getHeight() / 2f);
+                v.setScaleX(0.92f);
+                v.setScaleY(0.92f);
+                v.setAlpha(0f);
+                v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(280)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.6f)).start();
+                break;
+            case "ambre": {
+                android.animation.ObjectAnimator f = android.animation.ObjectAnimator.ofFloat(v, "alpha",
+                        0.2f, 0.9f, 0.5f, 1f, 0.75f, 1f);
+                f.setDuration(320);
+                f.start();
+                break;
+            }
+            default:
+                v.setAlpha(0.4f);
+                v.animate().alpha(1f).setDuration(160).start();
+        }
+    }
+
     /** Tsuru : l'écran du haut passe sous la barre d'état et la manette sous la barre de navigation. */
     private void applyBleed() {
         int t = Theme.bleed ? Theme.INSETS[1] : 0, b = Theme.bleed ? Theme.INSETS[3] : 0;
@@ -840,9 +899,14 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         heroSheet.addView(sheetMeta);
         sheetSummary = text("", 13 * s, Theme.MUTED, false);
         sheetSummary.setLineSpacing(0, 1.15f);
-        sheetSummary.setMaxLines(14);
-        sheetSummary.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        heroSheet.addView(sheetSummary, new LinearLayout.LayoutParams(-1, 0, 1f));
+        // Bulle dynamique (20/10) : elle prend la hauteur du texte, sans dépasser la zone ; au-delà,
+        // le synopsis défile dans la bulle.
+        ScrollView summaryScroll = new ScrollView(this);
+        summaryScroll.setVerticalScrollBarEnabled(false);
+        summaryScroll.setVerticalFadingEdgeEnabled(true);
+        summaryScroll.setFadingEdgeLength(dp(18));
+        summaryScroll.addView(sheetSummary);
+        heroSheet.addView(summaryScroll, new LinearLayout.LayoutParams(-1, -2, 1f));
         sheetSource = text("", 10 * s, Theme.MUTED, false);
         sheetSource.setAlpha(0.7f);
         sheetSource.setPadding(0, dp(4), 0, 0);
@@ -854,7 +918,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         for (TextView t : new TextView[] {sheetTitle, sheetMeta, sheetSummary, sheetSource, heroSystem, heroTitle, heroMeta}) {
             t.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
         }
-        art.addView(heroSheet, new FrameLayout.LayoutParams(-1, -1));
+        art.addView(heroSheet, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(0, -1, 0.56f);
         ap.setMargins(dp(16 * s), 0, 0, 0);
         body.addView(art, ap);
@@ -1033,7 +1097,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         m.check("Vibrations", "Retour haptique sur les touches tactiles", store.haptics(), new Runnable() {
             public void run() { store.setHaptics(!store.haptics()); self.run(); }
         });
-        m.check("Plein écran avec une manette", "Masquée quand une manette est branchée",
+        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette physique est branchée",
                 store.padFullscreen(), new Runnable() {
                     public void run() {
                         store.setPadFullscreen(!store.padFullscreen());
@@ -1041,7 +1105,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         self.run();
                     }
                 });
-        m.check("Boutons rapides avec une manette", "SAVE, LOAD et ×2 restent à l'écran en jeu",
+        m.check("Boutons rapides avec une manette", "Sauvegarde, chargement et ×2 restent visibles avec une manette physique",
                 store.padQuickButtons(), new Runnable() {
                     public void run() { store.setPadQuickButtons(!store.padQuickButtons()); self.run(); }
                 });
@@ -1430,7 +1494,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             });
         }
         final boolean auto = store.autoCovers();
-        m.check("Jaquettes automatiques", "Téléchargées depuis la base libretro", auto, new Runnable() {
+        m.check("Jaquettes automatiques", "Images de boîte téléchargées automatiquement", auto, new Runnable() {
             public void run() {
                 store.setAutoCovers(!auto);
                 if (!auto) fetchCovers();
@@ -1520,10 +1584,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         String meta = (fav ? "★ Favori · " : "") + (selected + 1) + "/" + shown.size();
         if (emu != null) meta += " · " + emu;
         heroMeta.setText(meta);
-        if (animate) {
-            heroSheet.setAlpha(0.4f);
-            heroSheet.animate().alpha(1f).setDuration(160).start();
-        }
+        if (animate) sheetEffect(heroSheet);
         for (int i = 0; i < carousel.getChildCount(); i++) {
             LinearLayout card = (LinearLayout) carousel.getChildAt(i);
             CartridgeView cv = (CartridgeView) card.getChildAt(0);
@@ -2173,7 +2234,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 public void run() { scan(Uri.parse(store.treeUri())); }
             });
         }
-        m.item("Oublier les émulateurs choisis", "Redemandé au prochain lancement", new Runnable() {
+        m.item("Oublier les émulateurs choisis", "L'émulateur à utiliser sera redemandé au prochain jeu", new Runnable() {
             public void run() {
                 store.clearEmulators();
                 toast("L'émulateur sera redemandé au prochain lancement.");

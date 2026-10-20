@@ -661,7 +661,7 @@ public class Ps3Activity extends Activity {
                         quickLoad();
                     }
                 })
-                .item("Menu de la console", "Le menu PS du jeu (trophées, quitter…)", new Runnable() {
+                .item("Menu de la console", "Le menu PlayStation du jeu (trophées, quitter…)", new Runnable() {
                     public void run() {
                         resumeGame();
                         Ps3Core.nativeHomeMenu();

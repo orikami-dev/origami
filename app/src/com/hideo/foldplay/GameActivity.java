@@ -1162,7 +1162,7 @@ public class GameActivity extends Activity {
                     public void run() { showSaves(); }
                 })
                 .sub("Codes de triche", null, new Runnable() { public void run() { showCheats(); } })
-                .check("ATH de monitoring", "RTSS, à régler dans Réglages > Affichage", store.hud(),
+                .check("ATH de monitoring", "Images/s, processeur, batterie… (réglages dans Affichage)", store.hud(),
                         new Runnable() {
                             public void run() {
                                 store.setHud(!store.hud());
@@ -1173,7 +1173,7 @@ public class GameActivity extends Activity {
                 .item("Redémarrer le jeu", null, new Runnable() {
                     public void run() { jobs.add(new Runnable() { public void run() { Libretro.nativeReset(); } }); }
                 })
-                .item("Quitter", "Retour à l'accueil, sauvegarde écrite", new Runnable() {
+                .item("Quitter", "Revient à l'accueil ; la sauvegarde du jeu est enregistrée", new Runnable() {
                     public void run() { finish(); }
                 })
                 .show(stage);
@@ -1208,14 +1208,14 @@ public class GameActivity extends Activity {
             }
         });
         if (screenMode != 2) {
-            m.item("Modifier la manette ici", "Sur le jeu, à l'échelle de cet écran", new Runnable() {
+            m.item("Modifier la manette ici", "Déplace les touches directement sur cet écran", new Runnable() {
                 public void run() {
                     deck.post(new Runnable() { public void run() { startDeckEdit(); } });
                 }
             });
         }
         if (store.screenLayout(store.activeLayout(), deck.columns(), deck.rows()) != null) {
-            m.item("Revenir à la disposition commune", "Oublie les retouches faites sur cet écran", new Runnable() {
+            m.item("Revenir à la disposition commune", "Annule les retouches faites pour cet écran", new Runnable() {
                 public void run() {
                     store.setScreenLayout(deck.columns(), deck.rows(), null);
                     deck.reloadFromSource();
@@ -1242,11 +1242,11 @@ public class GameActivity extends Activity {
                 r.show(stage);
             }
         });
-        m.check("Plein écran avec une manette", "Masquée quand une manette est branchée",
+        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette physique est branchée",
                 store.padFullscreen(), new Runnable() {
                     public void run() { store.setPadFullscreen(!store.padFullscreen()); updateOverlay(); showControllerOptions(); }
                 });
-        m.check("Boutons rapides avec une manette", "SAVE, LOAD et ×2 restent à l'écran", store.padQuickButtons(),
+        m.check("Boutons rapides avec une manette", "Sauvegarde, chargement et ×2 restent visibles avec une manette physique", store.padQuickButtons(),
                 new Runnable() {
                     public void run() { store.setPadQuickButtons(!store.padQuickButtons()); updateOverlay(); showControllerOptions(); }
                 });
@@ -1316,7 +1316,7 @@ public class GameActivity extends Activity {
                 }
             });
         }
-        m.check("Image lissée", "Décoché : pixels nets", smooth, new Runnable() {
+        m.check("Image lissée", "Adoucit les pixels ; décoché, image nette et pixelisée", smooth, new Runnable() {
             public void run() {
                 smooth = !smooth;
                 store.setSmooth(system, smooth);
@@ -1411,7 +1411,7 @@ public class GameActivity extends Activity {
                 public void run() { optionGroupMenu(vars, g.getKey(), g.getValue()); }
             });
         }
-        m.item("Tout remettre par défaut", "Au prochain lancement du jeu", new Runnable() {
+        m.item("Tout remettre par défaut", "Réglages d'origine, appliqués au prochain lancement du jeu", new Runnable() {
             public void run() {
                 store.clearCoreOptions(core);
                 toastUi("Réglages effacés.");

@@ -324,7 +324,7 @@ public class LayoutEditorActivity extends Activity {
         final ControlLayout doomed = current;
         new CodecMenu(this).title("Supprimer « " + doomed.name + " » ?", "DISPOSITION")
                 .item("Annuler", null, null)
-                .item("Supprimer", "Touches et fond effacés", new Runnable() {
+                .item("Supprimer", "Efface cette manette (touches et fond)", new Runnable() {
                     public void run() {
                         layouts.remove(doomed);
                         deleteBackgroundFile(doomed.background);

@@ -109,7 +109,7 @@ final class EngineMenus {
                 r.show(stage);
             }
         });
-        m.check("Gâchettes en arc", "Autour des joysticks, façon GameCube. Décoché : place d'origine, en haut",
+        m.check("Gâchettes en arc", "Gâchettes en haricot autour des joysticks ; décoché, en haut de la manette",
                 store.ergoTriggers(), new Runnable() {
             public void run() {
                 store.setErgoTriggers(!store.ergoTriggers());
@@ -125,7 +125,7 @@ final class EngineMenus {
                 self.run();
             }
         });
-        m.check("Plein écran avec une manette", "Masquée quand une manette est branchée",
+        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette physique est branchée",
                 store.padFullscreen(), new Runnable() {
             public void run() {
                 store.setPadFullscreen(!store.padFullscreen());
