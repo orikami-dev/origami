@@ -29,7 +29,7 @@ public final class UpdatedReceiver extends BroadcastReceiver {
         PendingIntent pi = PendingIntent.getActivity(ctx, 8, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         Notification n = new Notification.Builder(ctx, "updates")
                 .setSmallIcon(R.drawable.ic_foreground)
-                .setContentTitle("Origami " + Updater.installed(ctx) + " " + I18n.tr("est installée"))
+                .setContentTitle("Origami " + Updater.installed(ctx) + " " + I18n.tr("installé"))
                 .setContentIntent(pi)
                 .setAutoCancel(true)
                 .build();
