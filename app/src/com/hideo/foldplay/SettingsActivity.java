@@ -117,6 +117,7 @@ public class SettingsActivity extends Activity {
             }
             bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
             if (Theme.RIGHT_HANDED) bar.setGravity(Gravity.CENTER_VERTICAL);
+            Theme.mirror(main);
             main.addView(bar);
             body = vertical();
             body.setPadding(dp(twoPane ? 20 : 16), dp(8), dp(twoPane ? 24 : 16), dp(32));
@@ -177,6 +178,7 @@ public class SettingsActivity extends Activity {
         bar.addView(back);
         bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
         col.addView(bar);
+        Theme.mirror(col);
 
         LinearLayout card = vertical();
         card.setPadding(dp(6), dp(6), dp(6), dp(6));
@@ -292,19 +294,25 @@ public class SettingsActivity extends Activity {
         final Launcher launcher = new Launcher(this, store);
 
         // 1. Une ligne par console : tout ce qui la concerne s'ouvre dans son menu.
+        // Une case par console (un cœur = une console) : nom, cœur installé ou aucun, taille.
         header("Consoles");
         gridStart();
         for (final SystemInfo s : SystemInfo.ALL) {
-            String summary = consoleSummary(s, cores, launcher);
-            if (summary == null) continue;
-            tile(s.name, condensed(summary), new Runnable() {
+            if (consoleSummary(s, cores, launcher) == null) continue;
+            String core = Libretro.available() ? CoreManager.coreFor(s) : null;
+            String line2 = "aucun", line3 = "";
+            if (core != null && (CoreManager.bundled(core) || cores.installed(core))) {
+                line2 = CoreCatalog.name(core);
+                File f = cores.file(core);
+                line3 = f != null && f.exists() ? String.format(java.util.Locale.ROOT, "%.1f Mo", f.length() / 1048576f)
+                        : "livré";
+            }
+            tile(s.name, line2 + (line3.length() > 0 ? "\n" + line3 : ""), new Runnable() {
                 public void run() { consoleMenu(s, cores, launcher); }
             });
         }
         gridEnd();
-
-        // 2. Les cœurs : une page chacun (téléchargement, version, réglages, licence).
-        coreList(cores);
+        coreNote();
 
         // 3. Fichiers communs à toutes les consoles.
         header("BIOS et sauvegardes");
@@ -390,7 +398,9 @@ public class SettingsActivity extends Activity {
         if (core != null) {
             boolean b = bundled(core);
             m.item("Moteur intégré : " + CoreCatalog.name(core), b ? "Livré avec l'app" : cores.installed(core) ? "Installé ✓"
-                    : "Se télécharge au premier lancement d'un jeu", null);
+                    : "Se télécharge au premier lancement d'un jeu", new Runnable() {
+                        public void run() { corePage(core, back); }
+                    });
             if (!b) m.item(cores.installed(core) ? "Retélécharger le cœur" : "Télécharger le cœur maintenant",
                     "Dernière version de libretro", new Runnable() {
                         public void run() { redownload(cores, java.util.Collections.singletonList(core)); }
@@ -457,6 +467,10 @@ public class SettingsActivity extends Activity {
     // ------------------------------------------------------------------ cœurs
 
     /** Les cœurs intégrés, une ligne chacun : leur page s'ouvre au toucher. */
+    private void coreNote() {
+        if (Libretro.available()) note("Switch : Eden, intégré comme les autres cœurs, bientôt.");
+    }
+
     private void coreList(final CoreManager cores) {
         if (!Libretro.available()) return;
         header("Cœurs");

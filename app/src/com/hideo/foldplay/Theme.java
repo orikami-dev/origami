@@ -115,6 +115,14 @@ final class Theme {
      * Plein écran : barres d'état et de navigation masquées, un glissement du bord les rappelle.
      * Toujours en jeu ; ailleurs seulement si l'option est activée (Réglages > Affichage).
      */
+    /** Mode droitier (0.65) : la zone se lit en miroir de la disposition de base, navigation et textes
+     *  proches côté pouce. Le sens de lecture du texte lui-même ne change pas. */
+    static void mirror(android.view.View v) {
+        if (!RIGHT_HANDED || v == null) return;
+        v.setLayoutDirection(android.view.View.LAYOUT_DIRECTION_RTL);
+        v.setTextDirection(android.view.View.TEXT_DIRECTION_LTR);
+    }
+
     @SuppressWarnings("deprecation")
     static void fullscreen(android.app.Activity a) {
         android.view.Window w = a.getWindow();

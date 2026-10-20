@@ -264,6 +264,7 @@ final class CodecMenu extends FrameLayout {
         card.setClipToOutline(true);
         card.setClickable(true);
         card.setPadding(0, px(14), 0, px(10));
+        Theme.mirror(card);
 
         // En-tête : barre verte, titre au pochoir, sous-titre.
         LinearLayout head = new LinearLayout(getContext());

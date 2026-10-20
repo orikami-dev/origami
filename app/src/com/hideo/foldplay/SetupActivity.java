@@ -109,6 +109,7 @@ public class SetupActivity extends Activity {
         });
         nav.addView(next);
         card.addView(nav);
+        Theme.mirror(card);
 
         root.addView(card, new LinearLayout.LayoutParams(-1, -1));
         setContentView(root);
