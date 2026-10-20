@@ -31,7 +31,6 @@ public class SettingsActivity extends Activity {
     static final String[][] SECTIONS = {
         {"library", "Bibliothèque"},
         {"emulators", "Émulateurs"},
-        {"covers", "Jaquettes et fiches"},
         {"display", "Affichage"},
         {"monitoring", "Monitoring"},
         {"sound", "Son"},
@@ -129,7 +128,6 @@ public class SettingsActivity extends Activity {
 
             if (section.equals("library")) library();
             else if (section.equals("emulators")) emulators();
-            else if (section.equals("covers")) covers();
             else if (section.equals("display")) display();
             else if (section.equals("monitoring")) monitoring();
             else if (section.equals("sound")) sound();
@@ -1009,7 +1007,9 @@ public class SettingsActivity extends Activity {
             }
         });
         note("Manettes et vibrations : icône manette de l'accueil.");
-    }
+            header("Jaquettes et fiches");
+        covers();
+}
 
     /** Monitoring : l'ATH en jeu façon RTSS, son style et les mesures affichées. */
     private void monitoring() {
@@ -1076,15 +1076,6 @@ public class SettingsActivity extends Activity {
      * animations, et aides de jeu pour qui a du mal à maintenir un appui ou à faire de grands gestes.
      */
     private void accessibility() {
-        header("Tenue à une main");
-        choice("Main qui tient le téléphone", new String[] {"Droitier", "Gaucher"}, store.rightHanded() ? 0 : 1,
-                new Choice() {
-                    public void set(int i) {
-                        store.setRightHanded(i == 0);
-                        a11yChanged();
-                    }
-                });
-        note("La flèche retour et la liste des réglages passent du côté du pouce.");
         header("Lecture");
         choice("Taille des textes", new String[] {"Normale", "Grande", "Très grande"}, store.a11yText(), new Choice() {
             public void set(int i) {

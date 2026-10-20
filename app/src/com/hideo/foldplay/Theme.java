@@ -262,7 +262,8 @@ final class Theme {
         LOGO = logo;
         THEME_ID = id;
         ANIMATE = store.animatedBackdrop() && !store.reduceMotion();
-        RIGHT_HANDED = store.rightHanded();
+        // Tenue à une main désactivée (BOSS, 20/10) : disposition de base partout, à réintégrer plus tard.
+        RIGHT_HANDED = false;
         LATCH = store.latchTriggers();
         STRONG_HAPTICS = store.strongHaptics();
         STICK_REACH = new float[] {1f, 0.7f, 0.5f}[Math.max(0, Math.min(2, store.stickReach()))];
