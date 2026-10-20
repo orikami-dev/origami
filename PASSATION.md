@@ -139,3 +139,4 @@ Liste de BOSS du 19/10 22h12 (une seule grosse mise à jour, numéro 0.61.0). Le
 ## 0.65.0 (20/10, fil « Versions 0.65 »)
 - Fait : voir docs/releases/0.65.0.md. APK dist/origami-0.65.0-debug.apk (versionCode 80). dl.google.com répond (200) dans cet environnement : NDK installable (non fait).
 - Reste : image Ambre non reçue (manette et fond recréés en vectoriel, à remplacer), valeurs xenia cvars effectives non vérifiées (le dump du journal précède les surcharges), profils par cœur (Ghidra) et banc d'essai, Demon's Souls/DMC 4 à retester, recompilation Xenia avec le correctif son.
+- À faire en 0.65.1 (BOSS 20/10 05h04) : la définition interne change selon que le Fold est ouvert ou fermé malgré les profils (lecture de la taille d'écran ou du profil ? à vérifier dans le journal ATH 1248×914) ; ATH : chiffre de chauffe seul (fait), sentinelle 105 °C écartée (fait).

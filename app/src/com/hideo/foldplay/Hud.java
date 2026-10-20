@@ -121,8 +121,8 @@ final class Hud {
         }
         if (items.contains("heat") && (s.heat >= 0 || !Float.isNaN(s.chipC))) {
             if (!Float.isNaN(s.chipC)) {
+                // Chiffre seul, sans le mot « forte » ou « critique » (demande BOSS, 0.65).
                 w.item("CHAUFFE", fmt0(deg(s.chipC, s.fahrenheit)), unit);
-                if (s.heat > 0) w.extra(s.heat < HEAT.length ? HEAT[s.heat] : "?", null);
             } else {
                 w.item("CHAUFFE", s.heat < HEAT.length ? HEAT[s.heat] : "?", null);
             }
@@ -166,7 +166,9 @@ final class Hud {
             try {
                 float t = Long.parseLong(v.trim());
                 if (t > 1000) t /= 1000f;
-                if (t > 0 && t < 150 && (Float.isNaN(best) || t > best)) best = t;
+                // Au-delà de 95 °C, c'est une valeur de repli de la zone (seuil, capteur absent) et non une
+                // mesure : le Fold affichait 105 °C à 33 °C de batterie (0.65).
+                if (t > 0 && t < 95 && (Float.isNaN(best) || t > best)) best = t;
             } catch (NumberFormatException ignored) {
             }
         }
