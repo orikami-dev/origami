@@ -117,6 +117,18 @@ final class Theme {
      */
     /** Mode droitier (0.65) : la zone se lit en miroir de la disposition de base, navigation et textes
      *  proches côté pouce. Le sens de lecture du texte lui-même ne change pas. */
+    /** Vrai pendant l'animation de démarrage : sous les barres, le fond reste uni (0.65). */
+    static boolean splashing;
+
+    /** Fond sous les barres d'état et de navigation : uni pendant le démarrage, puis celui du thème. */
+    static void barsBackground(android.app.Activity a, boolean splash) {
+        splashing = splash;
+        android.view.View content = a.getWindow().getDecorView().findViewById(android.R.id.content);
+        if (content == null) return;
+        if (splash) content.setBackgroundColor(BG);
+        else content.setBackground(backdrop(0));
+    }
+
     static void mirror(android.view.View v) {
         if (!RIGHT_HANDED || v == null) return;
         v.setLayoutDirection(android.view.View.LAYOUT_DIRECTION_RTL);
@@ -155,12 +167,17 @@ final class Theme {
                 w.setDecorFitsSystemWindows(false);
                 final android.view.View content = w.getDecorView().findViewById(android.R.id.content);
                 if (content != null) {
-                    content.setBackground(backdrop(0));
+                    if (!splashing) content.setBackground(backdrop(0));
                     content.setOnApplyWindowInsetsListener(new android.view.View.OnApplyWindowInsetsListener() {
                         public android.view.WindowInsets onApplyWindowInsets(android.view.View v, android.view.WindowInsets wi) {
                             android.graphics.Insets b = wi.getInsets(android.view.WindowInsets.Type.systemBars()
                                     | android.view.WindowInsets.Type.displayCutout());
-                            v.setPadding(b.left, b.top, b.right, b.bottom);
+                            // La marge va sur la vue racine de l'activité, pas sur la zone de contenu :
+                            // le fond de la racine passe ainsi sous les barres, sans raccord.
+                            android.view.View top = ((android.view.ViewGroup) v).getChildCount() > 0
+                                    ? ((android.view.ViewGroup) v).getChildAt(0) : null;
+                            if (top != null) top.setPadding(b.left, b.top, b.right, b.bottom);
+                            else v.setPadding(b.left, b.top, b.right, b.bottom);
                             return android.view.WindowInsets.CONSUMED;
                         }
                     });

@@ -555,6 +555,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
      * de l'app et l'équipe. Un appui passe l'animation.
      */
     private void showSplash() {
+        Theme.barsBackground(this, true);
         FrameLayout splash = new FrameLayout(this);
         splash.setBackgroundColor(Theme.BG);
         final OrigamiSplash crane = new OrigamiSplash(this);
@@ -585,6 +586,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             public void run() {
                 if (splashDone) return;
                 splashDone = true;
+                Theme.barsBackground(MainActivity.this, false);
                 rebuild();
                 root.setAlpha(0f);
                 root.animate().alpha(1f).setDuration(260).start();
