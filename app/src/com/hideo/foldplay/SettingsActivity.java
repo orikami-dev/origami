@@ -1179,7 +1179,9 @@ public class SettingsActivity extends Activity {
                                     });
                                 }
                             });
-                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+                            // Barre pleine largeur, texte centré (20/10).
+                            go.setGravity(Gravity.CENTER);
+                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
                             lp.topMargin = dp(12);
                             result.addView(go, lp);
                         }
