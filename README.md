@@ -25,6 +25,7 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 | 📱 **Mode Washi** | Écran externe ou téléphone à plat : lanceur d'apps et bibliothèque. |
 | 🕹️ **Manette Flex** | Une manette par console, choisie au lancement, qui suit la rotation. |
 | 🌐 **10 langues** | Français, anglais, espagnol, allemand, italien, portugais, russe, japonais, coréen, chinois. |
+| 🔄 **Mises à jour intégrées** | Versions stables et préversions proposées directement dans l'app. |
 
 <p align="center">
   <img src="docs/images/xmb-jeux-mobiles-remote-0.60.5.png" width="45%" alt="Accueil XMB">
@@ -39,6 +40,7 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 | 32 et 64 bits | PS1, N64, Saturn, Dreamcast, PSP, arcade | cœurs libretro |
 | 6e génération | PS2 🟢, GameCube et Wii | ARMSX2, Dolphin |
 | 7e génération | PS3 🧪, Xbox 360 🧪 | ARMSX3, Xenia (portage Android maison) |
+| À venir | 3DS, Switch, PS Vita | en préparation |
 
 🧪 = en test. Aucun jeu, BIOS ni firmware n'est fourni : tu utilises tes propres copies.
 
@@ -46,7 +48,9 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 
 - 🎨 Cinq thèmes (Codec, Arctique, Écarlate, Sakura, Ambre) appliqués sans redémarrage, avec fonds, manettes et icônes assortis.
 - 📊 ATH façon RTSS sur toutes les consoles : images/s, vitesse, processeur, mémoire, batterie, chauffe.
-- ⚡ Profils Performance, Équilibré, Qualité qui règlent vraiment chaque moteur.
+- ⚡ Profils Performance, Équilibré, Qualité et Personnalisé, réglages visibles en direct.
+- 📲 En portrait, écran du jeu et manette coupés pile sur la charnière ; en paysage, plein écran.
+- 🗂️ Lanceur d'apps avec tri et défilement rapide.
 - 📡 Colonne Remote Play (PlayStation, Xbox, Steam Link) et colonne Jeux mobiles.
 - 💾 Import et export des sauvegardes, import des BIOS et du firmware PS3.
 - 📐 Tous les pliants et tous les formats d'écran, changements à chaud.
@@ -59,6 +63,7 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 
 | Version | Ce qu'elle a apporté |
 |---|---|
+| [0.62.0](https://github.com/orikami-dev/origami/releases/tag/v0.62.0) | Sons et musiques par thème, Remote Play par plateforme, jaquettes Xbox 360. |
 | [0.60.0](https://github.com/orikami-dev/origami/releases/tag/v0.60.0) | Xbox 360 intégrée (portage Android de Xenia). |
 | [0.50.1](https://github.com/orikami-dev/origami/releases/tag/v0.50.1) | PS3 intégrée (ARMSX3). |
 | [0.50.0](https://github.com/orikami-dev/origami/releases/tag/v0.50.0) | Thèmes sans redémarrage, en route vers la PS3. |
@@ -79,7 +84,7 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 | `native/` | Pont libretro, pont PS3, scripts de compilation et correctifs des moteurs |
 | `prebuilt/` | Moteurs compilés (non versionnés, refaits par `native/build-*.sh`) |
 | `docs/` | Notes techniques, notes de chaque version, images |
-| `tools/` | Installation du SDK |
+| `tools/` | Installation du SDK, publication des versions |
 
 Construire : `bash app/build.sh` (voir l'en-tête du script).
 
