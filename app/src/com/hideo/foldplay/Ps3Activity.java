@@ -62,6 +62,7 @@ public class Ps3Activity extends Activity {
                             | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
                             | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     .putExtra(MainActivity.EXTRA_RESTART, new android.content.Intent(getIntent())));
+            DebugLog.markClean(this);
             android.os.Process.killProcess(android.os.Process.myPid());
             return;
         }
@@ -77,6 +78,9 @@ public class Ps3Activity extends Activity {
         title = getIntent().getStringExtra(EXTRA_TITLE);
         if (title == null) title = "PlayStation 3";
         build();
+        DebugLog.event("[PS3] onCreate : jeu « " + title + " », chemin " + path + ", profil "
+                + EngineSettings.profile(this, EngineSettings.PS3));
+        DebugLog.snapshot(this, "PS3 création");
         if (!Ps3Core.present(this)) {
             fail("Le moteur PS3 n'est pas dans cette version d'Origami.");
             return;
@@ -91,6 +95,7 @@ public class Ps3Activity extends Activity {
                 boolean ok = Ps3Core.nativeInitialize(Ps3Core.root(Ps3Activity.this), "00000001",
                         Build.VERSION.SDK_INT >= 31 ? Build.SOC_MODEL : Build.HARDWARE);
                 ready = ok;
+                DebugLog.event("[PS3] nativeInitialize ok=" + ok + (ok ? "" : ", erreur " + safeError()));
                 runOnUiThread(new Runnable() {
                     public void run() {
                         if (!ready) fail("Le moteur PS3 n'a pas pu démarrer.");
@@ -127,6 +132,7 @@ public class Ps3Activity extends Activity {
                 surface = h.getSurface();
                 Ps3Core.nativeSurface(surface, event);
                 surfaceSeen = true;
+                DebugLog.event("[PS3] surface reçue");
                 maybeBoot();
             }
 
@@ -304,10 +310,13 @@ public class Ps3Activity extends Activity {
         if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) return;
         if (CodecMenu.find(stage) != null) return;
         booted = true;
+        DebugLog.event("[PS3] démarrage du jeu : applyPs3 puis nativeBoot");
         new Thread(new Runnable() {
             public void run() {
                 EngineSettings.applyPs3(Ps3Activity.this, title + " " + path);
                 final int r = Ps3Core.nativeBoot(path);
+                DebugLog.event("[PS3] nativeBoot a rendu " + r + " (" + Ps3Core.bootName(r) + ")");
+                DebugLog.snapshot(Ps3Activity.this, "PS3 après nativeBoot");
                 runOnUiThread(new Runnable() {
                     public void run() {
                         if (r == Ps3Core.BOOT_OK || r == Ps3Core.BOOT_ALREADY_ADDED) {
@@ -331,11 +340,17 @@ public class Ps3Activity extends Activity {
     }
 
     /** Le jeu s'arrête de lui-même (Quitter depuis le menu du jeu) : on revient à la bibliothèque. */
+    private int lastState = -99;
+
     private void watch() {
         stage.postDelayed(new Runnable() {
             public void run() {
                 if (isFinishing()) return;
                 int s = Ps3Core.nativeState();
+                if (s != lastState) {
+                    DebugLog.event("[PS3] état du moteur " + lastState + " -> " + s + " (titre " + Ps3Core.nativeTitleId() + ")");
+                    lastState = s;
+                }
                 boolean moving = android.os.SystemClock.uptimeMillis() < stateUntil;
                 if (s == Ps3Core.RUNNING && stateMsg != null) {
                     // Le moteur est reparti de l'état écrit (sauvegarde) ou relu (chargement).
@@ -769,6 +784,7 @@ public class Ps3Activity extends Activity {
     }
 
     private void fail(String msg) {
+        DebugLog.event("[PS3] échec affiché : " + msg);
         new CodecMenu(this).title("PlayStation 3", title)
                 .message(msg)
                 .item("Retour", null, new Runnable() {
@@ -801,8 +817,29 @@ public class Ps3Activity extends Activity {
         if (ready) Ps3Core.nativeBackground(true);
     }
 
+    /** Qui ferme l'écran du jeu, et quand : la pile d'appels est écrite au journal. */
+    @Override
+    public void finish() {
+        DebugLog.event("[PS3] finish() appelé, isFinishing=" + isFinishing(), new Throwable("finish"));
+        super.finish();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        DebugLog.event("[PS3] onStart");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        DebugLog.event("[PS3] onStop, isFinishing=" + isFinishing());
+        DebugLog.snapshot(this, "PS3 arrêt de l'écran");
+    }
+
     @Override
     protected void onDestroy() {
+        DebugLog.event("[PS3] onDestroy, isFinishing=" + isFinishing());
         super.onDestroy();
         if (hud != null) hud.stop();
         if (peak != null) peak.stop();
@@ -814,6 +851,7 @@ public class Ps3Activity extends Activity {
             } catch (Throwable ignored) {
                 // Déjà arrêté.
             }
+            DebugLog.markClean(this);
             android.os.Process.killProcess(android.os.Process.myPid());
         }
     }

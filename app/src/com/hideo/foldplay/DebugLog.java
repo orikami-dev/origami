@@ -90,6 +90,12 @@ final class DebugLog {
                 boolean ps3 = p.endsWith(":ps3"), x360 = p.endsWith(":x360");
                 if (!ps3 && !x360) continue;
                 int r = e.getReason();
+                File clean = new File(dir(ctx), "clean-" + e.getPid());
+                if (clean.exists()) {
+                    // Arrêt voulu par l'app (Quitter, relance) : rien à signaler.
+                    clean.delete();
+                    continue;
+                }
                 if (r != android.app.ApplicationExitInfo.REASON_CRASH && r != android.app.ApplicationExitInfo.REASON_CRASH_NATIVE
                         && r != android.app.ApplicationExitInfo.REASON_ANR && r != android.app.ApplicationExitInfo.REASON_LOW_MEMORY
                         && r != android.app.ApplicationExitInfo.REASON_SIGNALED) continue;
@@ -118,6 +124,63 @@ final class DebugLog {
             // Pas d'accès à l'historique : rien à signaler.
         }
         return crashed;
+    }
+
+    /** Note au journal (étiquette Origami) : jalon d'un écran ou d'un moteur. */
+    static void event(String msg) {
+        android.util.Log.i("Origami", msg);
+    }
+
+    static void event(String msg, Throwable where) {
+        android.util.Log.i("Origami", msg + "\n" + android.util.Log.getStackTraceString(where));
+    }
+
+    /**
+     * État de l'appareil à un instant donné : mémoire, batterie, chaleur, écran, stockage, droits.
+     * Une ligne par thème, pour qu'un journal dise dans quelles conditions un jeu a tourné ou échoué.
+     */
+    static void snapshot(Context ctx, String why) {
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) ctx.getSystemService(Context.ACTIVITY_SERVICE);
+            android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+            am.getMemoryInfo(mi);
+            Runtime rt = Runtime.getRuntime();
+            event("[état " + why + "] mémoire libre " + (mi.availMem >> 20) + " Mo sur " + (mi.totalMem >> 20)
+                    + " Mo, seuil bas " + (mi.threshold >> 20) + " Mo, manque=" + mi.lowMemory
+                    + ", tas Java " + ((rt.totalMemory() - rt.freeMemory()) >> 20) + "/" + (rt.maxMemory() >> 20) + " Mo");
+            android.content.Intent b = ctx.registerReceiver(null, new android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED));
+            if (b != null) {
+                event("[état " + why + "] batterie " + b.getIntExtra("level", -1) + " %, "
+                        + (b.getIntExtra("temperature", 0) / 10f) + " °C, branchée=" + b.getIntExtra("plugged", 0)
+                        + ", tension " + b.getIntExtra("voltage", 0) + " mV");
+            }
+            if (Build.VERSION.SDK_INT >= 29) {
+                android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                event("[état " + why + "] chaleur Android " + pm.getCurrentThermalStatus() + " (0 aucune … 6 arrêt), économie d'énergie=" + pm.isPowerSaveMode());
+            }
+            android.util.DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
+            android.content.res.Configuration c = ctx.getResources().getConfiguration();
+            event("[état " + why + "] écran " + dm.widthPixels + "×" + dm.heightPixels + " px, " + dm.densityDpi + " dpi, "
+                    + c.screenWidthDp + "×" + c.screenHeightDp + " dp, orientation " + c.orientation);
+            File f = ctx.getExternalFilesDir(null);
+            if (f != null) event("[état " + why + "] stockage libre " + (f.getUsableSpace() >> 20) + " Mo");
+            event("[état " + why + "] tous les fichiers=" + (Build.VERSION.SDK_INT >= 30 && android.os.Environment.isExternalStorageManager())
+                    + ", processus " + (Build.VERSION.SDK_INT >= 28 ? android.app.Application.getProcessName() : "?")
+                    + " pid " + android.os.Process.myPid() + ", fils " + Thread.getAllStackTraces().size());
+        } catch (Throwable t) {
+            event("[état " + why + "] illisible : " + t);
+        }
+    }
+
+    /** À appeler juste avant de tuer volontairement un processus moteur : sa sortie n'est pas un plantage. */
+    static void markClean(Context ctx) {
+        try {
+            File d = dir(ctx);
+            d.mkdirs();
+            new FileOutputStream(new File(d, "clean-" + android.os.Process.myPid())).close();
+        } catch (Throwable ignored) {
+            // Pire cas : la sortie sera signalée comme un plantage.
+        }
     }
 
     static synchronized void stop() {

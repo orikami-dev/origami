@@ -92,6 +92,7 @@ public class X360Activity extends WindowedAppActivity {
                             | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
                             | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     .putExtra(MainActivity.EXTRA_RESTART, new android.content.Intent(getIntent())));
+            DebugLog.markClean(this);
             android.os.Process.killProcess(android.os.Process.myPid());
             return;
         }
@@ -144,6 +145,9 @@ public class X360Activity extends WindowedAppActivity {
         } else if (!started) {
             askAllFiles();
         } else {
+            DebugLog.event("[360] onCreate : jeu « " + title + " », chemin " + path + ", profil "
+                    + EngineSettings.profile(this, EngineSettings.X360));
+            DebugLog.snapshot(this, "360 création");
             setWindowSurfaceView(screen);
             nativePad(0, true, 0, 0, 0, 0, 0, 0, 0);
             status("Chargement de " + title + "…");
@@ -577,6 +581,7 @@ public class X360Activity extends WindowedAppActivity {
     }
 
     private void fail(String msg) {
+        DebugLog.event("[360] échec affiché : " + msg);
         new CodecMenu(this).title("Xbox 360", title)
                 .message(msg)
                 .item("Retour", null, new Runnable() {
@@ -602,15 +607,39 @@ public class X360Activity extends WindowedAppActivity {
         }
     }
 
+    /** Qui ferme l'écran du jeu, et quand : la pile d'appels est écrite au journal. */
+    @Override
+    public void finish() {
+        DebugLog.event("[360] finish() appelé, isFinishing=" + isFinishing(), new Throwable("finish"));
+        super.finish();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        DebugLog.event("[360] onStart");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        DebugLog.event("[360] onStop, isFinishing=" + isFinishing());
+        DebugLog.snapshot(this, "360 arrêt de l'écran");
+    }
+
     @Override
     protected void onDestroy() {
+        DebugLog.event("[360] onDestroy, isFinishing=" + isFinishing());
         super.onDestroy();
         if (hud != null) hud.stop();
         if (peak != null) peak.stop();
         Theme.inGame = false;
         // Le processus « :x360 » ne sert qu'au jeu : Xenia ne sait pas s'arrêter proprement, on
         // termine le processus pour rendre sa mémoire.
-        if (isFinishing()) android.os.Process.killProcess(android.os.Process.myPid());
+        if (isFinishing()) {
+            DebugLog.markClean(this);
+            android.os.Process.killProcess(android.os.Process.myPid());
+        }
     }
 
     /** Supprime les fichiers vides laissés par un cache planté (dossier parcouru en profondeur). */
