@@ -607,7 +607,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         posture = computePosture();
         refilter();
         root.removeAllViews();
-        root.setBackground(Theme.backdrop(0));
+        // Deux pastilles (Tsuru) : entre elles et sous les barres, la couleur de séparation du thème,
+        // pas un morceau du fond d'écran.
+        root.setBackground(posture == Posture.FLEX ? Theme.gap() : Theme.backdrop(0));
         homeCol = null;
         homeDeck = null;
         homeDeckView = null;
