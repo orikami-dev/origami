@@ -109,3 +109,8 @@ Liste de BOSS du 19/10 22h12 (une seule grosse mise à jour, numéro 0.61.0). Le
 ### Outils
 - Ghidra : non installable dans ce fil (github.com bloqué par le réseau). BOSS a changé l'environnement du projet ; le nouveau fil doit réessayer (release officielle NSA, JDK 21, `analyzeHeadless`). En attendant radare2 est installé (apt).
 - Le journal du build Xenia est dans ~/x360/build.log, les sources dans ~/x360/src (patch regénéré par `git diff b323729`).
+
+## À reparler avec BOSS (20/10)
+- Génération d'images PS3 : ARMSX3 embarque la génération d'images de Lossless Scaling (LSFG ; réglages Frame Generation, Target Rate, Flow Scale, Performance Mode, Lossless Path ; fonction exportée `_rpcsx_frameGenImportShaders`). Il faut le fichier Lossless.dll de l'utilisateur (app Steam payante, interdite de redistribution). À faire : option « Génération d'images » dans le menu PS3, bouton « Importer Lossless.dll », appel câblé dans le pont natif (native/ps3/foldplay_ps3.cpp), désactivée par défaut et réservée aux jeux à 30 images/s. BOSS est intéressé.
+- Proton (jeux PC) : partie 2.0, après la fin de l'émulation.
+- Recompilation native bloquée tant que dl.google.com (NDK) est refusé par le réseau du cloud ; correctif son 360 déjà prêt dans native/xenia-patches/02-origami-fixes.patch.
