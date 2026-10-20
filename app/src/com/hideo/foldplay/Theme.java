@@ -128,8 +128,14 @@ final class Theme {
             // Fenêtre classique : l'app se redimensionne entre la barre d'état et la barre de
             // navigation, rien n'est caché dessous (ni le haut des menus, ni les manettes).
             w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            w.setStatusBarColor(BG);
-            w.setNavigationBarColor(BG);
+            // Barres d'état (batterie) et de navigation transparentes (0.65) : le fond de l'app passe
+            // dessous, le contenu reste entre les deux grâce à une marge posée sur la zone de contenu.
+            w.setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            w.setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                w.setNavigationBarContrastEnforced(false);
+                w.setStatusBarContrastEnforced(false);
+            }
             if (android.os.Build.VERSION.SDK_INT >= 28) {
                 android.view.WindowManager.LayoutParams lp = w.getAttributes();
                 if (lp.layoutInDisplayCutoutMode != android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT) {
@@ -138,7 +144,20 @@ final class Theme {
                 }
             }
             if (android.os.Build.VERSION.SDK_INT >= 30) {
-                w.setDecorFitsSystemWindows(true);
+                w.setDecorFitsSystemWindows(false);
+                final android.view.View content = w.getDecorView().findViewById(android.R.id.content);
+                if (content != null) {
+                    content.setBackground(backdrop(0));
+                    content.setOnApplyWindowInsetsListener(new android.view.View.OnApplyWindowInsetsListener() {
+                        public android.view.WindowInsets onApplyWindowInsets(android.view.View v, android.view.WindowInsets wi) {
+                            android.graphics.Insets b = wi.getInsets(android.view.WindowInsets.Type.systemBars()
+                                    | android.view.WindowInsets.Type.displayCutout());
+                            v.setPadding(b.left, b.top, b.right, b.bottom);
+                            return android.view.WindowInsets.CONSUMED;
+                        }
+                    });
+                    content.requestApplyInsets();
+                }
                 android.view.WindowInsetsController c = w.getInsetsController();
                 if (c != null) c.show(android.view.WindowInsets.Type.statusBars() | android.view.WindowInsets.Type.navigationBars());
             } else {
@@ -155,6 +174,12 @@ final class Theme {
         }
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             w.setDecorFitsSystemWindows(false);
+            // Plein écran ou jeu : plus de marge de la fenêtre classique.
+            android.view.View content = w.getDecorView().findViewById(android.R.id.content);
+            if (content != null) {
+                content.setOnApplyWindowInsetsListener(null);
+                content.setPadding(0, 0, 0, 0);
+            }
             // Avant setContentView, le DecorView n'existe pas encore et getInsetsController plante
             // (PS3 et Xbox 360 en 0.60.6) : getDecorView() le crée au besoin.
             w.getDecorView();
