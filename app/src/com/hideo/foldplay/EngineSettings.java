@@ -133,14 +133,26 @@ final class EngineSettings {
         return CoreProfiles.name(profile(ctx, engine));
     }
 
-    /** Un nouveau profil efface les réglages faits à la main. */
+    /** Un profil efface les réglages faits à la main ; « Personnalisé » les garde, tels qu'ils sont. */
     static void setProfile(Context ctx, String engine, String id) {
+        if (CoreProfiles.CUSTOM.equals(id)) {
+            toCustom(ctx, engine);
+            return;
+        }
         prefs(ctx, engine).edit().clear().putString("profile", id).apply();
+    }
+
+    /** Fige les valeurs en cours puis passe en Personnalisé : la modification ne touche que son réglage. */
+    private static void toCustom(Context ctx, String engine) {
+        if (CoreProfiles.CUSTOM.equals(profile(ctx, engine))) return;
+        SharedPreferences.Editor e = prefs(ctx, engine).edit();
+        for (Opt o : opts(engine)) e.putString("v_" + o.key, get(ctx, engine, o));
+        e.putString("profile", CoreProfiles.CUSTOM).apply();
     }
 
     private static String profileValue(String engine, String id, String key) {
         String[][][] all = PS3.equals(engine) ? PS3_PROFILES : X360_PROFILES;
-        for (String[] kv : all[CoreProfiles.index(id)]) if (kv[0].equals(key)) return kv[1];
+        for (String[] kv : all[CoreProfiles.base(id)]) if (kv[0].equals(key)) return kv[1];
         return null;
     }
 
@@ -151,6 +163,7 @@ final class EngineSettings {
     }
 
     static void set(Context ctx, String engine, Opt o, String value) {
+        toCustom(ctx, engine);
         prefs(ctx, engine).edit().putString("v_" + o.key, value).apply();
     }
 
@@ -224,7 +237,7 @@ final class EngineSettings {
         // Preferred SPU Threads 0 à 6 (0 = auto), Shader Compiler Threads 0 à 16, SPU Block Size
         // Safe/Mega/Giga, SPU XFloat Accuracy Accurate/Approximate/Relaxed/Inaccurate ; le flux de
         // textures asynchrone est rangé sous Video@@Vulkan.
-        int prof = CoreProfiles.index(profile(ctx, PS3));
+        int prof = CoreProfiles.base(profile(ctx, PS3));
         String[][] cpu = {
                 {"Core@@SPU Block Size", new String[] {"Mega", "Mega", "Safe"}[prof]},
                 {"Core@@SPU XFloat Accuracy", new String[] {"Relaxed", "Approximate", "Approximate"}[prof]},
@@ -257,31 +270,43 @@ final class EngineSettings {
      * Sous-menu « Profil et réglages » du menu Home. back rouvre le menu Home.
      * Les changements s'appliquent au prochain lancement du jeu.
      */
-    static void menu(final android.app.Activity a, final FrameLayout stage, final String engine,
-                     final String console, final Runnable back) {
+    static void menu(android.app.Activity a, FrameLayout stage, String engine, String console, Runnable back) {
+        menu(a, stage, engine, console, back, 0);
+    }
+
+    /** Toute modification rouvre le menu à la même ligne : valeurs et profil se lisent en direct. */
+    private static void menu(final android.app.Activity a, final FrameLayout stage, final String engine,
+                             final String console, final Runnable back, int focus) {
         final String prof = profile(a, engine);
         CodecMenu m = new CodecMenu(a).title("Profil et réglages", console)
-                .message("Les changements s'appliquent au prochain lancement du jeu.");
-        for (int i = 0; i < CoreProfiles.IDS.length; i++) {
+                .message("Les changements s'appliquent au prochain lancement du jeu.").focusAt(focus);
+        int row = 0;
+        for (int i = 0; i < CoreProfiles.IDS.length; i++, row++) {
             final String id = CoreProfiles.IDS[i];
+            final int at = row;
             m.radio(CoreProfiles.NAMES[i], CoreProfiles.HELP[i], id.equals(prof), new Runnable() {
-                public void run() { setProfile(a, engine, id); }
+                public void run() {
+                    setProfile(a, engine, id);
+                    menu(a, stage, engine, console, back, at);
+                }
             });
         }
         for (final Opt o : opts(engine)) {
             String cur = get(a, engine, o);
+            final int at = row++;
             if ("bool".equals(o.type)) {
                 final boolean on = Boolean.parseBoolean(cur);
                 m.check(o.label, o.help, on, new Runnable() {
                     public void run() {
                         set(a, engine, o, String.valueOf(!Boolean.parseBoolean(get(a, engine, o))));
+                        menu(a, stage, engine, console, back, at);
                     }
                 });
             } else {
                 String name = cur;
                 for (int k = 0; k < o.values.length; k++) if (o.values[k].equals(cur)) name = o.names[k];
                 m.sub(o.label, name, new Runnable() {
-                    public void run() { pick(a, stage, engine, console, o, back); }
+                    public void run() { pick(a, stage, engine, console, o, back, at); }
                 });
             }
         }
@@ -289,7 +314,7 @@ final class EngineSettings {
     }
 
     private static void pick(final android.app.Activity a, final FrameLayout stage, final String engine,
-                             final String console, final Opt o, final Runnable back) {
+                             final String console, final Opt o, final Runnable back, final int focus) {
         String cur = get(a, engine, o);
         CodecMenu m = new CodecMenu(a).title(o.label, console).message(o.help);
         for (int k = 0; k < o.values.length; k++) {
@@ -299,7 +324,7 @@ final class EngineSettings {
             });
         }
         m.onBack(new Runnable() {
-            public void run() { menu(a, stage, engine, console, back); }
+            public void run() { menu(a, stage, engine, console, back, focus); }
         }).show(stage);
     }
 }

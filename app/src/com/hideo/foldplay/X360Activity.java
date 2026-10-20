@@ -517,6 +517,9 @@ public class X360Activity extends WindowedAppActivity {
                         if (hud != null) hud.apply();
                     }
                 })
+                .item("Redémarrer la console", "Relance le jeu depuis le début", new Runnable() {
+                    public void run() { restart(); }
+                })
                 .item("Quitter le jeu", null, new Runnable() {
                     public void run() { finish(); }
                 })
@@ -524,6 +527,20 @@ public class X360Activity extends WindowedAppActivity {
                     public void run() { resumeGame(); }
                 })
                 .show(stage);
+    }
+
+    /**
+     * Relance le jeu : le moteur tourne dans son propre processus, qui meurt à la sortie. L'accueil
+     * (autre processus) reçoit l'intention et rouvre le jeu une fois le moteur arrêté.
+     */
+    private void restart() {
+        android.content.Intent again = new android.content.Intent(getIntent());
+        startActivity(new android.content.Intent(this, MainActivity.class)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(MainActivity.EXTRA_RESTART, again));
+        finish();
     }
 
     /** Retour du sous-menu vers le menu Home. */

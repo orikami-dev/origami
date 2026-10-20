@@ -64,6 +64,7 @@ final class CodecMenu extends FrameLayout {
     private TextView messageView;
     private Runnable back;
     private int focus;
+    private int startFocus;
     private int columns = 1;
     /** Entrées en tuiles (icône au-dessus du nom), comme un lanceur d'apps. */
     private boolean grid;
@@ -184,6 +185,12 @@ final class CodecMenu extends FrameLayout {
         return this;
     }
 
+    /** Ligne choisie à l'ouverture (menu rouvert après un changement, pour garder sa place). */
+    CodecMenu focusAt(int i) {
+        startFocus = i;
+        return this;
+    }
+
     CodecMenu listener(Listener l) {
         listener = l;
         return this;
@@ -231,7 +238,7 @@ final class CodecMenu extends FrameLayout {
             }).start();
             UiSound.play(getContext(), UiSound.OPEN);
         }
-        setFocus(0);
+        setFocus(startFocus);
     }
 
     /**

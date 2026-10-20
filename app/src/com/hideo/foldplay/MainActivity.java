@@ -107,6 +107,27 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     private LinearLayout cats;
     private LinearLayout carousel;
 
+    /** Intention d'un jeu à relancer (« Redémarrer la console ») une fois son moteur arrêté. */
+    static final String EXTRA_RESTART = "origami.restart";
+
+    @Override
+    protected void onNewIntent(Intent in) {
+        super.onNewIntent(in);
+        setIntent(in);
+        final Intent again = in.getParcelableExtra(EXTRA_RESTART);
+        if (again == null) return;
+        in.removeExtra(EXTRA_RESTART);
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+            public void run() {
+                try {
+                    startActivity(again);
+                } catch (Exception ignored) {
+                    // Le jeu reste lançable depuis la bibliothèque.
+                }
+            }
+        }, 1200);
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -1779,7 +1800,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         }
                     }
                 })
-                .choice("Profil", new String[] {"performance", "balanced", "quality"}, CoreProfiles.NAMES,
+                .choice("Profil", CoreProfiles.IDS, CoreProfiles.NAMES,
                         CoreProfiles.HELP, CoreProfiles.index(prof), new CodecMenu.Pick() {
                             public void picked(int i) {
                                 store.setGameProfile(id, CoreProfiles.IDS[i]);

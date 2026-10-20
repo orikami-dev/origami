@@ -2,6 +2,10 @@
 
 Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
 
+## 0.65.5
+
+Profil Personnalisé, menu des réglages en direct, bouton Redémarrer la console.
+
 ## 0.65.4
 
 360 : shaders compilés de façon synchrone (test).

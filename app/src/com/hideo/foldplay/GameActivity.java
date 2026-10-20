@@ -1120,7 +1120,7 @@ public class GameActivity extends Activity {
         CodecMenu pause = codec(title, "PAUSE · " + core.toUpperCase())
                 .item("Reprendre", null, null);
         if (CoreProfiles.matters(this, core)) {
-            pause.choice("Profil", new String[] {"performance", "balanced", "quality"}, CoreProfiles.NAMES,
+            pause.choice("Profil", CoreProfiles.IDS, CoreProfiles.NAMES,
                     CoreProfiles.HELP, CoreProfiles.index(store.gameProfile(Store.gameId(uri, path))), new CodecMenu.Pick() {
                         public void picked(int i) { applyProfile(CoreProfiles.IDS[i]); }
                     });
@@ -1306,12 +1306,30 @@ public class GameActivity extends Activity {
         m.show(stage);
     }
 
+    /** Fige les valeurs du profil en cours dans les options du cœur, puis passe en Personnalisé. */
+    private void toCustom() {
+        String gid = Store.gameId(uri, path);
+        String cur = store.gameProfile(gid);
+        if (CoreProfiles.CUSTOM.equals(cur)) return;
+        java.util.Map<String, String> vals = new java.util.HashMap<String, String>();
+        if (!cur.equals("performance")) vals.putAll(store.coreProfile(core));
+        vals.putAll(CoreProfiles.resolve(this, core, cur, store.coreSpecs(core)));
+        for (java.util.Map.Entry<String, String> o : vals.entrySet()) {
+            if (CoreProfiles.keys(this, core).contains(o.getKey())) store.setCoreOption(core, o.getKey(), o.getValue());
+        }
+        store.setGameProfile(gid, CoreProfiles.CUSTOM);
+    }
+
     /**
      * Nouveau profil en cours de partie : il remplace les retouches faites à la main sur ses
      * réglages et s'applique tout de suite ; certains cœurs ne relisent la définition qu'au
      * redémarrage du jeu.
      */
     private void applyProfile(final String id) {
+        if (CoreProfiles.CUSTOM.equals(id)) {
+            toCustom();
+            return;
+        }
         store.setGameProfile(Store.gameId(uri, path), id);
         store.clearCoreOptions(core, CoreProfiles.keys(this, core));
         final java.util.Map<String, String> vals = CoreProfiles.resolve(this, core, id, store.coreSpecs(core));
@@ -1404,6 +1422,7 @@ public class GameActivity extends Activity {
         for (final String v : values) {
             m.radio(v, null, v.equals(vars[i * 3 + 2]), new Runnable() {
                 public void run() {
+                    toCustom();
                     store.setCoreOption(core, key, v);
                     vars[i * 3 + 2] = v;
                     jobs.add(new Runnable() {

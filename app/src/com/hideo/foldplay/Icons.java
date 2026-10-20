@@ -358,6 +358,15 @@ final class Icons extends Drawable {
                 path.lineTo(14.5f, 5);
                 c.drawPath(path, stroke);
                 break;
+            case "custom":
+                // Curseurs de réglage.
+                c.drawLine(4, 7, 20, 7, stroke);
+                c.drawLine(4, 12, 20, 12, stroke);
+                c.drawLine(4, 17, 20, 17, stroke);
+                c.drawCircle(9, 7, 2, fill);
+                c.drawCircle(15, 12, 2, fill);
+                c.drawCircle(8, 17, 2, fill);
+                break;
             case "keys":
                 // Éditeur : touches.
                 c.drawCircle(8, 8, 3, stroke);
