@@ -2,6 +2,10 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.1
+
+- PS3 : moteur mis à jour (ARMSX3 1.3.1), avec les derniers correctifs des SPU (boîtes aux lettres, réveil des fils) et du rendu Vulkan.
+
 ## 0.66.0
 
 - Interrupteurs redessinés aux couleurs de chaque thème, dans les Réglages comme dans les menus codec.
