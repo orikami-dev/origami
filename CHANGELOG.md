@@ -2,6 +2,10 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.3
+
+- Assistant de démarrage : plus de fond visible derrière la barre de notifications et la barre de navigation.
+
 ## 0.66.2
 
 - Menus et Réglages : seul l'interrupteur réagit au toucher, plus la ligne entière, pour éviter les appuis involontaires. À la manette, la ligne sélectionnée bascule toujours.

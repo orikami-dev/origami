@@ -58,7 +58,7 @@ public class SetupActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackground(Theme.backdrop(0));
+        root.setBackgroundColor(Theme.BG); // uni : sous les barres, aucun fond d'écran du thème
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -116,9 +116,25 @@ public class SetupActivity extends Activity {
 
         root.addView(card, new LinearLayout.LayoutParams(-1, -1));
         setContentView(root);
+        // Barres d'état et de navigation : fenêtre et zone de contenu unies (Theme.fullscreen remettait le fond du thème dessous, 0.65.31).
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Theme.BG));
+        Theme.barsBackground(this, true);
         Theme.fullscreen(this);
         // Reprise là où l'on s'était arrêté (autre app ouverte entre-temps, app relancée par Android).
         go(state != null ? state.getInt("step", 0) : store.setupStep());
+    }
+
+    @Override
+    protected void onDestroy() {
+        Theme.splashing = false;
+        super.onDestroy();
+    }
+
+    /** L'accueil peut s'ouvrir avant la destruction de l'assistant : il doit retrouver son fond. */
+    @Override
+    protected void onPause() {
+        Theme.splashing = false;
+        super.onPause();
     }
 
     @Override
@@ -149,6 +165,7 @@ public class SetupActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        Theme.splashing = true;
         // Retour du sélecteur de fichiers : on met à jour les coches « importé ».
         if (current().equals("BIOS")) go(step);
     }
