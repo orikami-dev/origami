@@ -15,6 +15,7 @@ done
 V="$(sed -n 's/^VERSION=//p' "$SRC/app/build.sh" | head -1)"
 APK="$SRC/dist/origami-$V-debug.apk"
 [ -f "$APK" ] || { echo "APK introuvable : $APK (lancer app/build.sh)"; exit 1; }
+[ "$(stat -c %s "$APK")" -lt 99000000 ] || { echo "APK > 99 Mo : GitHub refusera (moteur non strippé ?)"; exit 1; }
 BR="$(git -C "$REPO_DIR" branch --show-current)"
 URL="$(git -C "$REPO_DIR" remote get-url origin)"
 push() { for d in 0 2 4 8 16; do sleep $d; git "$@" && return 0; done; return 1; }
