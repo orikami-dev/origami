@@ -2,6 +2,9 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.22
+- Haricots L et R : les lettres restent droites, quelle que soit l'inclinaison de la gâchette.
+
 ## 0.65.21
 - Mises à jour : barre de progression dans l'interface, plus de notification de téléchargement Android.
 - Les APK téléchargés sont supprimés une fois la mise à jour installée.

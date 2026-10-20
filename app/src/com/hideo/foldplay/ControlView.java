@@ -451,7 +451,11 @@ final class ControlView extends View {
         text.setColor(Theme.TEXT);
         String cap = control.cap != null ? control.cap
                 : t.equals("L") ? (triggers ? "L1" : "L") : t.equals("R") ? (triggers ? "R1" : "R") : t;
+        // La lettre reste droite quelle que soit l'inclinaison du haricot (20/10).
+        c.save();
+        c.rotate(-getRotation(), cx, th / 2);
         c.drawText(cap, cx, th / 2 - (text.descent() + text.ascent()) / 2, text);
+        c.restore();
     }
 
     private void drawShoulder(Canvas c, float w, float h, String t) {
