@@ -168,10 +168,19 @@ final class Theme {
                 final android.view.View content = w.getDecorView().findViewById(android.R.id.content);
                 if (content != null) {
                     if (!splashing) content.setBackground(backdrop(0));
+                    // Le clavier suit le même chemin : le contenu monte avec lui, image par image, sans barre opaque.
+                    content.setWindowInsetsAnimationCallback(new android.view.WindowInsetsAnimation.Callback(
+                            android.view.WindowInsetsAnimation.Callback.DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+                        public android.view.WindowInsets onProgress(android.view.WindowInsets wi,
+                                java.util.List<android.view.WindowInsetsAnimation> running) {
+                            content.dispatchApplyWindowInsets(wi);
+                            return wi;
+                        }
+                    });
                     content.setOnApplyWindowInsetsListener(new android.view.View.OnApplyWindowInsetsListener() {
                         public android.view.WindowInsets onApplyWindowInsets(android.view.View v, android.view.WindowInsets wi) {
                             android.graphics.Insets b = wi.getInsets(android.view.WindowInsets.Type.systemBars()
-                                    | android.view.WindowInsets.Type.displayCutout());
+                                    | android.view.WindowInsets.Type.displayCutout() | android.view.WindowInsets.Type.ime());
                             // La marge va sur la vue racine de l'activité, pas sur la zone de contenu :
                             // le fond de la racine passe ainsi sous les barres, sans raccord.
                             android.view.View top = ((android.view.ViewGroup) v).getChildCount() > 0
