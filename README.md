@@ -47,6 +47,7 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 ## ✨ Points forts
 
 - 🎨 Cinq thèmes (Codec, Arctique, Écarlate, Sakura, Ambre) appliqués sans redémarrage, avec fonds, manettes et icônes assortis.
+- 🏮 Andon : lumière d'ambiance autour de l'écran du jeu, aux couleurs de l'image ou du thème.
 - 📊 ATH façon RTSS sur toutes les consoles : images/s, vitesse, processeur, mémoire, batterie, chauffe.
 - ⚡ Profils Performance, Équilibré, Qualité et Personnalisé, réglages visibles en direct.
 - 📲 En portrait, écran du jeu et manette coupés pile sur la charnière ; en paysage, plein écran.

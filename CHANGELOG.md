@@ -2,6 +2,10 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.18
+- Andon : lumière d'ambiance autour de l'écran du jeu, qui reprend les couleurs de l'image. Modes Éteinte, Thème, Image, Image et thème, Douce, dans le menu Codec en jeu et dans le menu Thème de l'accueil.
+- Manette de l'accueil : L et R descendus en haricot, un de chaque côté.
+
 ## 0.65.17
 - Plein écran automatique en paysage dans toute l'app (barres de notification et de navigation masquées).
 - Mises à jour installées sans la fenêtre Android de fin à fermer.
