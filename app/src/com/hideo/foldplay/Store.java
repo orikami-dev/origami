@@ -507,7 +507,7 @@ final class Store {
 
     /** Volume des bruits de l'interface, 0 à 100. */
     int uiVolume() {
-        return prefs.getInt("ui_volume", 70);
+        return prefs.getInt("ui_volume", 60);
     }
 
     void setUiVolume(int v) {
@@ -515,6 +515,14 @@ final class Store {
     }
 
     /** Musique d'accueil en boucle (par thème). */
+    boolean animatedBackdrop() {
+        return prefs.getBoolean("animated_backdrop", true);
+    }
+
+    void setAnimatedBackdrop(boolean on) {
+        prefs.edit().putBoolean("animated_backdrop", on).apply();
+    }
+
     boolean setupAdvanced() {
         return prefs.getBoolean("setup_advanced", false);
     }
@@ -533,7 +541,7 @@ final class Store {
 
     /** Volume de la musique d'accueil, 0 à 100. */
     int musicVolume() {
-        return prefs.getInt("music_volume", 35);
+        return prefs.getInt("music_volume", 40);
     }
 
     void setMusicVolume(int v) {

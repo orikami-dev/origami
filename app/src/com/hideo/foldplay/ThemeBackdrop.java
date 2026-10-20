@@ -48,8 +48,71 @@ final class ThemeBackdrop extends Drawable {
         return (color & 0x00FFFFFF) | (alpha << 24);
     }
 
+    // ------------------------------------------------------------------ animation (0.62.2)
+
+    /** Durée d'un tour de boucle : tout ce qui bouge revient exactement à sa place. */
+    private static final long PERIOD = 24000;
+    private final boolean animated = Theme.ANIMATE;
+    private android.graphics.Bitmap still;
+    private final Runnable tick = new Runnable() {
+        public void run() {
+            invalidateSelf();
+        }
+    };
+
+    @Override
+    public boolean setVisible(boolean visible, boolean restart) {
+        boolean changed = super.setVisible(visible, restart);
+        if (!visible) {
+            unscheduleSelf(tick);
+            if (still != null) {
+                still.recycle();
+                still = null;
+            }
+        } else if (animated) {
+            invalidateSelf();
+        }
+        return changed;
+    }
+
     @Override
     public void draw(Canvas c) {
+        Rect b = getBounds();
+        if (!animated) {
+            drawStill(c);
+            return;
+        }
+        int w = b.width(), h = b.height();
+        if (w <= 0 || h <= 0) return;
+        // Le décor fixe est dessiné une fois dans une image ; seul ce qui bouge est redessiné.
+        if (still == null || still.getWidth() != w || still.getHeight() != h) {
+            if (still != null) still.recycle();
+            still = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+            Canvas sc = new Canvas(still);
+            sc.translate(-b.left, -b.top);
+            drawStill(sc);
+        }
+        c.drawBitmap(still, b.left, b.top, null);
+        float t = (android.os.SystemClock.uptimeMillis() % PERIOD) / (float) PERIOD;
+        c.save();
+        if (radius > 0) {
+            box.set(b);
+            clip.reset();
+            clip.addRoundRect(box, radius, radius, Path.Direction.CW);
+            c.clipPath(clip);
+        }
+        c.translate(b.left, b.top);
+        float u = Math.max(w, h);
+        if (id.equals("arctique")) BackdropMotion.snow(c, w, h, u, accent, t);
+        else if (id.equals("ecarlate")) BackdropMotion.embers(c, w, h, u, accent, t);
+        else if (id.equals("sakura")) BackdropMotion.petals(c, w, h, u, accent, t);
+        else if (id.equals("ambre")) BackdropMotion.terminal(c, w, h, u, accent, t);
+        else BackdropMotion.radar(c, w, h, u, accent, t);
+        c.restore();
+        if (isVisible()) scheduleSelf(tick, android.os.SystemClock.uptimeMillis() + 33);
+    }
+
+    private void drawStill(Canvas c) {
         Rect b = getBounds();
         float w = b.width(), h = b.height();
         if (w <= 0 || h <= 0) return;

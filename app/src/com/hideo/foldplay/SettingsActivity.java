@@ -1015,6 +1015,13 @@ public class SettingsActivity extends Activity {
                 store.setIntro(on);
             }
         });
+        toggle("Fonds animés", "Le décor de chaque thème bouge doucement, en boucle", store.animatedBackdrop(), new Toggle() {
+            public void set(boolean on) {
+                store.setAnimatedBackdrop(on);
+                Theme.ANIMATE = on;
+                render();
+            }
+        });
         toggle("Effet cathodique", "Lignes de balayage sur la moitié haute", store.scanlines(), new Toggle() {
             public void set(boolean on) {
                 store.setScanlines(on);
@@ -1033,10 +1040,9 @@ public class SettingsActivity extends Activity {
                 UiSound.play(SettingsActivity.this, UiSound.SELECT);
             }
         });
-        final String[] levels = {"0 %", "10 %", "20 %", "30 %", "40 %", "50 %", "60 %", "70 %", "80 %", "90 %", "100 %"};
-        choice("Volume des bruits", levels, Math.round(store.uiVolume() / 10f), new Choice() {
-            public void set(int i) {
-                store.setUiVolume(i * 10);
+        slider("Volume des bruits", store.uiVolume(), new Choice() {
+            public void set(int v) {
+                store.setUiVolume(v);
                 UiSound.play(SettingsActivity.this, UiSound.SELECT);
             }
         });
@@ -1048,12 +1054,13 @@ public class SettingsActivity extends Activity {
                 else UiSound.musicPause();
             }
         });
-        choice("Volume de la musique", levels, Math.round(store.musicVolume() / 10f), new Choice() {
-            public void set(int i) {
-                store.setMusicVolume(i * 10);
+        slider("Volume de la musique", store.musicVolume(), new Choice() {
+            public void set(int v) {
+                store.setMusicVolume(v);
                 UiSound.musicStart(SettingsActivity.this);
             }
         });
+        note("Musique et bruits ne jouent qu'en mode sonnerie : rien en vibreur ou en silencieux.");
     }
 
     private void about() {
@@ -1239,6 +1246,43 @@ public class SettingsActivity extends Activity {
                 at[0] = (at[0] + 1) % labels.length;
                 v.setText(labels[at[0]]);
                 c.set(at[0]);
+            }
+        });
+    }
+
+    /** Curseur de volume par paliers de 20 % (0.62.2) ; c reçoit le pourcentage. */
+    private void slider(String title, int value, final Choice c) {
+        LinearLayout row = row(title, null);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setGravity(Gravity.NO_GRAVITY);
+        View texts = row.getChildAt(0);
+        texts.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout line = new LinearLayout(this);
+        line.setGravity(Gravity.CENTER_VERTICAL);
+        final android.widget.SeekBar bar = new android.widget.SeekBar(this);
+        bar.setMax(5);
+        bar.setProgress(Math.max(0, Math.min(5, Math.round(value / 20f))));
+        android.content.res.ColorStateList tint = android.content.res.ColorStateList.valueOf(Theme.CODEC);
+        bar.setProgressTintList(tint);
+        bar.setThumbTintList(tint);
+        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Theme.alpha(Theme.CODEC, 0x44)));
+        bar.setTickMark(null);
+        final TextView v = text(bar.getProgress() * 20 + " %", 14, Theme.CODEC);
+        v.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+        v.setGravity(Gravity.END);
+        line.addView(bar, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        line.addView(v, new LinearLayout.LayoutParams(dp(60), -2));
+        row.addView(line, new LinearLayout.LayoutParams(-1, -2));
+        bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(android.widget.SeekBar sb, int p, boolean fromUser) {
+                v.setText(p * 20 + " %");
+                if (fromUser) c.set(p * 20);
+            }
+
+            public void onStartTrackingTouch(android.widget.SeekBar sb) {
+            }
+
+            public void onStopTrackingTouch(android.widget.SeekBar sb) {
             }
         });
     }

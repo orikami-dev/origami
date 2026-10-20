@@ -23,6 +23,8 @@ final class Theme {
     static int LOGO;
     /** Thème en cours, pour le fond assorti. */
     static String THEME_ID = "codec";
+    /** Fonds animés en boucle (0.62.2, Réglages > Affichage). */
+    static boolean ANIMATE = true;
     static final int TEXT = 0xFFF1F1F1;
     static final int MUTED = 0xFF8A8F9C;
     static final int YELLOW = 0xFFFFD23F;
@@ -103,7 +105,11 @@ final class Theme {
     @SuppressWarnings("deprecation")
     static void fullscreen(android.app.Activity a) {
         android.view.Window w = a.getWindow();
-        if (!(a instanceof GameActivity) && !new Store(a).appFullscreen()) {
+        // La décoration doit exister avant getInsetsController (sinon NullPointerException dans
+        // onCreate, avant setContentView : plantage des moteurs PS3 et 360 en 0.62.1).
+        w.getDecorView();
+        boolean game = a instanceof GameActivity || a instanceof Ps3Activity || a instanceof X360Activity;
+        if (!game && !new Store(a).appFullscreen()) {
             // Fenêtre classique : l'app se redimensionne entre la barre d'état et la barre de
             // navigation, rien n'est caché dessous (ni le haut des menus, ni les manettes).
             w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -190,6 +196,7 @@ final class Theme {
         PAD_OWN = store.syncUi();
         LOGO = logo;
         THEME_ID = id;
+        ANIMATE = store.animatedBackdrop();
         BG = bg;
         PANEL = panel;
         PANEL_HI = hi;

@@ -28,7 +28,7 @@ final class UiSound {
     /** Joue un bruit de l'interface du thème actif. */
     static void play(Context ctx, String name) {
         Store store = new Store(ctx);
-        if (!store.menuSound()) return;
+        if (!store.menuSound() || !ringing(ctx)) return;
         float vol = store.uiVolume() / 100f;
         if (vol <= 0f) return;
         if (MOVE.equals(name)) {
@@ -83,13 +83,43 @@ final class UiSound {
         }
     };
 
+    /**
+     * Sons seulement en mode sonnerie (choix de BOSS, 0.62.2) : rien en vibreur ni en silencieux.
+     * Le changement de mode coupe ou relance la musique aussitôt.
+     */
+    static boolean ringing(Context ctx) {
+        watchRinger(ctx.getApplicationContext());
+        android.media.AudioManager am = (android.media.AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+        return am == null || am.getRingerMode() == android.media.AudioManager.RINGER_MODE_NORMAL;
+    }
+
+    private static boolean ringerWatched;
+
+    private static void watchRinger(final Context app) {
+        if (ringerWatched) return;
+        ringerWatched = true;
+        android.content.BroadcastReceiver r = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(Context c, android.content.Intent i) {
+                if (wanted) musicStart(app);
+            }
+        };
+        android.content.IntentFilter f = new android.content.IntentFilter(android.media.AudioManager.RINGER_MODE_CHANGED_ACTION);
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 33) app.registerReceiver(r, f, Context.RECEIVER_NOT_EXPORTED);
+            else app.registerReceiver(r, f);
+        } catch (Exception ignored) {
+            // Sans écoute : le mode est relu au prochain écran.
+        }
+    }
+
     /** Lance (ou reprend) la musique d'accueil du thème actif, en boucle sans blanc. */
     static void musicStart(Context ctx) {
         MAIN.removeCallbacks(PAUSE);
         wanted = true;
         Store store = new Store(ctx);
         String theme = store.theme();
-        float vol = store.musicOn() ? store.musicVolume() / 100f : 0f;
+        float vol = store.musicOn() && ringing(ctx) ? store.musicVolume() / 100f : 0f;
         try {
             if (vol <= 0f) {
                 if (music != null) music.pause();
