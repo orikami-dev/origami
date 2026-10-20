@@ -233,19 +233,63 @@ final class Updater {
             public void onReceive(Context c, Intent i) {
                 if (i.getLongExtra(android.app.DownloadManager.EXTRA_DOWNLOAD_ID, -1) != id) return;
                 app.unregisterReceiver(this);
-                Uri uri = dm.getUriForDownloadedFile(id);
+                final Uri uri = dm.getUriForDownloadedFile(id);
                 if (uri == null) return;
-                Intent inst = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-                try {
-                    app.startActivity(inst);
-                } catch (Exception ignored) {
-                    // Pas d'installateur : l'APK reste dans les téléchargements.
-                }
+                // Installation par session (0.65.17) : Android demande seulement la confirmation, puis
+                // l'app redémarre sans la fenêtre « Application installée » à fermer.
+                new Thread(new Runnable() {
+                    public void run() {
+                        if (!installSession(app, uri)) {
+                            Intent inst = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                            try {
+                                app.startActivity(inst);
+                            } catch (Exception ignored) {
+                                // Pas d'installateur : l'APK reste dans les téléchargements.
+                            }
+                        }
+                    }
+                }, "origami-install").start();
             }
         };
         IntentFilter f = new IntentFilter(android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE);
         if (android.os.Build.VERSION.SDK_INT >= 33) app.registerReceiver(done, f, Context.RECEIVER_EXPORTED);
         else app.registerReceiver(done, f);
+    }
+
+    static final String ACTION_INSTALL_STATUS = "com.hideo.foldplay.INSTALL_STATUS";
+
+    /** Copie l'APK dans une session PackageInstaller et la valide ; faux si quelque chose échoue. */
+    static boolean installSession(Context ctx, Uri apk) {
+        android.content.pm.PackageInstaller pi = ctx.getPackageManager().getPackageInstaller();
+        android.content.pm.PackageInstaller.Session session = null;
+        try {
+            android.content.pm.PackageInstaller.SessionParams sp = new android.content.pm.PackageInstaller.SessionParams(
+                    android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+            sp.setAppPackageName(ctx.getPackageName());
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                sp.setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
+            }
+            int sid = pi.createSession(sp);
+            session = pi.openSession(sid);
+            InputStream in = ctx.getContentResolver().openInputStream(apk);
+            java.io.OutputStream out = session.openWrite("origami.apk", 0, -1);
+            byte[] buf = new byte[1 << 16];
+            for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
+            session.fsync(out);
+            out.close();
+            in.close();
+            Intent status = new Intent(ctx, InstallStatusReceiver.class).setAction(ACTION_INSTALL_STATUS);
+            PendingIntent cb = PendingIntent.getBroadcast(ctx, sid, status,
+                    PendingIntent.FLAG_UPDATE_CURRENT | (android.os.Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0));
+            session.commit(cb.getIntentSender());
+            session.close();
+            DebugLog.event("[maj] session d'installation " + sid + " validée");
+            return true;
+        } catch (Exception e) {
+            DebugLog.event("[maj] session d'installation impossible", e);
+            if (session != null) session.abandon();
+            return false;
+        }
     }
 }

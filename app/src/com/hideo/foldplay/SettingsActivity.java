@@ -1741,6 +1741,7 @@ public class SettingsActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
         // Rotation, pli ou écran externe : les volets se recalculent pour la nouvelle largeur.
         if (c.screenWidthDp != lastWidthDp && wizard == null) render();

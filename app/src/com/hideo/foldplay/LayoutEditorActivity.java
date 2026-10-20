@@ -805,6 +805,7 @@ public class LayoutEditorActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
         // Rotation ou pli : la colonne des catégories montre ou cache les noms selon la largeur.
         renderStyle();

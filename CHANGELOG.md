@@ -1,6 +1,6 @@
 # 📝 Journal des versions
 
-Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
+Studio : KAMI-WORKS.
 
 ## 0.65.16
 - PS3 et Xbox 360 en portrait : filet entre l'écran et la manette réduit à 4 dp, centré sur la charnière, comme les autres consoles.
@@ -13,38 +13,34 @@ Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la 
 - Astuces retirées de l'app (accueil et Réglages).
 
 ## 0.65.13
-- Après une mise à jour, une notification « Origami <version> installé » permet de rouvrir l'app d'un geste (Android ne la relance pas seul).
+- Après une mise à jour, une notification « Origami <version> installé » permet de rouvrir l'app d'un geste.
 
 ## 0.65.12
-- Le canal des builds de test s'appelle maintenant « Préversions » (Réglages > Mises à jour), « bêta » reste réservé à la future bêta publique.
-- Préversions lues sur la branche preview du dépôt ; la 0.65.11 les trouve encore par l'ancien canal pendant la transition.
-- Script PowerShell tools/publish-releases.ps1 refait : publie depuis le PC toutes les releases manquantes (branches apk-transfer et apk-<version>), saute la préversion en cours, puis supprime les branches temporaires.
+- Le canal des builds de test s'appelle « Préversions » (Réglages > Mises à jour) ; « bêta » reste réservé à la future bêta publique.
 
 ## 0.65.11
-- Préversions dans l'app (Réglages > Mises à jour > Préversions) : les nouvelles versions apparaissent seules, avec notification, sans repasser par le chat.
+- Préversions dans l'app (Réglages > Mises à jour > Préversions) : les nouvelles versions apparaissent seules, avec notification.
 - Format et mode : le message précédent est remplacé tout de suite, plus de notifications qui s'enchaînent en retard.
 - PS3 et Xbox 360 : l'écran et la manette se replacent d'après la hauteur réelle de la scène (plus de chevauchement au pliage).
-- Xbox 360 : le menu Codec met maintenant le jeu en pause (moteur recompilé avec une vraie pause).
+- Xbox 360 : le menu Codec met maintenant le jeu en pause.
 - Lanceur d'apps : curseur de défilement rapide et bouton de tri (nom A-Z, Z-A, installées récemment, mises à jour récemment, jeux d'abord), aux couleurs du thème.
 - Barres de notification et de navigation transparentes aussi dans l'assistant de démarrage, l'éditeur de manette et l'import.
-- Gâchettes à bascule : journal détaillé ajouté pour trouver pourquoi elles ne tiennent pas.
-- Script tools/publish.sh : envoie les sources et la préversion sur GitHub.
 
-## Ce que fait Origami aujourd'hui (0.60.12)
+## Ce que fait Origami aujourd'hui
 
 **Lanceur**
 - Accueil façon XMB en mode Tsuru (téléphone à moitié plié) : catégories par console, jeux en colonne, fiche du jeu, illustrations de fond larges.
 - Mode Washi sur l'écran externe : lanceur d'apps Android en grille, option lanceur par défaut.
 - Catégories « Jeux mobiles » (jeux Android installés) et « Remote Play » (clients PlayStation, Xbox, Steam Link par constructeur, « Ajouter un client… »).
-- Jaquettes automatiques (libretro-thumbnails, ScreenScraper) et jaquette manuelle, synopsis officiels courts.
+- Jaquettes automatiques et jaquette manuelle, synopsis officiels courts.
 - Tous les pliants et tous les ratios, changements à chaud ; navigation complète à la manette ; menus Codec partout.
 - Réglages en deux volets, 10 langues (fr, en, es, de, it, pt-BR, ru, ja, ko, zh), langue système automatique.
 - Cinq thèmes (Codec, Arctique, Écarlate, Sakura, Ambre) appliqués sans redémarrage, avec fond, fond de manette, icône et pack d'icônes assortis.
 
 **Émulation intégrée**
-- Pont libretro maison : consoles 8/16/32 bits, arcade (FBNeo), PS1 (HD si BIOS), N64, PSP, Dreamcast en OpenGL ES.
-- PS2 (ARMSX2, livré dans l'APK), GameCube et Wii (Dolphin), PS3 (ARMSX3, processus séparé), Xbox 360 (Xenia porté sur Android).
-- Profils Performance, Équilibré, Qualité qui règlent vraiment chaque cœur.
+- Consoles 8/16/32 bits, arcade (FBNeo), PS1 (HD si BIOS), N64, PSP, Dreamcast en OpenGL ES.
+- PS2 (ARMSX2), GameCube et Wii (Dolphin), PS3 (ARMSX3), Xbox 360 (Xenia).
+- Profils Performance, Équilibré, Qualité qui règlent chaque cœur.
 - Sauvegardes : import et export par console ; import de BIOS et du firmware PS3.
 - ATH façon RTSS sur toutes les consoles (images/s, vitesse, processeur, mémoire, batterie, température, chauffe).
 
@@ -63,90 +59,96 @@ Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la 
 | 0.50 | PS3 (ARMSX3), thème sans redémarrage |
 | 0.60 | Xbox 360 (Xenia), Washi, Remote Play, Jeux mobiles, manette Flex par console |
 
-## Corrections récentes
-- 0.60.8 : jeux PS3 et 360 qui revenaient à l'accueil (plein écran demandé avant la création de la fenêtre).
-- 0.60.9 à 0.60.11 : plantage Xbox 360 au chargement (cache d'instructions de Xenia ; le réglage qui le coupe était transmis en texte au lieu d'un booléen).
-- À venir en 0.60.13 : Skyrim (verrou détruit à la fin d'un fil du jeu), écran noir de DMC 4 (son AAudio, appel système manquant), cache des shaders PS3 enregistré.
-
 ## Toutes les versions
 
 ⭐ = mise à jour majeure.
 
-- [**0.62.5**](https://github.com/orikami-dev/origami/releases/tag/v0.62.5) : bouton Format sans plantage, manettes prédéfinies de retour, Accessibilité et Mises à jour dans les réglages, Sakura et Ambre refaites, liseré qui respire, sons du thème au doigt, ATH aux couleurs du téléphone, profils calés sur le Fold 8.
-- [**0.62.4**](https://github.com/orikami-dev/origami/releases/tag/v0.62.4) : son PS3 sans grésillement ni saturation, Demon's Souls calé à 30 images/s, ATH PS3/360 complet (moyenne, pic, mémoire réelle).
-- [**0.62.3**](https://github.com/orikami-dev/origami/releases/tag/v0.62.3) : gâchettes en haricots façon GameCube, Format et ×2 en icônes de coin, musique dès le choix du thème, sonar sans ligne fixe, éditeur de manette allégé.
-- [**0.62.2**](https://github.com/orikami-dev/origami/releases/tag/v0.62.2) : moteurs PS3/360 qui plantaient au lancement, sons seulement en mode sonnerie, curseurs de volume, fonds animés.
-- [**0.62.1**](https://github.com/orikami-dev/origami/releases/tag/v0.62.1) : fenêtres 360 validées seules (DMC 4), jaquettes 360, taille de manette corrigée, catégorie Son, flèche retour, musique sans coupure, nouvelle musique Écarlate, emblèmes Remote Play.
-- ⭐ [**0.62.0**](https://github.com/orikami-dev/origami/releases/tag/v0.62.0) : sons et musique par thème, assistant simple ou avancé, logo animé, Remote Play par plateforme, jaquettes 360, gâchettes en arc, touche FORMAT, menus Home PS3/360 enrichis, sauvegarde rapide PS3, décors PS3 sans interpréteur, profil joueur 360 (DMC 4), journal en un seul fichier.
-- [**0.60.14**](https://github.com/orikami-dev/origami/releases/tag/v0.60.14) : profils et réglages PS3 et Xbox 360 dans le menu Home, ATH depuis le menu.
-- [**0.60.13**](https://github.com/orikami-dev/origami/releases/tag/v0.60.13) : Xbox 360 : Skyrim corrigé, son AAudio (DMC 4), images/s dans l'ATH.
-- [**0.60.12**](https://github.com/orikami-dev/origami/releases/tag/v0.60.12) : (19/10/2026)
-- [**0.60.11**](https://github.com/orikami-dev/origami/releases/tag/v0.60.11) : Xbox 360 : le réglage qui coupe le cache d'instructions n'était jamais pris en compte (passé en texte alors que le moteur attend un…
-- [**0.60.10**](https://github.com/orikami-dev/origami/releases/tag/v0.60.10) : Xbox 360 : la vraie cause du SIGBUS est le moteur qui crée executable_addr_flags.bin à 0 octet puis écrit dedans (le stockage n'y est…
-- [**0.60.9**](https://github.com/orikami-dev/origami/releases/tag/v0.60.9) : tentative Xbox 360 (insuffisante). Les deux jeux plantaient en SIGBUS dans libxenia-app.so (XexInfoCache::Init, après le chargement des…
-- [**0.60.8**](https://github.com/orikami-dev/origami/releases/tag/v0.60.8) : correctif des jeux PS3 et Xbox 360 qui revenaient à l'accueil. Cause trouvée dans le logcat du Fold (14 plantages en 0.60.6) :…
-- [**0.60.7**](https://github.com/orikami-dev/origami/releases/tag/v0.60.7) : l'accueil a sa propre manette, réservée à la navigation (ConsolePad.HOME_PAD : croix, A/B/X/Y, L/R, Home ; ni sticks, ni L2/R2, ni…
-- [**0.60.6**](https://github.com/orikami-dev/origami/releases/tag/v0.60.6) : Remote Play est rangé par constructeur (PlayStation, Xbox, PC et cloud ; Nintendo n'a pas de jeu à distance). Chaque section finit par «…
-- [**0.60.5**](https://github.com/orikami-dev/origami/releases/tag/v0.60.5) : deux nouvelles catégories au bout du XMB . « Jeux mobiles » regroupe les jeux Android installés (ceux que leur éditeur déclare comme jeu…
-- [**0.60.4**](https://github.com/orikami-dev/origami/releases/tag/v0.60.4) : la façade de la manette a son propre fond, pendant de celui de l'écran du haut . PadSkins.render : Codec onde de transmission (codec 1),…
-- [**0.60.3**](https://github.com/orikami-dev/origami/releases/tag/v0.60.3) : manette Flex par console et import BIOS complet .
-- [**0.60.2**](https://github.com/orikami-dev/origami/releases/tag/v0.60.2) : les emblèmes de consoles du XMB suivent le pack d'icônes .
-- [**0.60.1**](https://github.com/orikami-dev/origami/releases/tag/v0.60.1) : demandes de BOSS du 19/10 midi.
-- ⭐ [**0.60.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.60.0) : Xbox 360 intégrée (portage Android de Xenia).
-- ⭐ [**0.50.1 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.50.1) : PS3 intégrée (ARMSX3).
-- ⭐ [**0.50.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.50.0) : Thèmes sans redémarrage, en route vers la PS3.
-- [**0.42.7**](https://github.com/orikami-dev/origami/releases/tag/v0.42.7) : voir la page
-- [**0.42.6**](https://github.com/orikami-dev/origami/releases/tag/v0.42.6) : voir la page
-- [**0.42.5**](https://github.com/orikami-dev/origami/releases/tag/v0.42.5) : voir la page
-- [**0.42.4**](https://github.com/orikami-dev/origami/releases/tag/v0.42.4) : voir la page
-- [**0.42.3**](https://github.com/orikami-dev/origami/releases/tag/v0.42.3) : voir la page
-- [**0.42.2**](https://github.com/orikami-dev/origami/releases/tag/v0.42.2) : retours de BOSS sur la 0.42.1.
-- [**0.42.1**](https://github.com/orikami-dev/origami/releases/tag/v0.42.1) : dans l'éditeur, une touche choisie se redimensionne par ses quatre coins (poignées vertes à chaque coin, le coin opposé reste fixe).
-- [**0.42.0**](https://github.com/orikami-dev/origami/releases/tag/v0.42.0) : voir la page
-- [**0.41.2**](https://github.com/orikami-dev/origami/releases/tag/v0.41.2) : emblèmes de console (XMB, grille, fiches) redessinés en silhouettes simplifiées de chaque machine, même style aplat + découpes + sigle…
-- [**0.41.1**](https://github.com/orikami-dev/origami/releases/tag/v0.41.1) : grue (icône et animation de démarrage) redessinée en miroir exact autour du pli central, formes et couleurs ; seules les deux faces du…
-- ⭐ [**0.41.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.41.0) : Réglages en deux volets et 10 langues.
-- ⭐ [**0.40.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.40.0) : Accueil façon XMB et navigation à la manette partout.
-- [**0.35.0**](https://github.com/orikami-dev/origami/releases/tag/v0.35.0) : retouche de la manette sur le jeu (Options contrôleur → « Modifier la manette ici » : jeu en pause, barre Ajouter / Retirer / − / + / ⇅…
-- [**0.34.0**](https://github.com/orikami-dev/origami/releases/tag/v0.34.0) : manette superposée = touches seules (ControlDeckView : plus de pilule de fond, de moitiés, d'habillage ni d'image de fond quand overlay,…
-- [**0.33.0**](https://github.com/orikami-dev/origami/releases/tag/v0.33.0) : menu pause rangé (Reprendre, sauvegarde/chargement rapides, Réglages de l'émulateur, Options contrôleur, Sauvegardes, Codes de triche,…
-- [**0.32.0**](https://github.com/orikami-dev/origami/releases/tag/v0.32.0) : tous les pliants. Posture Flex détectée selon le sens de la charnière (MainActivity.hingeHorizontal) : clapets (Z Flip, Razr, écran…
-- [**0.31.0**](https://github.com/orikami-dev/origami/releases/tag/v0.31.0) : script d'installation des cœurs (assets/cores/install.json lu par CoreInstaller), lancé tout seul après chaque téléchargement (en jeu ou…
-- [**0.30.0**](https://github.com/orikami-dev/origami/releases/tag/v0.30.0) : les émulateurs externes disparaissent de l'interface (pages et liens Play Store retirés des Réglages, de l'assistant et du choix…
-- ⭐ [**0.29.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.29.0) : L'app devient Origami.
-- [**0.28.0**](https://github.com/orikami-dev/origami/releases/tag/v0.28.0) : illustrations de fond façon accueil PS5 (Backdrop.java, CoverFetcher.artwork) : quand le curseur se pose 600 ms sur un jeu, la scène…
-- [**0.27.0**](https://github.com/orikami-dev/origami/releases/tag/v0.27.0) : Réglages > Émulateurs réorganisé en quatre blocs : Consoles (une ligne par console avec moteur, état et BIOS ; un menu codec par console…
-- [**0.26.0**](https://github.com/orikami-dev/origami/releases/tag/v0.26.0) : menu Maison « Options contrôleur » (au lieu de « Modifier la manette ») : manette tactile (éditeur, mode paysage superposé ou séparé,…
-- ⭐ [**0.25.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.25.0) : GameCube et Wii intégrées (Dolphin).
-- [**0.24.0**](https://github.com/orikami-dev/origami/releases/tag/v0.24.0) : accéléré ×2 (au lieu de ×3). Sur PS2 il ne faisait que couper le son, car ARMSX2 se cale sur son propre limiteur : le pont répond…
-- ⭐ [**0.23.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.23.0) : PS2 intégrée (ARMSX2).
-- [**0.22.3**](https://github.com/orikami-dev/origami/releases/tag/v0.22.3) : correctifs de la série 0.22 (le détail de cette version intermédiaire n'a pas été conservé dans les notes ; voir 0.22.0 pour les…
-- [**0.22.2**](https://github.com/orikami-dev/origami/releases/tag/v0.22.2) : correctifs de la série 0.22 (le détail de cette version intermédiaire n'a pas été conservé dans les notes ; voir 0.22.0 pour les…
-- [**0.22.1**](https://github.com/orikami-dev/origami/releases/tag/v0.22.1) : correctifs de la série 0.22 (le détail de cette version intermédiaire n'a pas été conservé dans les notes ; voir 0.22.0 pour les…
-- [**0.22.0**](https://github.com/orikami-dev/origami/releases/tag/v0.22.0) : console « Arcade » (cœur fbneo), reconnue par le dossier (arcade/, fbneo/, neogeo/, mame/, cps1-3/) ; jaquettes « FBNeo - Arcade Games…
-- [**0.21.2**](https://github.com/orikami-dev/origami/releases/tag/v0.21.2) : correctifs de la série 0.21 (le détail de cette version intermédiaire n'a pas été conservé dans les notes ; voir 0.21.0 pour les…
-- [**0.21.1**](https://github.com/orikami-dev/origami/releases/tag/v0.21.1) : correctifs de la série 0.21 (le détail de cette version intermédiaire n'a pas été conservé dans les notes ; voir 0.21.0 pour les…
-- ⭐ [**0.21.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.21.0) : La 3D : N64, PSP et Dreamcast en OpenGL ES.
-- [**0.20.3**](https://github.com/orikami-dev/origami/releases/tag/v0.20.3) : correctifs de la série 0.20 (le détail de cette version intermédiaire n'a pas été conservé dans les notes ; voir 0.20.0 pour les…
-- [**0.20.2**](https://github.com/orikami-dev/origami/releases/tag/v0.20.2) : correctifs de la série 0.20 (le détail de cette version intermédiaire n'a pas été conservé dans les notes ; voir 0.20.0 pour les…
-- [**0.20.1**](https://github.com/orikami-dev/origami/releases/tag/v0.20.1) : correctifs de la série 0.20 (le détail de cette version intermédiaire n'a pas été conservé dans les notes ; voir 0.20.0 pour les…
-- [**0.20.0**](https://github.com/orikami-dev/origami/releases/tag/v0.20.0) : assistant de démarrage au premier lancement (SetupActivity : bienvenue, dossier de jeux, installation de tous les moteurs intégrés…
-- [**0.19.0**](https://github.com/orikami-dev/origami/releases/tag/v0.19.0) : disposition Flex verrouillée (ni ajout, ni suppression, ni taille touche par touche) ; taille globale des moitiés (splitScale 60 à 130…
-- [**0.18.0**](https://github.com/orikami-dev/origami/releases/tag/v0.18.0) : vrais onglets dans l'éditeur (barre fixe soulignée, seule la page défile). Option « Interface aux mêmes couleurs » (Theme.sync : accent…
-- [**0.17.0**](https://github.com/orikami-dev/origami/releases/tag/v0.17.0) : disposition divisée en surimpression. Téléphone ouvert à plat (charnière > 150° ou capteur absent) et tenu en paysage, le jeu prend tout…
-- [**0.16.0**](https://github.com/orikami-dev/origami/releases/tag/v0.16.0) : prédisposition « Flex divisée » (ControlLayout.flex, kind "flex", split) façon clavier divisé Samsung : une moitié par bord avec son…
-- [**0.15.0**](https://github.com/orikami-dev/origami/releases/tag/v0.15.0) : disposition par défaut refaite par BOSS (grille 43 × 28 : L2/L1 et R2/R1 empilés, SAVE/SELECT, Maison, Accélérer, LOAD/START en haut au…
-- [**0.14.0**](https://github.com/orikami-dev/origami/releases/tag/v0.14.0) : les touches ne se chevauchent plus, sur les deux écrans et dans les deux sens. ControlLayout.arrange regroupe les touches qui se…
-- [**0.13.0**](https://github.com/orikami-dev/origami/releases/tag/v0.13.0) : la manette garde ses proportions d'un écran à l'autre (chaque disposition retient la grille où elle a été dessinée ; tailles mises à…
-- [**0.12.0**](https://github.com/orikami-dev/origami/releases/tag/v0.12.0) : bibliothèque rangée par console (dans « Tous » aussi) et en-tête « CATÉGORIE › CONSOLE ». Disposition par défaut refaite par BOSS (L1/R1…
-- [**0.11.0**](https://github.com/orikami-dev/origami/releases/tag/v0.11.0) : la fiche montre le synopsis (section Synopsis/Scénario/Trame, Plot en anglais) plutôt que l'introduction de l'article. La croix ne sert…
-- [**0.10.0**](https://github.com/orikami-dev/origami/releases/tag/v0.10.0) : menu Maison en jeu enrichi. Format d'affichage par console (origine, 4:3, 16:9, étiré, pixels entiers ; image lissée ou pixels nets).…
-- [**0.9.0**](https://github.com/orikami-dev/origami/releases/tag/v0.9.0) : fiche du jeu à gauche en vue Flex (nom, console, année, taille du fichier, résumé) tirée de Wikipédia FR puis EN, année via Wikidata,…
-- ⭐ [**0.8.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.8.0) : Moteur d'émulation intégré : les jeux tournent dans Origami, manette en bas.
-- [**0.7.0**](https://github.com/orikami-dev/origami/releases/tag/v0.7.0) : manette du bas entièrement configurable. Icône manette (à gauche de l'engrenage) : éditeur sur la vraie moitié basse, avec grille grise…
-- [**0.6.0**](https://github.com/orikami-dev/origami/releases/tag/v0.6.0) : 21 consoles de la NES à la Switch (PS2, GameCube, Wii, 3DS, Vita, Dreamcast, Saturn ajoutées), tri des jeux par dossier (y compris…
-- [**0.5.0**](https://github.com/orikami-dev/origami/releases/tag/v0.5.0) : carrousel en haut à droite avec noms, gâchettes L/R, Select/Home/Start alignés.
-- [**0.4.0**](https://github.com/orikami-dev/origami/releases/tag/v0.4.0) : lancement sans le sélecteur Android générique (détection des émulateurs installés qui savent ouvrir la console, une seule fenêtre si…
-- [**0.3.0**](https://github.com/orikami-dev/origami/releases/tag/v0.3.0) : emblème de console original sur fond transparent (plus de cartouche en vedette), croix directionnelle complète (◀ ▶ jeu sans boucler, ▲…
-- [**0.2.0**](https://github.com/orikami-dev/origami/releases/tag/v0.2.0) : (retours de BOSS) : vue Flex par défaut sur tous les écrans, icônes en haut (vue Flex/grille, dossier, options), plus de jeux de démo…
-- ⭐ [**0.1.0 · Mise à jour majeure**](https://github.com/orikami-dev/origami/releases/tag/v0.1.0) : Premier build : lanceur rétro pensé pour le Galaxy Fold.
+- 0.65.10 : jeux PS3 et Xbox 360 en portrait avec bande d'état, écran du jeu et manette en deux pastilles.
+- 0.65.9 : menu Profil et réglages sans blocage, barres Tsuru aux couleurs du thème, formats d'image centrés.
+- 0.65.8 : PS3, le jeu démarre enfin (plus d'écran noir).
+- 0.65.7 : une sortie voulue d'un moteur n'est plus signalée comme un plantage.
+- 0.65.6 : PS3 et Xbox 360, relance automatique du jeu après une sortie pendant le chargement.
+- 0.65.5 : profil « Personnalisé », menu Profil et réglages en direct, bouton « Redémarrer la console ».
+- 0.65.4 : Xbox 360, compilation synchrone des shaders (DMC 4).
+- 0.65.3 : Xbox 360, relecture des images rapide (plus d'image noire sur DMC 4).
+- 0.65.2 : Xbox 360, correctif du son inclus.
+- 0.65.1 : transition Washi/Tsuru animée, ATH avec températures CPU et GPU séparées, profils PS3 recalés.
+- 0.65.0 : bouton Format sans plantage, menus Codec alignés droitier/gaucher, catégorie Monitoring, manette 2D rétablie.
+- 0.62.5 : bouton Format sans plantage, manettes prédéfinies de retour, Accessibilité et Mises à jour dans les réglages, Sakura et Ambre refaites, liseré qui respire, sons du thème au doigt, ATH aux couleurs du téléphone.
+- 0.62.4 : son PS3 sans grésillement ni saturation, Demon's Souls calé à 30 images/s, ATH PS3/360 complet.
+- 0.62.3 : gâchettes en haricots façon GameCube, Format et ×2 en icônes de coin, musique dès le choix du thème, éditeur de manette allégé.
+- 0.62.2 : moteurs PS3/360 qui plantaient au lancement, sons seulement en mode sonnerie, curseurs de volume, fonds animés.
+- 0.62.1 : fenêtres 360 validées seules (DMC 4), jaquettes 360, catégorie Son, flèche retour, musique sans coupure, nouvelle musique Écarlate, emblèmes Remote Play.
+- ⭐ 0.62.0 : sons et musique par thème, assistant simple ou avancé, logo animé, Remote Play par plateforme, jaquettes 360, gâchettes en arc, touche FORMAT, menus Home PS3/360 enrichis, sauvegarde rapide PS3, profil joueur 360 (DMC 4).
+- 0.60.14 : profils et réglages PS3 et Xbox 360 dans le menu Home, ATH depuis le menu.
+- 0.60.13 : Xbox 360 : Skyrim corrigé, son, images/s dans l'ATH.
+- 0.60.12 : ATH façon RTSS sur PS3 et Xbox 360.
+- 0.60.11 : Xbox 360 : plantage au chargement corrigé.
+- 0.60.10 : Xbox 360 : cache d'instructions coupé pour éviter le plantage au chargement.
+- 0.60.9 : Xbox 360 : premier correctif du plantage au chargement.
+- 0.60.8 : correctif des jeux PS3 et Xbox 360 qui revenaient à l'accueil.
+- 0.60.7 : manette d'accueil réservée à la navigation, L3/R3 au double appui.
+- 0.60.6 : Remote Play rangé par constructeur, jaquettes PS3 et Xbox 360, « Choisir la jaquette », lanceur d'apps en grille.
+- 0.60.5 : catégories « Jeux mobiles » et « Remote Play » au bout du XMB.
+- 0.60.4 : fond de façade de manette par thème, aperçu de la Flex dans l'assistant, logo Origami = applis du téléphone.
+- 0.60.3 : manette Flex par console et import BIOS complet.
+- 0.60.2 : les emblèmes de consoles du XMB suivent le pack d'icônes.
+- 0.60.1 : fond Ambre « soleil Art déco », packs d'icônes, Origami comme lanceur par défaut.
+- ⭐ 0.60.0 : Xbox 360 intégrée (portage Android de Xenia).
+- ⭐ 0.50.1 : PS3 intégrée (ARMSX3).
+- ⭐ 0.50.0 : thèmes sans redémarrage, nouveaux fonds facettés.
+- 0.42.7 : icône de l'app aux couleurs du thème, fond de manette par thème.
+- 0.42.6 : couleurs de la manette dans le menu Thème, couleur du logo, un fond par thème.
+- 0.42.5 : thème partout, manettes fournies redessinées, grue affinée.
+- 0.42.4 : accueil en paysage plein écran, bouton Thème.
+- 0.42.3 : profils d'émulation plus complets, Mini en fenêtre flottante, PS2 à la définition choisie.
+- 0.42.2 : Mini et Flex en plein écran, 2D et 3D conservées en paysage.
+- 0.42.1 : redimensionnement d'une touche par ses quatre coins.
+- 0.42.0 : manettes 2D, 3D, Flex et Mini ; XMB plus fluide.
+- 0.41.2 : emblèmes de console redessinés en silhouettes simplifiées.
+- 0.41.1 : grue redessinée en miroir autour du pli central.
+- ⭐ 0.41.0 : réglages en deux volets et 10 langues.
+- ⭐ 0.40.0 : accueil façon XMB et navigation à la manette partout.
+- 0.35.0 : retouche de la manette sur le jeu, nouvelle animation de démarrage.
+- 0.34.0 : manette superposée = touches seules.
+- 0.33.0 : menu pause rangé, options du cœur par thème, navigation manette de l'accueil refaite.
+- 0.32.0 : tous les pliants (clapets et livres).
+- 0.31.0 : script d'installation des cœurs, profils selon l'appareil, choix de version des cœurs.
+- 0.30.0 : émulateurs externes retirés de l'interface, onglet Cœurs dans les réglages.
+- ⭐ 0.29.0 : l'app devient Origami.
+- 0.28.0 : illustrations de fond façon accueil PS5.
+- 0.27.0 : Réglages > Émulateurs en quatre blocs, accueil plein écran avec manette physique.
+- 0.26.0 : menu « Options contrôleur », manette superposée par défaut en paysage, mode débogage.
+- ⭐ 0.25.0 : GameCube et Wii intégrées (Dolphin), export des sauvegardes.
+- 0.24.0 : accéléré ×2 effectif sur PS2, import de sauvegardes.
+- ⭐ 0.23.0 : PS2 intégrée (ARMSX2), ATH façon RTSS.
+- 0.22.3 : jaquettes ScreenScraper en secours.
+- 0.22.2 : bouton « Actualiser la bibliothèque ».
+- 0.22.1 : ATH de monitoring, NetherSX2/AetherSX2 sans plantage.
+- 0.22.0 : console Arcade (FBNeo), PS1 en HD.
+- 0.21.2 : joystick N64/PSP/Dreamcast sans croix parasite.
+- 0.21.1 : retéléchargement des cœurs, éditeur plus précis.
+- ⭐ 0.21.0 : la 3D : N64, PSP et Dreamcast en OpenGL ES.
+- 0.20.3 : bouton Maison agrandi sur la Flex.
+- 0.20.2 : aperçu en direct des manettes dans l'assistant.
+- 0.20.1 : bulles de filtre espacées.
+- 0.20.0 : assistant de démarrage au premier lancement.
+- 0.19.0 : disposition Flex verrouillée, habillage Codec en relief.
+- 0.18.0 : vrais onglets dans l'éditeur, manettes physiques jusqu'à 4 joueurs.
+- 0.17.0 : disposition divisée en surimpression.
+- 0.16.0 : disposition « Flex divisée ».
+- 0.15.0 : disposition par défaut refaite, roue de couleurs, vibration réglable.
+- 0.14.0 : touches qui ne se chevauchent plus, menus codec partout.
+- 0.13.0 : manette qui garde ses proportions, section STYLE, menus façon codec.
+- 0.12.0 : bibliothèque rangée par console, synopsis officiels en français.
+- 0.11.0 : synopsis dans la fiche, croix de navigation, A/B/X/Y cohérents.
+- 0.10.0 : format d'affichage par console, options avancées du cœur, codes de triche.
+- 0.9.0 : fiche du jeu en vue Flex, nouvelles touches, deux pilules.
+- ⭐ 0.8.0 : moteur d'émulation intégré, les jeux tournent dans Origami.
+- 0.7.0 : manette du bas entièrement configurable.
+- 0.6.0 : 21 consoles de la NES à la Switch, tri par dossier et par disque, pages Réglages.
+- 0.5.0 : carrousel en haut à droite, gâchettes L/R.
+- 0.4.0 : lancement sans sélecteur Android, jaquettes automatiques.
+- 0.3.0 : croix directionnelle complète, boutons A/B/X/Y en losange, bouton maison.
+- 0.2.0 : vue Flex par défaut, écran titre façon Metal Gear.
+- ⭐ 0.1.0 : premier lanceur rétro pensé pour le Galaxy Fold.

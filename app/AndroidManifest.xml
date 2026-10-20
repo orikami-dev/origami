@@ -211,6 +211,9 @@
             </intent-filter>
         </activity>
         <receiver
+            android:name=".InstallStatusReceiver"
+            android:exported="false" />
+        <receiver
             android:name=".UpdatedReceiver"
             android:exported="false">
             <intent-filter>

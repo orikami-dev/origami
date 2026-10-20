@@ -133,6 +133,7 @@ public class SetupActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
     }
 

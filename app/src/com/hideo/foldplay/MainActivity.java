@@ -362,6 +362,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     @Override
     public void onConfigurationChanged(Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
         boolean cover = c.smallestScreenWidthDp < 600;
         if (hinge != null && cover != wasCover) {

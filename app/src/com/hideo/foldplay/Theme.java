@@ -144,7 +144,9 @@ final class Theme {
         TouchSound.install(a);
         textScale(a);
         boolean game = a instanceof GameActivity || a instanceof Ps3Activity || a instanceof X360Activity;
-        if (!game && !new Store(a).appFullscreen()) {
+        // Paysage : plein écran automatique partout, barres masquées (BOSS, 20/10).
+        boolean land = a.getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        if (!game && !land && !new Store(a).appFullscreen()) {
             // Fenêtre classique : l'app se redimensionne entre la barre d'état et la barre de
             // navigation, rien n'est caché dessous (ni le haut des menus, ni les manettes).
             w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -224,6 +226,13 @@ final class Theme {
             if (content != null) {
                 content.setOnApplyWindowInsetsListener(null);
                 content.setPadding(0, 0, 0, 0);
+                // Retour du portrait : la marge posée sur la vue racine pour les barres disparaît aussi.
+                if (!game && content instanceof android.view.ViewGroup && ((android.view.ViewGroup) content).getChildCount() > 0) {
+                    ((android.view.ViewGroup) content).getChildAt(0).setPadding(0, 0, 0, 0);
+                }
+                INSETS[0] = INSETS[1] = INSETS[2] = INSETS[3] = 0;
+                Runnable hook = insetsHook;
+                if (!game && hook != null) hook.run();
             }
             // Avant setContentView, le DecorView n'existe pas encore et getInsetsController plante
             // (PS3 et Xbox 360 en 0.60.6) : getDecorView() le crée au besoin.
