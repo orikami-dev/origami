@@ -377,9 +377,13 @@ final class ConsolePad {
         return cx - ex >= m + ic + g && cx + ex <= w - m - ic - g;
     }
 
-    /** Gâchettes en arc : pour toutes les consoles sauf la GameCube, dont les gâchettes sont déjà basses. */
+    /**
+     * Gâchettes en arc : pour toutes les consoles sauf la GameCube, dont les gâchettes sont déjà basses.
+     * L'accueil aussi (20/10) : L et R descendent en haricot, un de chaque côté, quel que soit le réglage.
+     */
     private static boolean arc(Spec s) {
-        return ergo && !s.family.equals("gc") && !s.family.equals(HOME_PAD) && (!s.shL.isEmpty() || !s.shR.isEmpty())
+        if (s.family.equals(HOME_PAD)) return !s.shL.isEmpty() && (s.leftOut != null || s.leftIn != null);
+        return ergo && !s.family.equals("gc") && (!s.shL.isEmpty() || !s.shR.isEmpty())
                 && (s.leftOut != null || s.leftIn != null);
     }
 

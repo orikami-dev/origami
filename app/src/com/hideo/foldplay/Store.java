@@ -704,6 +704,15 @@ final class Store {
     }
 
     /** Touche FORMAT verrouillée : plus de changement par un appui involontaire. */
+    /** Andon (lumière d'ambiance autour du jeu) : off, theme, image, mix, soft. */
+    String glowMode() {
+        return prefs.getString("andon", "image");
+    }
+
+    void setGlowMode(String m) {
+        prefs.edit().putString("andon", m).apply();
+    }
+
     boolean formatLocked() {
         return prefs.getBoolean("format_locked", false);
     }

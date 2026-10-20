@@ -2051,6 +2051,15 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         // 0.60.6). D'ici là, les icônes suivent le thème (iconPackMenu reste prêt).
         m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "👷‍♂️🚧 Arrive avec le store de thèmes.");
         // Partage de thèmes entre joueurs : annoncé, pas encore ouvert.
+        m.sub("Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu, en jeu", new Runnable() {
+            public void run() {
+                EngineMenus.andon(MainActivity.this, CodecMenu.hostFor(MainActivity.this), store, new Runnable() {
+                    public void run() { themeMenu(); }
+                }, new Runnable() {
+                    public void run() { }
+                });
+            }
+        });
         m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "👷‍♂️🚧 Partager et récupérer des thèmes");
         m.show(CodecMenu.hostFor(this));
     }

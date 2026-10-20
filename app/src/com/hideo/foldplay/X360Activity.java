@@ -39,6 +39,7 @@ public class X360Activity extends WindowedAppActivity {
     private Store store;
     private Pads pads;
     private FrameLayout stage;
+    private Andon andon;
     private WindowSurfaceView screen;
     private ControlDeckView deck;
     private TextView status;
@@ -182,6 +183,7 @@ public class X360Activity extends WindowedAppActivity {
         stage.setBackgroundColor(0xFF000000);
         screen = new WindowSurfaceView(this);
         stage.addView(screen, new FrameLayout.LayoutParams(-1, -1));
+        andon = Andon.attach(stage, screen, store);
 
         deck = new ControlDeckView(this);
         deck.setSystem("x360");
@@ -512,6 +514,13 @@ public class X360Activity extends WindowedAppActivity {
         new CodecMenu(this).title(title, "XBOX 360")
                 .item("Reprendre", null, new Runnable() {
                     public void run() { resumeGame(); }
+                })
+                .sub("Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu", new Runnable() {
+                    public void run() {
+                        EngineMenus.andon(X360Activity.this, stage, store, backHome(), new Runnable() {
+                            public void run() { if (andon != null) andon.refresh(); }
+                        });
+                    }
                 })
                 .sub("Format d'image", ScreenFormat.label(store.displayMode("x360"))
                         + (store.formatLocked() ? " · verrouillé" : ""), new Runnable() {

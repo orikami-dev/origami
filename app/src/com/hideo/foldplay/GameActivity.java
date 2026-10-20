@@ -152,7 +152,7 @@ public class GameActivity extends Activity {
                 deckUnderMenu();
             }
         });
-        stage.setBackground(Theme.pill(Color.BLACK, dp(28)));
+        stage.setBackground(stageBg(dp(28)));
         stage.setClipToOutline(true);
         // L'image du jeu reste à l'écart des coins arrondis.
         stage.setPadding(dp(10), dp(10), dp(10), dp(10));
@@ -177,6 +177,7 @@ public class GameActivity extends Activity {
             }
         });
         stage.addView(screen, new FrameLayout.LayoutParams(-1, -1, Gravity.CENTER));
+        andon = Andon.attach(rootFrame, screen, store);
         stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override
             public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
@@ -433,7 +434,7 @@ public class GameActivity extends Activity {
         if (want != 0) {
             gap.setVisibility(View.GONE);
             column.setPadding(0, 0, 0, 0);
-            stage.setBackground(new android.graphics.drawable.ColorDrawable(Color.BLACK));
+            stage.setBackground(stageBg(0));
             stage.setPadding(0, 0, 0, 0);
             if (want == 1) rootFrame.addView(deck, safeArea());
             if (want == 3) {
@@ -445,7 +446,7 @@ public class GameActivity extends Activity {
         } else {
             gap.setVisibility(View.VISIBLE);
             column.setPadding(dp(4), dp(4), dp(4), dp(4));
-            stage.setBackground(Theme.pill(Color.BLACK, dp(28)));
+            stage.setBackground(stageBg(dp(28)));
             stage.setPadding(dp(10), dp(10), dp(10), dp(10));
             column.addView(deck, new LinearLayout.LayoutParams(-1, 0, 1f));
         }
@@ -1103,6 +1104,13 @@ public class GameActivity extends Activity {
     }
 
     /** Un menu codec dans la moitié haute : le jeu est en pause tant qu'il est ouvert. */
+    private Andon andon;
+
+    /** Fond de la pastille du jeu : noir, ou transparent pour laisser passer Andon. */
+    private android.graphics.drawable.Drawable stageBg(int radius) {
+        return Theme.pill("off".equals(store.glowMode()) ? Color.BLACK : 0x00000000, radius);
+    }
+
     private CodecMenu codec(String t, String sub) {
         dialogOpen = true;
         paused = true;
@@ -1137,6 +1145,18 @@ public class GameActivity extends Activity {
                         new Runnable() { public void run() { showCoreOptions(); } })
                 .sub("Options contrôleur", "Manette tactile et manettes physiques", new Runnable() {
                     public void run() { showControllerOptions(); }
+                })
+                .sub("Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu", new Runnable() {
+                    public void run() {
+                        EngineMenus.andon(GameActivity.this, stage, store, new Runnable() {
+                            public void run() { showOptions(); }
+                        }, new Runnable() {
+                            public void run() {
+                                if (andon != null) andon.refresh();
+                                stage.setBackground(stageBg(screenMode == 0 ? dp(28) : 0));
+                            }
+                        });
+                    }
                 })
                 .sub("Sauvegardes", "Importer ou exporter, vers une autre app ou un dossier", new Runnable() {
                     public void run() { showSaves(); }

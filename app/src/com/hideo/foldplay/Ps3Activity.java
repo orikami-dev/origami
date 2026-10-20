@@ -36,6 +36,7 @@ public class Ps3Activity extends Activity {
     private Store store;
     private Pads pads;
     private FrameLayout stage;
+    private Andon andon;
     private SurfaceView screen;
     private ControlDeckView deck;
     private TextView status;
@@ -159,6 +160,7 @@ public class Ps3Activity extends Activity {
             }
         });
         stage.addView(screen, new FrameLayout.LayoutParams(-1, -1));
+        andon = Andon.attach(stage, screen, store);
 
         deck = new ControlDeckView(this);
         deck.setSystem("ps3");
@@ -663,6 +665,13 @@ public class Ps3Activity extends Activity {
                     public void run() {
                         resumeGame();
                         Ps3Core.nativeHomeMenu();
+                    }
+                })
+                .sub("Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu", new Runnable() {
+                    public void run() {
+                        EngineMenus.andon(Ps3Activity.this, stage, store, backHome(), new Runnable() {
+                            public void run() { if (andon != null) andon.refresh(); }
+                        });
                     }
                 })
                 .sub("Format d'image", ScreenFormat.label(store.displayMode("ps3"))

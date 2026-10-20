@@ -46,6 +46,29 @@ final class EngineMenus {
         m.show(stage);
     }
 
+    /** Andon : lumière d'ambiance autour de l'écran du jeu, plusieurs modes. */
+    static void andon(final Activity a, final FrameLayout stage, final Store store, final Runnable back,
+                      final Runnable apply) {
+        CodecMenu m = new CodecMenu(a).title("Andon", "LUMIÈRE AUTOUR DU JEU").onBack(back);
+        String cur = store.glowMode();
+        for (int i = 0; i < Andon.KEYS.length; i++) {
+            final String k = Andon.KEYS[i];
+            m.radio(Andon.LABELS[i], Andon.HELP[i], k.equals(cur), new Runnable() {
+                public void run() {
+                    store.setGlowMode(k);
+                    apply.run();
+                }
+            });
+        }
+        m.show(stage);
+    }
+
+    static String andonLabel(Store store) {
+        String cur = store.glowMode();
+        for (int i = 0; i < Andon.KEYS.length; i++) if (Andon.KEYS[i].equals(cur)) return Andon.LABELS[i];
+        return Andon.LABELS[0];
+    }
+
     /** Manette tactile : disposition, transparence, gâchettes, plein écran avec une manette, éditeur. */
     static void controller(final Activity a, final FrameLayout stage, final Store store, final ControlDeckView deck,
                            final Runnable back, final Runnable relayout) {
