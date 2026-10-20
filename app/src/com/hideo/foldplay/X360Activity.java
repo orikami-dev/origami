@@ -80,8 +80,22 @@ public class X360Activity extends WindowedAppActivity {
         return "xenia";
     }
 
+    private static boolean USED;
+
     @Override
     protected void onCreate(Bundle state) {
+        // Ce processus a déjà servi à un jeu (sortie avant la fin du chargement, par exemple) : le moteur
+        // y est resté à moitié initialisé et ne lirait rien. On relance le jeu dans un processus neuf.
+        if (USED) {
+            startActivity(new android.content.Intent(this, MainActivity.class)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                            | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    .putExtra(MainActivity.EXTRA_RESTART, new android.content.Intent(getIntent())));
+            android.os.Process.killProcess(android.os.Process.myPid());
+            return;
+        }
+        USED = true;
         Theme.inGame = true;
         I18n.attach(this);
         Theme.sync(this);
@@ -596,7 +610,7 @@ public class X360Activity extends WindowedAppActivity {
         Theme.inGame = false;
         // Le processus « :x360 » ne sert qu'au jeu : Xenia ne sait pas s'arrêter proprement, on
         // termine le processus pour rendre sa mémoire.
-        if (isFinishing() && started) android.os.Process.killProcess(android.os.Process.myPid());
+        if (isFinishing()) android.os.Process.killProcess(android.os.Process.myPid());
     }
 
     /** Supprime les fichiers vides laissés par un cache planté (dossier parcouru en profondeur). */
