@@ -2,15 +2,20 @@
 
 Toutes les versions de test sont publiées en releases privées (`v0.1.0` à la dernière), chacune avec son APK debug et sa page de notes (`docs/releases/<version>.md`). Studio : KAMI-WORKS.
 
+## 0.65.12
+- Le canal des builds de test s'appelle maintenant « Préversions » (Réglages > Mises à jour), « bêta » reste réservé à la future bêta publique.
+- Préversions lues sur la branche preview du dépôt ; la 0.65.11 les trouve encore par l'ancien canal pendant la transition.
+- Script PowerShell tools/publish-releases.ps1 refait : publie depuis le PC toutes les releases manquantes (branches apk-transfer et apk-<version>), saute la préversion en cours, puis supprime les branches temporaires.
+
 ## 0.65.11
-- Mises à jour bêta dans l'app (Réglages > Mises à jour > Versions bêta) : les nouvelles versions apparaissent seules, avec notification, sans repasser par le chat.
+- Préversions dans l'app (Réglages > Mises à jour > Préversions) : les nouvelles versions apparaissent seules, avec notification, sans repasser par le chat.
 - Format et mode : le message précédent est remplacé tout de suite, plus de notifications qui s'enchaînent en retard.
 - PS3 et Xbox 360 : l'écran et la manette se replacent d'après la hauteur réelle de la scène (plus de chevauchement au pliage).
 - Xbox 360 : le menu Codec met maintenant le jeu en pause (moteur recompilé avec une vraie pause).
 - Lanceur d'apps : curseur de défilement rapide et bouton de tri (nom A-Z, Z-A, installées récemment, mises à jour récemment, jeux d'abord), aux couleurs du thème.
 - Barres de notification et de navigation transparentes aussi dans l'assistant de démarrage, l'éditeur de manette et l'import.
 - Gâchettes à bascule : journal détaillé ajouté pour trouver pourquoi elles ne tiennent pas.
-- Script tools/publish.sh : envoie les sources et la bêta sur GitHub.
+- Script tools/publish.sh : envoie les sources et la préversion sur GitHub.
 
 ## Ce que fait Origami aujourd'hui (0.60.12)
 

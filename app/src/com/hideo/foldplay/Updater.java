@@ -28,8 +28,8 @@ final class Updater {
     }
 
     static final String API = "https://api.github.com/repos/orikami-dev/origami/releases/latest";
-    /** Canal bêta : une branche « beta » du dépôt contient beta.json et l'APK le plus récent (poussés d'ici, sans release). */
-    static final String BETA_RAW = "https://raw.githubusercontent.com/orikami-dev/origami/beta/";
+    /** Préversions : la branche « preview » du dépôt contient preview.json et l'APK de test le plus récent (poussés d'ici, sans release). */
+    static final String PREVIEW_RAW = "https://raw.githubusercontent.com/orikami-dev/origami/preview/";
     private static final String CHANNEL = "updates";
     private static final long AUTO_EVERY_MS = 12L * 3600 * 1000;
 
@@ -81,23 +81,23 @@ final class Updater {
 
     private static Release fetch(Context ctx) {
         Release stable = fetchStable(ctx);
-        if (!new Store(ctx).betaUpdates()) return stable;
-        Release beta = fetchBeta(ctx);
-        if (beta.error != null) return stable;
-        if (stable.error != null || !stable.newer || compare(beta.version, stable.version) > 0) return beta;
+        if (!new Store(ctx).previewUpdates()) return stable;
+        Release pre = fetchPreview(ctx);
+        if (pre.error != null) return stable;
+        if (stable.error != null || !stable.newer || compare(pre.version, stable.version) > 0) return pre;
         return stable;
     }
 
-    private static Release fetchBeta(Context ctx) {
+    private static Release fetchPreview(Context ctx) {
         Release r = new Release();
         HttpURLConnection c = null;
         try {
-            c = (HttpURLConnection) new URL(BETA_RAW + "beta.json?t=" + System.currentTimeMillis()).openConnection();
+            c = (HttpURLConnection) new URL(PREVIEW_RAW + "preview.json?t=" + System.currentTimeMillis()).openConnection();
             c.setConnectTimeout(8000);
             c.setReadTimeout(8000);
             c.setUseCaches(false);
             if (c.getResponseCode() != 200) {
-                r.error = "Pas de version bêta publiée.";
+                r.error = "Pas de préversion publiée.";
                 return r;
             }
             InputStream in = c.getInputStream();
@@ -108,8 +108,8 @@ final class Updater {
             JSONObject j = new JSONObject(out.toString("UTF-8"));
             r.version = j.optString("version", "");
             r.summary = j.optString("notes", "");
-            r.apkUrl = BETA_RAW + j.optString("apk", "origami-beta.apk");
-            r.pageUrl = "https://github.com/orikami-dev/origami/tree/beta";
+            r.apkUrl = PREVIEW_RAW + j.optString("apk", "origami-preview.apk");
+            r.pageUrl = "https://github.com/orikami-dev/origami/tree/preview";
             r.newer = !r.version.isEmpty() && compare(r.version, installed(ctx)) > 0;
         } catch (Exception e) {
             r.error = "Pas de connexion au serveur des mises à jour.";
@@ -181,7 +181,7 @@ final class Updater {
     /** Au démarrage : une recherche toutes les 12 h au plus, et une notification par nouvelle version. */
     static void autoCheck(final Context ctx) {
         final Store store = new Store(ctx);
-        if (!store.autoUpdates() || System.currentTimeMillis() - store.lastUpdateCheck() < (store.betaUpdates() ? 15L * 60 * 1000 : AUTO_EVERY_MS)) return;
+        if (!store.autoUpdates() || System.currentTimeMillis() - store.lastUpdateCheck() < (store.previewUpdates() ? 15L * 60 * 1000 : AUTO_EVERY_MS)) return;
         check(ctx, new Done() {
             public void done(Release r) {
                 if (r.error == null && r.newer && !r.version.equals(store.notifiedUpdate())) {

@@ -596,12 +596,12 @@ final class Store {
         prefs.edit().putBoolean("upd_auto", on).apply();
     }
 
-    /** Canal bêta : inclut les préversions (corrections rapides) en plus des versions stables. */
-    boolean betaUpdates() {
+    /** Préversions : builds de test (corrections rapides) en plus des versions stables. */
+    boolean previewUpdates() {
         return prefs.getBoolean("upd_beta", true);
     }
 
-    void setBetaUpdates(boolean on) {
+    void setPreviewUpdates(boolean on) {
         prefs.edit().putBoolean("upd_beta", on).apply();
     }
 

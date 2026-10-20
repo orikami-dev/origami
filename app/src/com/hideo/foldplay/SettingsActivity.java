@@ -1138,10 +1138,10 @@ public class SettingsActivity extends Activity {
                         }
                     }
                 });
-        toggle("Versions bêta", "Reçois aussi les corrections rapides avant la version stable",
-                store.betaUpdates(), new Toggle() {
+        toggle("Préversions", "Reçois aussi les builds de test et les corrections rapides avant la version stable",
+                store.previewUpdates(), new Toggle() {
                     public void set(boolean on) {
-                        store.setBetaUpdates(on);
+                        store.setPreviewUpdates(on);
                     }
                 });
         final LinearLayout result = vertical();
