@@ -44,7 +44,7 @@ final class BackdropMotion {
 
     /** Radar : faisceau qui tourne (4 tours par boucle) et échos qui s'allument à son passage. */
     static void radar(Canvas c, float w, float h, float u, int accent, float t) {
-        float cx = w * 0.82f, cy = h * 0.78f, r = u * 0.75f;
+        float cx = w * 0.80f, cy = h * 0.76f, r = u * 0.6f;
         float deg = 360f * fract(4 * t);
         SweepGradient sg = new SweepGradient(cx, cy, new int[] {a(accent, 0), a(accent, 0), a(accent, 0x26), a(accent, 0x55)},
                 new float[] {0f, 0.78f, 0.97f, 1f});
@@ -54,6 +54,13 @@ final class BackdropMotion {
         P.setStyle(Paint.Style.FILL);
         c.drawCircle(cx, cy, r, P);
         P.setShader(null);
+        // La ligne du faisceau, qui tourne avec lui.
+        double br = Math.toRadians(deg);
+        P.setStyle(Paint.Style.STROKE);
+        P.setStrokeWidth(Math.max(1f, u / 600f));
+        P.setColor(a(accent, 0x70));
+        c.drawLine(cx, cy, cx + (float) (r * Math.cos(br)), cy + (float) (r * Math.sin(br)), P);
+        P.setStyle(Paint.Style.FILL);
         for (int i = 0; i < 9; i++) {
             float ang = 360f * rnd(i, 1), dist = r * (0.15f + 0.75f * rnd(i, 2));
             float since = fract((deg - ang) / 360f);              // temps depuis le passage du faisceau
@@ -61,11 +68,14 @@ final class BackdropMotion {
             if (al <= 0) continue;
             double ar = Math.toRadians(ang);
             float x = cx + (float) (dist * Math.cos(ar)), y = cy + (float) (dist * Math.sin(ar));
-            P.setColor(a(accent, al));
+            // Échos rouges qui clignotent au passage du faisceau (demande de BOSS, 0.62.3).
+            int red = 0xFFFF3B3B;
+            float blink = fract(since * 6) < 0.5f ? 1f : 0.35f;
+            P.setColor(a(red, (int) (al * blink)));
             c.drawCircle(x, y, u * 0.004f * (1 + since * 2), P);
             P.setStyle(Paint.Style.STROKE);
             P.setStrokeWidth(u * 0.0012f);
-            P.setColor(a(accent, al / 3));
+            P.setColor(a(red, al / 3));
             c.drawCircle(x, y, u * 0.004f + since * u * 0.03f, P);
             P.setStyle(Paint.Style.FILL);
         }

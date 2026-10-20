@@ -90,7 +90,9 @@ final class ThemeBackdrop extends Drawable {
             still = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
             Canvas sc = new Canvas(still);
             sc.translate(-b.left, -b.top);
+            Facets.MOVING = true;
             drawStill(sc);
+            Facets.MOVING = false;
         }
         c.drawBitmap(still, b.left, b.top, null);
         float t = (android.os.SystemClock.uptimeMillis() % PERIOD) / (float) PERIOD;

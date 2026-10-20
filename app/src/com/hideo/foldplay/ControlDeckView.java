@@ -120,7 +120,7 @@ final class ControlDeckView extends ViewGroup {
     }
 
     /** Consoles montrées tour à tour par l'aperçu de la Flex, avec leur nom. */
-    private static final String[][] TOUR = {
+    static final String[][] TOUR = {
         {"psx", "PlayStation"}, {"snes", "Super Nintendo"}, {"x360", "Xbox 360"}, {"n64", "Nintendo 64"},
         {"ps2", "PlayStation 2"}, {"gc", "GameCube"}, {"md", "Mega Drive"}, {"gba", "Game Boy Advance"},
         {"ps3", "PlayStation 3"}, {"switch", "Switch"}, {"saturn", "Saturn"}, {"nes", "NES"},

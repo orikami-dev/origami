@@ -548,6 +548,9 @@ final class Facets {
         else f.radar(w, h);
     }
 
+    /** Vrai pendant le dessin du décor fixe d'un fond animé : ce qui bouge n'y est pas dessiné. */
+    static boolean MOVING;
+
     /** Radar : anneaux octogonaux en facettes, faisceau en éventail plié, échos en losanges. */
     private void radar(float w, float h) {
         float u = Math.max(w, h);
@@ -567,6 +570,11 @@ final class Facets {
                 tri(ax, ay, bx, by, ix, iy, a(sh[left ? 0 : 2], al));
                 tri(bx, by, jx, jy, ix, iy, a(sh[left ? 1 : 3], al));
             }
+        }
+        // Fond animé (0.62.3) : faisceau et échos sont dessinés en mouvement par BackdropMotion.
+        if (MOVING) {
+            scan(w, h);
+            return;
         }
         // Faisceau : éventail de triangles qui s'éteint en tournant.
         int blades = 9;

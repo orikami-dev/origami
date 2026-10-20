@@ -364,12 +364,14 @@ public class SetupActivity extends Activity {
                     store.setTheme(id);
                     store.setSyncUi(false);
                     Theme.queueIcon(SetupActivity.this, id);
-                    UiSound.refresh(SetupActivity.this);
+                    // La musique du thème choisi démarre aussitôt (0.62.3).
+                    UiSound.musicStart(SetupActivity.this);
                     UiSound.play(SetupActivity.this, UiSound.SELECT);
                     recreate();
                 }
             });
         }
+        sub("Options audio");
         final boolean sound = store.menuSound();
         row((sound ? "■  " : "□  ") + "Bruits de l'interface", "Déplacement, validation, lancement d'un jeu", new Runnable() {
             public void run() {
@@ -516,6 +518,15 @@ public class SetupActivity extends Activity {
         TextView t = text(s, 16, Theme.TEXT);
         t.setLineSpacing(0, 1.15f);
         t.setPadding(0, dp(4), 0, dp(10));
+        page.addView(t);
+    }
+
+    /** Sous-titre de groupe, façon codec. */
+    private void sub(String s) {
+        TextView t = text(s.toUpperCase(), 12, Theme.CODEC);
+        t.setTypeface(Fonts.wide(this));
+        t.setLetterSpacing(0.15f);
+        t.setPadding(0, dp(18), 0, dp(6));
         page.addView(t);
     }
 
