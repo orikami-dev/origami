@@ -2,6 +2,10 @@
 
 Studio : KAMI-WORKS.
 
+## 0.65.17
+- Plein écran automatique en paysage dans toute l'app (barres de notification et de navigation masquées).
+- Mises à jour installées sans la fenêtre Android de fin à fermer.
+
 ## 0.65.16
 - PS3 et Xbox 360 en portrait : filet entre l'écran et la manette réduit à 4 dp, centré sur la charnière, comme les autres consoles.
 
