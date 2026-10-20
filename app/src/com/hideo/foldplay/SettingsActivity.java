@@ -17,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Page de réglages, une section à la fois, ouverte directement par l'engrenage. */
@@ -292,13 +293,15 @@ public class SettingsActivity extends Activity {
 
         // 1. Une ligne par console : tout ce qui la concerne s'ouvre dans son menu.
         header("Consoles");
+        gridStart();
         for (final SystemInfo s : SystemInfo.ALL) {
             String summary = consoleSummary(s, cores, launcher);
             if (summary == null) continue;
-            action(s.name, summary, new Runnable() {
+            tile(s.name, condensed(summary), new Runnable() {
                 public void run() { consoleMenu(s, cores, launcher); }
             });
         }
+        gridEnd();
 
         // 2. Les cœurs : une page chacun (téléchargement, version, réglages, licence).
         coreList(cores);
@@ -457,14 +460,16 @@ public class SettingsActivity extends Activity {
     private void coreList(final CoreManager cores) {
         if (!Libretro.available()) return;
         header("Cœurs");
+        gridStart();
         for (final CoreCatalog.Info i : CoreCatalog.ALL) {
             String v = store.coreVariant(i.core);
-            action(i.name + (v.equals(i.core) ? "" : " → " + CoreCatalog.variantLabel(i.core, v))
-                    + (cores.installed(i.core) ? "  ✓" : ""), CoreManager.systemsOf(i.core) + " · "
+            tile(i.name + (v.equals(i.core) ? "" : " → " + CoreCatalog.variantLabel(i.core, v))
+                    + (cores.installed(i.core) ? "  ✓" : ""), CoreManager.systemsOf(i.core) + "\n"
                     + coreState(cores, i.core), new Runnable() {
                 public void run() { corePage(i.core, null); }
             });
         }
+        gridEnd();
         note("Switch : Eden, intégré comme les autres cœurs, bientôt.");
     }
 
@@ -1462,6 +1467,71 @@ public class SettingsActivity extends Activity {
         lp.setMargins(0, dp(4), 0, dp(4));
         body.addView(row, lp);
         return row;
+    }
+
+    // ------------------------------------------------------------------ grille condensée (0.65)
+
+    private final List<View> gridTiles = new ArrayList<View>();
+
+    private void gridStart() {
+        gridTiles.clear();
+    }
+
+    /** Résumé court pour une case : « Intégré · » et « · au premier lancement » ne servent plus en grille. */
+    private static String condensed(String summary) {
+        return summary.replace("Intégré · ", "").replace(" · au premier lancement", " · à télécharger")
+                .replace(" · livré", " · livré ✓").replace(" · ", "\n");
+    }
+
+    /** Une case : nom en gras, puis une à trois lignes d'état serrées. */
+    private void tile(String title, String info, final Runnable run) {
+        LinearLayout t = vertical();
+        t.setPadding(dp(12), dp(10), dp(12), dp(10));
+        t.setMinimumHeight(dp(64));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(16));
+        bg.setColor(0xF2121419);
+        bg.setStroke(Math.round(dp(1)), Theme.alpha(Theme.CODEC, 0x33));
+        android.graphics.drawable.StateListDrawable states = new android.graphics.drawable.StateListDrawable();
+        GradientDrawable pressed = new GradientDrawable();
+        pressed.setCornerRadius(dp(16));
+        pressed.setColor(Theme.alpha(Theme.CODEC, 0x33));
+        pressed.setStroke(Math.round(dp(1.5f)), Theme.CODEC);
+        states.addState(new int[] {android.R.attr.state_pressed}, pressed);
+        states.addState(new int[0], bg);
+        t.setBackground(states);
+        TextView n = text(title, 14, Theme.TEXT);
+        n.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+        n.setMaxLines(2);
+        t.addView(n);
+        if (info != null) {
+            TextView i = text(info, 11, Theme.MUTED);
+            i.setLineSpacing(0, 1.05f);
+            i.setMaxLines(3);
+            t.addView(i);
+        }
+        t.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { run.run(); }
+        });
+        gridTiles.add(t);
+    }
+
+    /** Pose les cases en lignes de N colonnes égales ; N suit la largeur (2 à 4), donc la rotation et le pli. */
+    private void gridEnd() {
+        int wDp = getResources().getConfiguration().screenWidthDp;
+        int avail = wDp >= 600 ? Math.round(wDp * 0.68f) : wDp;
+        int cols = Math.max(2, Math.min(4, avail / 170));
+        for (int i = 0; i < gridTiles.size(); i += cols) {
+            LinearLayout line = new LinearLayout(this);
+            for (int k = i; k < i + cols; k++) {
+                View cell = k < gridTiles.size() ? gridTiles.get(k) : new View(this);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -1, 1f);
+                lp.setMargins(dp(3), dp(3), dp(3), dp(3));
+                line.addView(cell, lp);
+            }
+            body.addView(line, new LinearLayout.LayoutParams(-1, -2));
+        }
+        gridTiles.clear();
     }
 
     private void action(String title, String subtitle, final Runnable run) {
