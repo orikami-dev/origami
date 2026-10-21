@@ -537,18 +537,29 @@ final class BackdropMotion {
             P.setColor(a(0xFFFFFFFF, Math.round(0xB0 * tw * tw)));
             c.drawCircle(w * rnd(i, 1), h * 0.6f * rnd(i, 2), u * 0.0012f, P);
         }
-        int[] sh = Crane.shades(accent);
-        float H0 = Math.min(h, w * 0.9f);
-        for (int i = 0; i < Facets.FLOCK.length; i++) {
-            float[] g = Facets.FLOCK[i];
-            float size = H0 * g[2], x = fract(g[0] + t) * (w + 2 * size) - size;
-            // Battement : ailes toujours du bon côté (jamais retournées sous le corps), plus lent ; le corps
-            // monte quand les ailes redescendent et s'abaisse quand elles se lèvent (BOSS).
-            float ph = (float) (TAU * ((10 + 2 * (i % 3)) * t + i * 0.37f));
-            float cph = (float) Math.cos(ph);
-            float y = h * g[1] - (x / w - g[0]) * h * 0.08f + size * 0.05f * cph;
-            float flap = 0.55f + 0.45f * cph;
-            Facets.crane(c, P, PATH, sh, fold, x, y, size, g[3], flap, 0xC8, false);
+        // Étoiles filantes (0.66.17, à la place des grues) : une traînée de temps en temps, jamais deux à la fois.
+        {
+            // Une étoile toutes les 6 s (4 par boucle de 24 s), qui file pendant un peu plus d'une seconde.
+            int i = (int) (t * 4f);
+            float p = fract(t * 4f) / 0.18f;
+            if (p < 1f) {
+                float sx = w * (0.1f + 0.5f * rnd(i, 7)) + w * 0.3f * p, sy = h * (0.05f + 0.25f * rnd(i, 8)) + h * 0.15f * p;
+                float len = u * 0.12f, fade = (float) Math.sin(Math.PI * p);
+                P.setShader(new android.graphics.LinearGradient(sx, sy, sx - len, sy - len * 0.5f,
+                        a(0xFFFFFFFF, Math.round(0xE0 * fade)), a(0xFFFFFFFF, 0), Shader.TileMode.CLAMP));
+                P.setStrokeWidth(Math.max(1f, u * 0.0022f));
+                P.setStyle(android.graphics.Paint.Style.STROKE);
+                c.drawLine(sx, sy, sx - len, sy - len * 0.5f, P);
+                P.setStyle(android.graphics.Paint.Style.FILL);
+                P.setShader(null);
+            }
+        }
+        // Brume qui passe lentement devant la lune.
+        for (int i = 0; i < 2; i++) {
+            float fx = fract(t * (1 + i) + i * 0.5f) * (w * 1.6f) - w * 0.3f, fy = lp[1] + lp[2] * (i == 0 ? 0.4f : -0.6f);
+            P.setShader(new RadialGradient(fx, fy, lp[2] * 3.2f, a(0xFFDCE2EC, 0x16), a(0xFFDCE2EC, 0), Shader.TileMode.CLAMP));
+            c.drawCircle(fx, fy, lp[2] * 3.2f, P);
+            P.setShader(null);
         }
     }
 }

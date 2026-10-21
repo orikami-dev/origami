@@ -2830,11 +2830,7 @@ final class Facets {
         p.setShader(new LinearGradient(mx - mr * 2.5f, 0, mx + mr * 2.5f, 0, new int[] {a(sh[4], 0), a(sh[4], 0x10), a(sh[4], 0)}, null, Shader.TileMode.CLAMP));
         c.drawRect(mx - mr * 2.5f, sea, mx + mr * 2.5f, h, p);
         p.setShader(null);
-        // Grues : la plus grande vole bas à gauche, les autres montent vers la lune ; une passe devant elle.
-        if (!MOVING) {
-            for (float[] g : FLOCK) crane(c, p, path, sh, fold, w * g[0], h * g[1], H0 * g[2], g[3], g[4], Math.round(0xC8 * k), false);
-            crane(c, p, path, sh, fold, mx - mr * 0.25f, my + mr * 0.15f, mr * 0.55f, -0.15f, 0.7f, Math.round(0xE8 * k), true);
-        }
+        // 0.66.17 (BOSS) : plus de grues sur le fond Argent ; l'animation vient du ciel (BackdropMotion.lune).
     }
 
     /**
@@ -2878,14 +2874,9 @@ final class Facets {
                     a(sh[left ? 3 : 4], (i & 1) == 0 ? 0x5A : 0x4C));
         }
         arcLine(cx, cy, mr, 0, 360, lw * 1.3f, a(fold, 0x60));
-        crane(c, p, path, sh, fold, cx, cy + mr * 0.05f, mr * 0.9f, 0f, 0.8f, Math.round(0xC0 * k), true);
         // Nuages au pied.
         float r = m * 0.07f;
         nuages(w, h - m * 0.12f, r, cx, lw, 0xFF14161B, 0xC8, 0x48);
         nuages(w, h - m * 0.03f, r * 1.4f, cx, lw, 0xFF0E1013, 0xE0, 0x40);
-        // Petites grues dans le haut.
-        crane(c, p, path, sh, fold, w * 0.2f, h * 0.26f, m * 0.12f, -0.16f, 0.9f, Math.round(0x90 * k), false);
-        crane(c, p, path, sh, fold, w * 0.8f, h * 0.3f, m * 0.1f, -0.1f, 0.3f, Math.round(0x80 * k), false);
-        crane(c, p, path, sh, fold, w * 0.7f, h * 0.15f, m * 0.06f, -0.12f, 1f, Math.round(0x70 * k), false);
     }
 }
