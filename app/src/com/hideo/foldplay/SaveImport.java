@@ -32,7 +32,7 @@ final class SaveImport {
     /** Ce que la console accepte, pour l'afficher sous son nom. */
     static String formats(String system) {
         switch (system) {
-            case "ps2": return "Carte mémoire PCSX2, AetherSX2, NetherSX2 (.ps2, .mcd) · devient la carte 1";
+            case "ps2": return "Carte PCSX2/AetherSX2 (.ps2, .mcd) · devient la carte 1";
             case "psx": return "Carte mémoire .mcr, .mcd, .mc, .gme (DexDrive), .vmp (PSP)";
             case "psp": return ".zip des dossiers SAVEDATA (PPSSPP)";
             case "n64": return ".eep, .mpk, .sra, .fla (Project64, mupen64plus) ou .srm";
@@ -65,7 +65,7 @@ final class SaveImport {
                             + "par exemple avec mymc sur PC");
                 }
                 write(new File(system_, "pcsx2/memcards/Mcd001.ps2"), data);
-                return "Carte mémoire PS2 installée en carte 1. Relance le jeu pour qu'ARMSX2 la lise.";
+                return "Carte PS2 installée en carte 1. Relance le jeu.";
             }
             case "psx": {
                 byte[] card = ps1Card(data, ext);
@@ -85,7 +85,7 @@ final class SaveImport {
             case "dc": {
                 if (data.length != 128 * 1024) throw new IOException("une VMU fait 128 Ko");
                 write(new File(saves, "vmu_save_A1.bin"), data);
-                return "VMU installée en A1. Relance le jeu pour que flycast la lise.";
+                return "VMU installée en A1. Relance le jeu.";
             }
             default: {
                 if (data.length == 0 || data.length > 2 * 1024 * 1024) throw new IOException("taille de sauvegarde inattendue");

@@ -20,7 +20,7 @@ public final class ImportActivity extends Activity {
         I18n.attach(this);
         Theme.sync(this);
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Theme.BG);
+        root.setBackground(Theme.backdrop(0));
         setContentView(root);
         Theme.fullscreen(this);
 

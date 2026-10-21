@@ -31,7 +31,7 @@ final class Hud {
             {"ram", "Mémoire", "Mémoire utilisée par l'app"},
             {"bat", "Batterie", "Niveau et charge"},
             {"temp", "Température", "Température de la batterie"},
-            {"heat", "Chauffe", "État thermique annoncé par Android"},
+            {"heat", "Température CPU et GPU", "Degrés du processeur et de la carte graphique"},
             {"res", "Moteur et résolution", "Cœur utilisé et taille de l'image"},
             {"clock", "Heure", "Heure actuelle"},
     };
@@ -42,15 +42,33 @@ final class Hud {
 
     static final String[] POS_KEYS = {"left", "center", "right"};
     static final String[] POS_LABELS = {"En haut à gauche", "En haut au centre", "En haut à droite"};
-    static final String[] COLOR_KEYS = {"rtss", "codec", "white"};
-    static final String[] COLOR_LABELS = {"Orange RTSS", "Vert Codec", "Blanc"};
+    static final String[] COLOR_KEYS = {"phone", "theme", "rtss", "codec", "white"};
+    static final String[] COLOR_LABELS = {"Couleur du téléphone", "Thème d'Origami", "Orange RTSS", "Vert Codec", "Blanc"};
+    static final String[] UNIT_KEYS = {"c", "f"};
+    static final String[] UNIT_LABELS = {"Degrés Celsius (°C)", "Degrés Fahrenheit (°F)"};
     static final String[] SIZE_LABELS = {"Petite", "Moyenne", "Grande"};
     static final float[] SIZES = {10, 12, 14};
     static final int[] RATES = {500, 1000, 2000};
     static final String[] RATE_LABELS = {"0,5 s", "1 s", "2 s"};
 
+    /**
+     * Couleur des libellés. « phone » suit la couleur d'accent du téléphone (Android 12+, Material
+     * You), « theme » celle du thème d'Origami.
+     */
+    static int labelColor(android.content.Context ctx, String key) {
+        if ("phone".equals(key) && android.os.Build.VERSION.SDK_INT >= 31) {
+            try {
+                return ctx.getColor(android.R.color.system_accent1_200);
+            } catch (Exception ignored) {
+                // Couleur absente sur ce téléphone : orange RTSS.
+            }
+        }
+        if ("theme".equals(key)) return Theme.CODEC;
+        return labelColor(key);
+    }
+
     static int labelColor(String key) {
-        if ("codec".equals(key)) return Theme.CODEC;
+        if ("codec".equals(key)) return 0xFF7CFF8A;
         if ("white".equals(key)) return 0xFFB8C0CC;
         return 0xFFFF9A1F;
     }
@@ -65,10 +83,13 @@ final class Hud {
         float fps, frameMs, frameMaxMs, speed, cpu;
         int mhz = -1, ramMb, battery = -1, heat = -1;
         boolean charging;
-        float tempC = Float.NaN;
+        float tempC = Float.NaN, cpuC = Float.NaN, gpuC = Float.NaN;
+        boolean fahrenheit;
         String core;
         int width, height;
         boolean paused;
+        /** Résolution interne du jeu (ex. « 1280×720 »), ou null : on affiche alors la taille de la surface. */
+        String renderRes;
     }
 
     private static final String[] HEAT = {"normale", "légère", "modérée", "forte", "critique", "urgence", "arrêt"};
@@ -77,7 +98,7 @@ final class Hud {
         SpannableStringBuilder b = new SpannableStringBuilder();
         Builder w = new Builder(b, block, label);
         if (items.contains("res") && s.core != null)
-            w.item(s.core.toUpperCase(Locale.ROOT), s.width + "×" + s.height, null);
+            w.item(s.core.toUpperCase(Locale.ROOT), s.renderRes != null ? s.renderRes : s.width + "×" + s.height, null);
         if (items.contains("fps")) w.item("FPS", s.paused ? "‖" : s.fps < 0 ? "—" : fmt0(s.fps), null);
         if (items.contains("ft") && s.frameMs > 0) {
             w.item(items.contains("fps") && !block ? null : "FT", fmt1(s.frameMs), "ms");
@@ -95,12 +116,16 @@ final class Hud {
             w.item("BAT", String.valueOf(s.battery), "%");
             if (s.charging) w.extra("⚡", null);
         }
+        String unit = s.fahrenheit ? "°F" : "°C";
         if (items.contains("temp") && !Float.isNaN(s.tempC)) {
-            if (items.contains("bat") && !block) w.extra(fmt1(s.tempC), "°C");
-            else w.item("TEMP", fmt1(s.tempC), "°C");
+            if (items.contains("bat") && !block) w.extra(fmt1(deg(s.tempC, s.fahrenheit)), unit);
+            else w.item("TEMP", fmt1(deg(s.tempC, s.fahrenheit)), unit);
         }
-        if (items.contains("heat") && s.heat >= 0)
-            w.item("CHAUFFE", s.heat < HEAT.length ? HEAT[s.heat] : "?", null);
+        // Températures du processeur et de la carte graphique, en degrés seulement (0.65).
+        if (items.contains("heat")) {
+            if (!Float.isNaN(s.cpuC)) w.item("CPU", fmt0(deg(s.cpuC, s.fahrenheit)), unit);
+            if (!Float.isNaN(s.gpuC)) w.item("GPU", fmt0(deg(s.gpuC, s.fahrenheit)), unit);
+        }
         if (items.contains("clock")) {
             java.util.Calendar c = java.util.Calendar.getInstance();
             w.item(null, String.format(Locale.ROOT, "%02d:%02d", c.get(java.util.Calendar.HOUR_OF_DAY),
@@ -108,6 +133,111 @@ final class Hud {
         }
         if (b.length() == 0) w.item("ATH", "aucune mesure choisie", null);
         return b;
+    }
+
+    private static float deg(float c, boolean f) {
+        return f ? c * 9f / 5f + 32f : c;
+    }
+
+    /** Température du processeur en °C (moyenne des zones lisibles, retenues au premier appel), ou NaN. */
+    static float cpuC() {
+        return zoneMean(true);
+    }
+
+    static float gpuC() {
+        return zoneMean(false);
+    }
+
+    /** Moyenne des zones thermiques lisibles du processeur (cpu) ou de la carte graphique (gpu), ou NaN. */
+    private static float zoneMean(boolean cpu) {
+        if (cpuZones == null) {
+            java.util.List<File> c = new java.util.ArrayList<File>(), g = new java.util.ArrayList<File>();
+            File[] all = new File("/sys/class/thermal").listFiles();
+            if (all != null) {
+                for (File z : all) {
+                    String type = readLine(new File(z, "type"));
+                    if (type == null || readLine(new File(z, "temp")) == null) continue;
+                    type = type.toLowerCase(Locale.ROOT);
+                    if (type.contains("gpu")) g.add(new File(z, "temp"));
+                    else if (type.contains("cpu")) c.add(new File(z, "temp"));
+                }
+            }
+            cpuZones = c.toArray(new File[0]);
+            gpuZones = g.toArray(new File[0]);
+        }
+        float sum = 0;
+        int n = 0;
+        for (File f : cpu ? cpuZones : gpuZones) {
+            String v = readLine(f);
+            if (v == null) continue;
+            try {
+                float t = Long.parseLong(v.trim());
+                if (t > 1000) t /= 1000f;
+                if (t > 5 && t < 125) {
+                    sum += t;
+                    n++;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return n == 0 ? Float.NaN : sum / n;
+    }
+
+    private static File[] cpuZones, gpuZones;
+
+    static String readLine(String path) {
+        return readLine(new File(path));
+    }
+
+    private static String readLine(File f) {
+        BufferedReader r = null;
+        try {
+            r = new BufferedReader(new FileReader(f));
+            return r.readLine();
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (r != null) try { r.close(); } catch (Exception ignored) { }
+        }
+    }
+
+    /**
+     * L'ATH passe sous la caméra frontale (encoche ou poinçon) : on le décale juste en dessous
+     * quand il la recouvre, selon la position réelle de la caméra.
+     */
+    static void avoidCutout(final android.widget.TextView hud, final int margin) {
+        hud.post(new Runnable() {
+            public void run() {
+                if (android.os.Build.VERSION.SDK_INT < 28) return;
+                android.view.WindowInsets wi = hud.getRootWindowInsets();
+                android.view.DisplayCutout dc = wi != null ? wi.getDisplayCutout() : null;
+                if (dc == null) return;
+                int[] at = new int[2];
+                hud.getLocationInWindow(at);
+                // Place d'origine, sans le décalage déjà appliqué.
+                int top = at[1] - Math.round(hud.getTranslationY());
+                android.graphics.Rect me = new android.graphics.Rect(at[0], top, at[0] + hud.getWidth(), top + hud.getHeight());
+                float shift = 0;
+                for (android.graphics.Rect r : dc.getBoundingRects()) {
+                    if (android.graphics.Rect.intersects(me, r)) shift = Math.max(shift, r.bottom + margin - me.top);
+                }
+                if (hud.getTranslationY() != shift) hud.setTranslationY(shift);
+            }
+        });
+    }
+
+    /** Mémoire résidente du processus en Mo (/proc/self/statm), ou -1. */
+    static int residentMb() {
+        BufferedReader r = null;
+        try {
+            r = new BufferedReader(new FileReader("/proc/self/statm"));
+            String[] f = r.readLine().trim().split("\\s+");
+            return (int) (Long.parseLong(f[1]) * android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE) >> 20);
+        } catch (Exception e) {
+            return -1;
+        } finally {
+            if (r != null) try { r.close(); } catch (Exception ignored) { }
+        }
     }
 
     /** Fréquence actuelle du cœur le plus rapide, en MHz, ou -1 si Android la cache. */

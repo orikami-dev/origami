@@ -2,6 +2,71 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.8
+
+- XMB en mode Tsuru : la catégorie « Paramètres » devient « Réglages », son nom ne se coupe plus.
+- Argent : les grues du fond battent des ailes plus doucement, ailes toujours du bon côté, le corps monte quand elles redescendent.
+
+## 0.66.7
+
+- Trois nouveaux thèmes complets : Néon (ruelle de Tokyo sous la pluie), Jade (temple de montagne dans la brume) et Argent (grues en origami sous la pleine lune), avec leurs fonds, manettes, icônes d'appli, bruitages et musiques.
+- Le thème Codec devient Radar ; sa tour a une antenne qui tourne, un feu clignotant et des fenêtres qui s'allument.
+- Ambre : nouveau fond, une métropole japonaise de nuit avec la tour de Tokyo.
+- Écarlate : colline agrandie, pagode posée sur son socle, forêt de conifères au fond. Sakura : pont posé sur ses berges. Jade : vrai vert jade, temple et escalier posés sur le relief.
+- Nouvelles musiques de thème, composées ou réarrangées pour chacun des huit thèmes.
+- XMB en mode Tsuru : les entrées de « Paramètres » s'ouvrent dans le XMB, façon PS3, avec une icône propre à chaque thème ; le menu classique reste celui du mode Washi.
+- Paramètres réordonnés et redécrits ; « Mises à jour » et « À propos » ne forment plus qu'une page.
+- « Assombrir le fond » remplace l'effet cathodique, éteint par défaut.
+- Bulle de description et cartes des menus moins sombres.
+
+## 0.66.6
+
+- Nouveaux fonds d'écran pour Codec (base radar), Arctique (nuit polaire), Écarlate (Japon sous la lune rouge) et Sakura (rivière et pont).
+- Nouveaux fonds de manette assortis pour ces quatre thèmes.
+- XMB en mode Tsuru : nouvelle catégorie « Paramètres », à gauche de « Tous », qui regroupe Thème, Manette et Réglages.
+- Le logo Origami fait passer de Tsuru à Washi ; nouvelle icône « Applications » pour le lanceur d'apps.
+- Profils : bouton « Réglages avancés » accessible depuis l'accueil, hors jeu.
+- Pliage : plus d'étiquettes déformées, et la manette reste transparente en paysage.
+
+## 0.66.5
+
+- Andon devient Lumen.
+- Menu en jeu : nouveau sous-menu « Affichage » qui regroupe l'ATH, le format d'image et Lumen.
+- « Redémarrer le jeu » relance la partie sur place, sans repasser par l'accueil.
+- Profils : Qualité est retiré, il reste Performance, Équilibré et Personnalisé, refaits pour chaque système. Performance par défaut à partir de la PS3.
+- Bouton Home sur un jeu : seulement l'émulateur, le profil et les réglages du jeu.
+- Remote Play : le client choisi par défaut s'ouvre directement, Home permet d'en changer ; icônes sans lettre.
+- Ambre : nouveau fond d'écran, une ville Art déco de nuit avec projecteurs.
+- Les skins des manettes restent visibles, Lumen allumé ou non.
+
+## 0.66.4
+
+- Mises à jour : vérification automatique toutes les 6 heures, avec une fenêtre codec « Installer » ou « Installer ultérieurement » (redemande après 24 heures) et une barre de téléchargement aux couleurs du thème.
+- Bouton Home agrandi sur toutes les manettes.
+- Andon éteint : plus de fond coloré derrière les manettes, seules les touches restent.
+- Réglages : l'option devient « Mode Washi par défaut », et l'accueil s'ouvre en Washi par défaut.
+
+## 0.66.3
+
+- Assistant de démarrage : plus de fond visible derrière la barre de notifications et la barre de navigation.
+
+## 0.66.2
+
+- Menus et Réglages : seul l'interrupteur réagit au toucher, plus la ligne entière, pour éviter les appuis involontaires. À la manette, la ligne sélectionnée bascule toujours.
+
+## 0.66.1
+
+- PS3 : moteur mis à jour (ARMSX3 1.3.1), avec les derniers correctifs des SPU (boîtes aux lettres, réveil des fils) et du rendu Vulkan.
+
+## 0.66.0
+
+- Interrupteurs redessinés aux couleurs de chaque thème, dans les Réglages comme dans les menus codec.
+- Andon : la lumière est enfermée dans un contour propre à chaque thème (Codec, Arctique, Écarlate, Sakura, Ambre).
+- Nouvelle option Réglages > Affichage > « Pastilles » : coins arrondis ou écran bord à bord. Sans pastilles, Andon est désactivé et grisé.
+- Manette de l'accueil : L et R retirés.
+- PS3 : boucles d'attente SPU détectées pour libérer le processeur, caches de code forcés, envoi GPU rapide, tampon son de 200 ms contre les coupures pendant les ralentis.
+- Mode débogage : charge de chaque fil du moteur relevée toutes les 2 s et jointe à « Copier le journal ».
+
 ## 0.65.30
 - Assistant de démarrage : les coins ne laissent plus voir le fond derrière.
 

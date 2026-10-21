@@ -1,0 +1,142 @@
+# FOLD/PLAY : passation (2026-10-19)
+
+Dernière version livrée : **0.60.13** (`dist/origami-0.60.13-debug.apk`, anciennes versions dans `dist/archive/`, versionCode 71 ; notes de la 0.50 plus bas : thème sans redémarrage, icône posée en arrière-plan ; pli de la grue par thème (Theme.fold) ; widgets Android teintés (Theme.tint/show) ; fonds Arctique et Sakura facettés (Facets) ; grilles Ambre retirées ; barre du haut à la manette ; suite voulue : PS3. 0.42.7 (versionCode 55 : icône du lanceur aux couleurs du thème (activity-alias), fond de manette par thème (PadSkins) ; prochaine étape voulue par BOSS : émulateur PS3 ; 0.42.6 couleurs de la manette en direct depuis Thème (ColorSheet), manettes aux couleurs du thème, couleur du logo, un fond par thème (ThemeBackdrop) ; 0.42.5 thème partout, app redimensionnée hors plein écran, manettes redessinées par PadDesign avec Maison au centre, 2D sans L1/R1, nouvelle grue Crane.java ; 0.42.4 accueil superposé en paysage, skin seulement en portrait, plein écran en option, 5 thèmes ; 0.42.3 profils riches, PS2 à la vraie définition, Mini flottante, cadenas Flex, paysage toujours superposé ; 0.42.2 Mini et Flex en plein écran en jeu et à l'accueil, 2D/3D qui gardent leur dessin en paysage ; 0.42.1 redimensionnement par les 4 coins ; 0.42.0 manettes 2D / 3D / Flex / Mini, Maison agrandie, XMB fluide ; 0.41.2 emblèmes de console en silhouettes ; 0.41.1 grue symétrique ; 0.41.0 : réglages en deux volets, langues). L'app s'appelle Origami depuis la 0.29 (package com.hideo.foldplay conservé pendant les tests ; version publique : identifiant définitif à choisir, proposé com.kamiworks.origami, figé une fois sur le Play Store ; studio KAMI-WORKS). Le détail de chaque version est dans docs/NOTES-DE-VERSION.md et docs/releases/.
+
+## Construire
+- Arborescence (0.60.12, dépôt privé github.com/orikami-dev/origami, branche main) : app/ (manifeste, src, res, assets, i18n, build.sh), native/, prebuilt/ (.so non versionnés), docs/ (PASSATION, NOTES-DE-VERSION, releases/<version>.md, images/), tools/, dist/ (APK, hors Git). Construire : `bash app/build.sh`. Le dépôt est un miroir de ce dossier (sans dist, archives, keystore, .so, .zip). Releases GitHub : la session cloud n'a pas le droit d'en créer ; c'est la session du PC (gh connecté en orikami-dev) qui les publie.
+- `apt install aapt apksigner zipalign dalvik-exchange lld` puis android.jar API 34 dans `~/sdk/android-34.jar` (raw.githubusercontent.com/Sable/android-platforms/master/android-34/android.jar), puis `bash build.sh`. Le numéro de version se change en tête de build.sh (VERSION et VERSION_CODE).
+- NDK r29 dans `~/sdk/android-ndk-r29` (dl.google.com joignable depuis le nouvel environnement, 18/10/2026). `native/build-native.sh` l'utilise, sinon repli sur clang-18 + souches.
+- Java 8 sans lambdas (dx ne les gère pas).
+- PS2 : `native/build-armsx2.sh` compile ARMSX2 (commit 25e7084) en cœur libretro Android (~20 min sur 4 cœurs, après ~10 min de dépendances ; il faut flex et bison) et range le .so strippé et les ressources dans `prebuilt/armsx2/`. build.sh les met dans l'APK ; inutile de recompiler le cœur pour un build normal.
+- Tests sur la machine : `native/test/run.sh` (pont libretro) et `native/test/run-gl.sh` (rendu OpenGL ES via Mesa surfaceless).
+- Aucun émulateur Android ici : BOSS teste sur son Galaxy Fold et renvoie des captures.
+
+## État technique
+- 3D : SET_HW_RENDER en OpenGL ES (contexte EGL pbuffer, puis glReadPixels vers le tampon Java). Cœurs 3D : n64 mupen64plus_next_gles3, psp ppsspp, dc flycast. Midnight Club LA Remix (PSP) tourne sur le Fold.
+- Arcade fbneo (reconnu par le dossier). PS1 HD : swanstation si un BIOS PS1 est dans system/, sinon pcsx_rearmed.
+- ATH de monitoring, bouton « Actualiser la bibliothèque », jaquettes ScreenScraper en secours (Switch).
+- PS2 intégrée (0.23) : ARMSX2 livré dans l'APK (CoreManager.BUNDLED), rendu GLES 3.2 par le pont (contexte partagé avec le fil GS du cœur). BIOS via Réglages > Émulateurs > Importer un BIOS (system/pcsx2/bios). Final Fantasy X tourne sur le Fold (18/10). Accéléré ×2 via un correctif du cœur (native/armsx2-patches). NetherSX2 reste proposé (lancement 0.22.1 non confirmé).
+- ATH façon RTSS (Hud.java), réglages dans Réglages > Affichage.
+- GameCube/Wii intégrées (0.25) : Dolphin libretro livré (prebuilt/dolphin, native/build-dolphin.sh). Jamais testé sur appareil.
+- Sauvegardes : import/export par console (SaveImport, SaveTransfer, SaveProvider, ImportActivity). GC/Wii pas encore dans l'import/export.
+- BOSS veut des menus codec partout (plus de listes Android) sans empilement de couches ; PadView dessine les manettes physiques en direct.
+
+## Décisions de BOSS
+- App gratuite, options payantes pas chères, dons et Patreon (modèle PPSSPP Gold). La GPL est acceptable, donc ARMSX2 (PS2, GPL-3) est envisageable.
+- Remplacer les cœurs non commerciaux (snes9x, genesis_plus_gx, fbneo) par bsnes ou Mesen-S, BlastEm et MAME : proposé, pas encore lancé.
+- Il veut un message (reply) avec l'APK à la fin de chaque lot, un numéro de version correct, et qu'on lui signale tout risque juridique.
+
+## Suite
+- Décidé le 18/10 : GameCube/Wii (Dolphin libretro, fait en 0.25), puis rendu Vulkan dans le pont. Eden (Switch) reste externe : pas de cœur libretro, Vulkan seul, et risque juridique (yuzu fermé par Nintendo en 2024) ; BOSS est d'accord.
+- Prochaines pistes : rendu Vulkan dans le pont (ARMSX2 y est plus avancé), affichage direct sans glReadPixels, cœurs libres à la place des non commerciaux, Saturn rapide (yabasanshiro), petites consoles (NGP, WonderSwan, 2600, Lynx, 3DO).
+
+## 0.41 : réglages en deux volets et langues
+- Réglages : SettingsActivity.render() en deux volets (catégories à gauche, largeur 32 % bornée 240–340 dp ; contenu à droite). Sous 600 dp : listOnly (liste seule), puis détail avec flèche ; Retour ramène à la liste. BOSS a refusé le rail dépliant de la 0.40 et veut ce modèle partout, adapté à la rotation, charte Codec.
+- Langues : I18n.java, dictionnaires assets/i18n/*.json (clé = texte français exact). Source extraite dans i18n/source-fr.json (script de lexing Java). Après ajout de textes, régénérer la source et compléter chaque langue. I18n.pick() = menu codec des langues.
+- Feuille de route des majeures : XMB (0.40) → lanceur d'apps (Washi) → Samsung DeX.
+
+## 0.42 : manettes par défaut
+- Quatre profils fournis : 2D (arcade), 3D (Xbox, par défaut), Flex (maison, joystick droit sur la tranche intérieure de la moitié droite, en bas), Mini (flottante, force le plein écran : GameActivity screenMode 3, buildMini/placeMini/clampMini). Demandes de BOSS du 18/10 au soir.
+
+## 0.42.2
+- Mini et Flex = plein écran (jeu : screenMode 3 et 1 ; accueil : placeHomeDeck, la manette passe dans homeWrap). Le pont natif n'a pas changé : build fait en reprenant libfoldplay.so de la 0.42.1 (pas de NDK dans ce conteneur).
+- Regroupement des blocs à 1,5 case dans ControlLayout.fit ; wideOverlay respecte l'ordre stick/croix du dessin et la 2D.
+
+## 0.42.3
+- ARMSX2 recompilé avec native/armsx2-patches/02-present-scale.patch (sortie à la définition interne). Ce conteneur a maintenant le NDK r29 et ~/armsx2-build (dépendances déjà compilées).
+- Profils dans install.json : valeurs explicites pour les trois profils ; clés et valeurs vérifiées dans les sources pour ARMSX2 et Dolphin, de mémoire pour les cœurs téléchargés (une valeur inconnue est ignorée).
+- Paysage hors Tsuru = superposé, sans choix. Mini = FloatingPad. Flex : cadenas (GameActivity.updateFlexLock).
+
+## 0.50
+- Fil « Versions 0.50 ». Icône : Theme.queueIcon met l'icône en attente, Theme.flushIcon la pose quand la dernière activité s'arrête hors jeu (Theme.inGame posé par GameActivity) ; jamais pendant une partie.
+- Aperçus des fonds sans appareil : native/test/preview (souches AWT de android.graphics ; copier Facets, ThemeBackdrop, PadSkins, Crane à côté puis compiler et lancer Preview).
+- Pas de NDK dans ce conteneur : build.sh reprend prebuilt/bridge/libfoldplay.so.
+- Fonds retenus par BOSS le 19/10 : Codec = radar plié (Facets.codec variante 0), Écarlate = flammes (Facets.ecarlate variante 0 ; il a d'abord choisi l'éventail puis s'est ravisé). Les autres variantes restent dans Facets. La 0.50.1 viendra une fois la PS3 testée.
+- PS3 (demande « recomp PS3 » du 19/10) : ARMSX3 (github.com/ARMSX2/ARMSX3, RPCS3 pour Android, GPL-2.0-only, commit 103fc79e). native/build-armsx3.sh compile le cœur (variante API 33, armv8.2-a+dotprod+fp16, LLVM depuis les sources, plusieurs heures ; travail dans ~/armsx3-build, relancer « ninja -C ~/armsx3-build/core android/libarmsx3-core.so » s'il s'arrête). Pont maison native/ps3/foldplay_ps3.cpp (JNI com.hideo.foldplay.Ps3Core → _rpcsx_*), compilé par native/build-ps3-bridge.sh dans prebuilt/armsx3/. Le cœur appelle des classes Java net.rpcsx.ProgressRepository / FirmwareRepository / GameRepository / GameInfo (à fournir sous ces noms). Plan : Ps3Activity dans un processus « :ps3 » (GPL-2 seule incompatible avec la GPL-3 d'ARMSX2 dans un même programme), firmware PS3UPDAT.PUP importé par l'utilisateur (site Sony), jeux .iso ou dossiers PS3_GAME (déjà reconnus par LibraryScanner/DiscProbe, console « ps3 » ajoutée à SystemInfo). BOSS a validé l'intégration d'ARMSX3 dans Origami le 19/10 (processus à part). Écrit : Ps3Core.java (natives), Ps3Activity.java (process :ps3 ; SurfaceView Vulkan, manette Origami → nativePad, menu Maison, import du firmware via EXTRA_FIRMWARE, accès à tous les fichiers), Launcher (candidat « Origami intégré (armsx3) »), Réglages > Importer le firmware PS3, build.sh met prebuilt/armsx3/*.so dans l'APK s'ils existent. Rien n'a tourné sur appareil.
+- Distribution validée par BOSS le 19/10 : une seule app ; au premier lancement, détection de la puce et téléchargement de la variante de cœur adaptée (Fold 8 optimisée ou ARM générique), valeurs des profils par gamme d'appareil dans un fichier distant. Sur le Play Store, cœurs en modules à la demande (Play Feature Delivery) ; sources GPL publiées. Banc d'essai (FPS, chauffe, saccades) prévu en 0.51, téléphone branché en débogage USB + journal de l'app.
+- Feuille de route (BOSS 19/10) : PS3 → 0.50.1 ; puis aussitôt la Xbox 360 → 0.60 (base Xenia, BSD-3, moteur ARM64 existant, portage Android à faire ; aX360e inutilisable, code non publié). Banc d'essai ensuite.
+- 0.50.1 (19/10) : cœur ARMSX3 compilé (~/armsx3-build/core, 1,3 Go non allégé ; strippé dans prebuilt/armsx3/libarmsx3-core.so, 100 Mo, COMMIT à côté). Deux correctifs de compilation dans native/armsx3-patches/01-linux-build.patch (casse de System.h, include Config.h périmé). APK 64 Mo, versionCode 57. Rien n'a tourné sur appareil : en attente du test de BOSS.
+- 0.60.0 (19/10) : Xenia compilé pour Android (~/x360/src, build ~/x360/build ; relancer native/build-xenia.sh). Notre code côté Xenia : src/xenia/hid/origami (pilote XInput alimenté par JNI Java_com_hideo_foldplay_X360Activity_nativePad / nativeRumble). Côté Origami : X360Activity hérite de jp.xenia.emulator.WindowedAppActivity (copie BSD adaptée : bibliothèque optionnelle, shouldStartWindowedApp), identifiant d'app native « xenia », cvars passées par l'extra EXTRA_CVARS (target, storage_root, content_root, cache_root, hid=origami). Licence dans assets/licenses/xenia.txt. Reste : son (AAudio), réglages Xbox 360 dans Réglages, test sur appareil. Rien n'a tourné sur appareil.
+- 0.60.1 (19/10) : Facets.ambre (AMBRE = 1, soleil Art déco choisi par BOSS), Icons.PACK posé par Theme.sync (pref icon_pack), CodecMenu.soon (entrée fermée « en chantier »), HomeApps (alias .HomeLauncher désactivé par défaut, RoleManager ROLE_HOME), MainActivity : wasCover/coverTsuru/openTsuru/resumed (écran externe = Washi, déplier au premier plan = Tsuru). Remote Play aura sa colonne XMB avant la release publique (décision BOSS 19/10). Préviews : native/test/preview (IconsRun, AmbreRun ; stubs android.content ajoutés).
+- 0.60.2 (19/10) : ConsoleEmblemView suit Icons.pack() (finish() en SRC_ATOP dans le calque, mark() après le sigle en Theme.CODEC, rémanence phosphore par saveLayerAlpha). Règle BOSS : son prénom n'apparaît nulle part (nom de code BOSS), « Hideo » non plus sauf com.hideo.foldplay et le certificat debug O=Hideo (inchangeables sans casser la mise à jour).
+- 0.60.3 (19/10) : Flex = ConsolePad (Spec par console : leftOut/leftIn, face Key(type, cap, x, y, taille), shL/shR, select/start ; build() puis place() appelé par PadDesign pour kind flex non divisée). Control.cap (inscription, « @x/@o/@s/@t/@cu… » dessinés par ControlView.glyph), ControlLayout.family, forSystem() ; ControlDeckView.setSystem (GameActivity, Ps3Activity, X360Activity). overlaid() = split. Mini en chantier (GameActivity, éditeur, SetupActivity) ; Store.migrateFlex. BiosImport (route par nom/taille, zip). Aperçu : native/test/preview FlexRun (main, -cp avec android-34.jar pour org.json). Règle BOSS : l'import BIOS complet passe avant toute nouvelle console ; 3DS, Switch, Vita intégrées en 0.70.
+- 0.60.4 (19/10) : règle BOSS, pour chaque thème le fond de la manette diffère de celui de l'écran du haut mais reste du même univers (PadSkins.render, variantes Facets ; arctique/sakura ont une surcharge int variant). Aperçu : native/test/preview PairRun.
+- 0.60.5 (19/10) : catégories XMB « Jeux mobiles » (MobileApps.games, jeux Android déclarés jeu) et « Remote Play » (MobileApps.REMOTE : clients officiels lancés tels quels, ceux du Play Store proposés s'ils manquent). Emblèmes « android » et « remote » dans ConsoleEmblemView.SHAPES. Bouton Actualiser retiré de la barre du haut, devenu l'entrée « Actualiser la bibliothèque » à la fin de « Tous ». Étape suivante du Remote Play : clients libres intégrés (chiaki-ng, Moonlight) avec notre manette, licences dans À propos. Aperçu : AppsRun.
+- 0.60.6 (19/10) : Remote Play par constructeur avec « Ajouter un client… » (Store.remoteClients), jaquettes PS3/360 (Ps3Icon + PLAYLISTS + SS 59/33 ; Switch = ScreenScraper seulement), pack d'icônes en chantier (Store.iconPack() renvoie auto), ColorSheet logo + manette en onglets, radios des CodecMenu restent ouverts, « Maison » → « Home », lanceur d'apps en grille, bases libretro de secours (CoverFetcher.playlists), jaquette manuelle (MainActivity.setCover).
+- 0.60.7 (19/10) : manette d'accueil de navigation (ConsolePad.HOME_PAD, ControlDeckView.setLayout), L/R sans L2/R2 (ControlView.triggers), L3/R3 au double appui (ControlView.stickTouch). Pavé tactile : attendre PS4/PS5 (décision BOSS). Bug ouvert : jeux PS3 et 360 ne se lancent pas sur 0.60.6, cause inconnue sans logcat.
+- 0.60.8 (19/10) : correctif Theme.fullscreen (getDecorView() avant getInsetsController) : les jeux PS3/360 plantaient dans onCreate depuis la 0.60.0, d'où le retour à l'accueil. À valider sur le Fold.
+- 0.60.10 (19/10) : cvar disable_instruction_infocache=true + purge des .bin vides (cause réelle : fichier 0 octet mmappé, pas FUSE). Natif à faire : ftruncate dans MappedMemory::Open. PS3 shaders (log RC) : vkGetInstanceProcAddr(NULL,"vkCreatePipelineCache") invalide donc cache Vulkan jamais sauvegardé ; passer par vkGetDeviceProcAddr ; shader_mode async_with_interpreter ; caches PPU/SPU en interne ; étape « Préparer le jeu ». À valider sur le Fold (ORI).
+- 0.60.13 (19/10) : Xenia recompilé (02-origami-fixes.patch : XThread::~XThread garde le Thread hôte s'il est détruit sur lui-même, AAudioDriver dans apu/nop, IoDismountVolumeByFileHandle, nativeFrames dans presenter.cc, ftruncate dans mapped_memory_posix). 0.60.12 : HudOverlay (ATH PS3/360). Transfert des APK vers le PC : branche temporaire du dépôt, supprimée après installation.
+- 0.60.11 (19/10, fil « Versions 0.60.10 ») : la cvar disable_instruction_infocache n'était jamais appliquée (cvar_android lit les booléens par Bundle.getBoolean, une chaîne donne false) : putBoolean. Toute cvar bool/int doit passer par putBoolean/putInt. PS3 : correctif native/armsx3-patches/02-pipeline-cache.patch (cache Vulkan jamais écrit car le processus :ps3 est tué avant la destruction du device ; sauvegarde toutes les 30 s depuis flip, à la mise en arrière-plan et avant _rpcsx_kill ; pointeurs pris par vkGetDeviceProcAddr ; erreurs journalisées). Cœur à recompiler (build-armsx3.sh, plusieurs heures).
+- 0.60.9 (19/10) : X360Activity, cache_root en getCacheDir()/x360 (SIGBUS XexInfoCache sur FUSE, trouvé par logcat). Si ça plante encore : cvar disable_instruction_infocache, ou storage_root/content_root aussi en interne. À valider sur le Fold (ORI).
+- Xbox 360, premier repérage (19/10) : xenia-canary, branche « arm64 » (dernier commit 29/03/2026) : moteur CPU A64 (src/xenia/cpu/backend/a64), fichiers Android (window/surface/file_picker_android, android/android_studio_project) mais projet Android ancien (NDK 25, minSdk 24) et CMakeLists sans cible Android : le portage Android est à remettre en état. Rendu Vulkan. Licence BSD-3. BOSS veut qu'on enchaîne sans attendre son retour sur la PS3.
+
+## Règles d'installation (BOSS, 19/10)
+- « ORI » écrit par BOSS = lancer l'installation de la dernière version par adb (session du PC, commandes et barre de progression montrées).
+- À chaque installation, les versions précédentes vont tout de suite dans l'archive : dist/archive/ ici, FoldPlay\releases\archives sur le PC.
+
+## 0.61 en cours (arrêté le 19/10 soir, branche wip-0.61)
+
+Liste de BOSS du 19/10 22h12 (une seule grosse mise à jour, numéro 0.61.0). Le code compile (`bash app/build.sh`, VERSION 0.61.0-wip) mais n'a pas été essayé sur le Fold.
+
+### Fait dans le code (non testé sur l'appareil)
+- Menu Thème : doublon « Couleurs de la manette » retiré (MainActivity.themeMenu), il reste « Couleurs du logo et de la manette ».
+- Xbox 360 : profil joueur connecté d'office (patch Xenia profile_manager.cc, 02-origami-fixes.patch) pour supprimer la fenêtre « No gamer profile » qui bloquait DMC 4 ; JNI `nativeSetFill` (présentation étirée). libxenia-app.so reconstruit avec ces deux changements.
+- Touche FORMAT (type ASPECT) sur toutes les manettes sauf l'accueil : appui court = format suivant, appui long = verrouille. Classes ScreenFormat, ControlLayout.ensureAspect (migration layouts_v0610), PadDesign/ConsolePad.center, ControlView. Moteurs libretro : modes existants de GameActivity ; PS3/360 : Auto, 16:9, 4:3, Étirer (Ps3Activity/X360Activity.applyFormat ; PS3 passe par le réglage « Video@@Stretch To Display Area », effet en direct non vérifié).
+- Gâchettes en arc autour des joysticks (haricots inclinés, ConsolePad.arc/beans, Out.tilted, rotation de vue dans ControlDeckView) sauf GameCube et accueil ; Store.ergoTriggers() (par défaut oui). RESTE : l'interrupteur « Gâchettes d'origine » pour la Flex dans Réglages (le code lit déjà Store.ergoTriggers).
+- Save/Load/×2 : sur Xbox 360 et ×2 PS3, message clair « le moteur ne l'offre pas » (Xenia et RPCS3 n'ont ni état sauvegardé ni accélération). SAVE/LOAD PS3 appellent nativeSaveState : à vérifier sur appareil (BOSS dit qu'ils ne font rien).
+- Sons : tools/make-sounds.py a généré app/assets/sounds/<thème>/{move,select,back,open,launch}.ogg et app/assets/music/<thème>.ogg (64 s en boucle, 2,9 Mo). RESTE : le code qui les joue (remplacer CodecSound, lecture en boucle de la musique à l'accueil, volumes séparés dans Réglages), jamais écoutés.
+
+### Reste de la liste de BOSS
+1. PS3 : écran noir après la première cinémat. de Demon's Souls, son qui saccade, entrées reconnues. Demander le journal (Réglages > Débogage > Partager). Piste : vidéo en jeu / présentation du moteur.
+2. DMC 4 : image d'épilepsie, cinématique audio seule, écran-titre OK, Start sans réponse, fenêtre verte si on plie/déplie. Le correctif de profil devrait la supprimer ; à confirmer.
+3. Xbox 360 : écran bleu/noir et zones noires (voir ci-dessous).
+4. Menu codec PS3/360 encore plus pauvre que les autres plateformes : ajouter les mêmes entrées (format, ATH, manette, thèmes…).
+5. Jaquettes Xbox 360 absentes (PS3 OK) ; remplacer le bruit unique du codec par des bruits par thème + volume des sons d'interface.
+6. Remote Play : renommer PlayStation, XBOX, Steam ; au clic : solutions officielles (apps à télécharger), puis alternatives détectées sur le téléphone, puis « en choisir une à la main » (BOSS a PXPlay) ; montrer qu'un client de chaque plateforme sera intégré (choix grisé ou message).
+7. Cohérence de l'interface avec les thèmes, lignes qui se croisent, débordements, logo plus fluide.
+8. Logo et bouton Home de la manette (au lancement d'un jeu) qui brillent/scintillent pour montrer que ce sont des boutons.
+9. Refonte de l'assistant de démarrage : installation basique et avancée.
+10. RetroAchievements.
+11. Musiques en boucle par thème (fichiers faits), harmoniser les menus, tri du code mort à la toute fin.
+12. Shaders PS3 très longs à compiler au premier lancement (BOSS : à optimiser). Le moteur PS3 recompilé avec la sauvegarde périodique du cache (prebuilt/armsx3, 19:44) n'est PAS encore dans un APK livré : l'inclure dans la 0.61.0.
+
+### Pistes Xbox 360 (écran bleu DMC 4, zones noires Skyrim)
+- Format du swapchain Android = R8G8B8A8 (format 37), pas de souci d'échange rouge/bleu trouvé dans vulkan_presenter.cc.
+- Soupçon principal : pipelines « placeholder » du hot-swap asynchrone (shader pixel qui écrit du noir transparent) quand le vrai pipeline échoue ou tarde ; réglage « Shaders en arrière-plan » (async_shader_compilation) à décocher pour tester. Autre piste : chemin de rendu FBO/FSI sur Adreno (réglage « Rendu des cibles »).
+- Il faut le journal de DMC 4 (logcat-x360.txt) pour voir les erreurs « Failed to create Vulkan pipeline » et les fonctions d'extension manquantes.
+
+### Outils
+- Ghidra : non installable dans ce fil (github.com bloqué par le réseau). BOSS a changé l'environnement du projet ; le nouveau fil doit réessayer (release officielle NSA, JDK 21, `analyzeHeadless`). En attendant radare2 est installé (apt).
+- Le journal du build Xenia est dans ~/x360/build.log, les sources dans ~/x360/src (patch regénéré par `git diff b323729`).
+
+## À reparler avec BOSS (20/10)
+- Génération d'images PS3 : ARMSX3 embarque la génération d'images de Lossless Scaling (LSFG ; réglages Frame Generation, Target Rate, Flow Scale, Performance Mode, Lossless Path ; fonction exportée `_rpcsx_frameGenImportShaders`). Il faut le fichier Lossless.dll de l'utilisateur (app Steam payante, interdite de redistribution). À faire : option « Génération d'images » dans le menu PS3, bouton « Importer Lossless.dll », appel câblé dans le pont natif (native/ps3/foldplay_ps3.cpp), désactivée par défaut et réservée aux jeux à 30 images/s. BOSS est intéressé.
+- Proton (jeux PC) : partie 2.0, après la fin de l'émulation.
+- Recompilation native bloquée tant que dl.google.com (NDK) est refusé par le réseau du cloud ; correctif son 360 déjà prêt dans native/xenia-patches/02-origami-fixes.patch.
+
+## Consignes de BOSS pour la 0.65 (prochain fil, 20/10 04h18)
+À appliquer dans le prochain fil, ouvert seulement quand BOSS le dit.
+- Sens de la main (droitier/gaucher) sur toute la navigation des menus et sous-menus, pas seulement les flèches retour.
+- Manette 2D manquante dans les puces de l'éditeur (seules Flex, 3D, Mini apparaissent) : la remettre.
+- Remplacer partout les mentions « en chantier » par deux emoji (👷‍♂️🚧).
+- Ambre : la nouvelle image de la manette Ambre (soleil art déco) devient le fond de l'écran du haut ; recréer une nouvelle manette Ambre.
+- Le dépôt devient public : la mise à jour depuis les Réglages (Updater) doit marcher dans la prochaine version.
+- Sortir tout le monitoring (ATH/RTSS) des réglages d'Affichage vers sa propre catégorie.
+- Fusionner les catégories Émulateurs et Cœurs ; simplifier et supprimer les redondances.
+- Format et ×2 : pictogrammes centrés (retirer le décalage vers le coin), bords des boutons un peu plus épais.
+- Demon's Souls : à peine mieux, gros ralentis en cassant des tonneaux (destruction, effets), le son suit les ralentis. ATH : 30 i/s, 33 ms, VIT 50 %, CPU 239 %.
+- DMC 4 rame dès l'écran-titre, plus qu'avant.
+- Revérifier les résolutions de chaque profil sur tous les émulateurs 3D (Demon's Souls trop haut selon BOSS).
+
+## Ce que montre le journal du 20/10 06h12
+- Plantage du bouton Format : récursion infinie (StackOverflowError). Dans Ps3Activity.java:437 et X360Activity.java:303, la classe anonyme ScreenFormat.Host appelle `applyFormat()` qui se rappelle elle-même. Corriger en `Ps3Activity.this.applyFormat()` / `X360Activity.this.applyFormat()`.
+- PS3 : `settingsSet: node Core@@XFloat Accuracy not found` et `Video@@Asynchronous Texture Streaming 2 not found`. Ces deux réglages de profil ne s'appliquent pas : retrouver le vrai nom de nœud (section/clé) dans libarmsx3-core.so.
+- PS3 : profil Équilibré = Resolution Scale 150, Qualité = 200. Pour Demon's Souls (CPU 239 %, limité par le processeur), descendre à 100 % partout sauf Qualité, et 75 % en Performance si le cœur l'accepte.
+- 360 (DMC 4, 06h01) : le config dump au lancement affiche encore `readback_resolve = "none"` et `render_target_path_vulkan = ""`. Les valeurs de profil de 0.62.5 (fast / fbo) ne sont donc peut-être pas transmises au cœur, ou le dump passe avant elles : à vérifier. Aussi « Skipped 88 frames » sur le fil principal au lancement.
+- Règle BOSS (20/10 04h31) : chaque profil doit coller à la fois aux capacités du téléphone ET aux limites réelles de chaque cœur. Utiliser Ghidra/REA sur les .so pour comprendre ces limites (réglages réellement lus, valeurs acceptées) avant de régler les profils. Monter un environnement de test dès que possible (banc d'essai : adb sur le Fold quand il est branché, sinon mode débogage de l'app et journaux).
+
+## 0.65.0 (20/10, fil « Versions 0.65 »)
+- Fait : voir docs/releases/0.65.0.md. APK dist/origami-0.65.0-debug.apk (versionCode 80). dl.google.com répond (200) dans cet environnement : NDK installable (non fait).
+- Reste : image Ambre non reçue (manette et fond recréés en vectoriel, à remplacer), valeurs xenia cvars effectives non vérifiées (le dump du journal précède les surcharges), profils par cœur (Ghidra) et banc d'essai, Demon's Souls/DMC 4 à retester, recompilation Xenia avec le correctif son.
+- À faire en 0.65.1 (BOSS 20/10 05h04) : la définition interne change selon que le Fold est ouvert ou fermé malgré les profils (lecture de la taille d'écran ou du profil ? à vérifier dans le journal ATH 1248×914) ; ATH : chiffre de chauffe seul (fait), sentinelle 105 °C écartée (fait).

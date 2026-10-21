@@ -45,9 +45,9 @@ final class Store {
         prefs.edit().putString("tree", uri).apply();
     }
 
-    /** Vue Flex partout (par défaut), ou vue liste/grille selon l'écran. */
+    /** Vue Flex (Tsuru) partout, ou Washi (par défaut depuis la 0.66.4) selon l'écran. */
     boolean flexView() {
-        return prefs.getBoolean("flex_view", true);
+        return prefs.getBoolean("flex_view", false);
     }
 
     void setFlexView(boolean on) {
@@ -76,12 +76,34 @@ final class Store {
             saveLayouts(out);
             prefs.edit().putBoolean("layouts_v0603", true).apply();
         }
+        if (!prefs.getBoolean("layouts_v0610", false)) {
+            // 0.61 : touche FORMAT ajoutée à toutes les manettes.
+            for (ControlLayout l : out) l.ensureAspect();
+            saveLayouts(out);
+            prefs.edit().putBoolean("layouts_v0610", true).apply();
+        }
+        if (!prefs.getBoolean("layouts_homebig", false)) {
+            // Maison agrandie de 35 % sur les manettes retouchées (les fournies sont placées par PadDesign).
+            for (ControlLayout l : out) {
+                if (l.stock) continue;
+                for (ControlLayout.Control c : l.controls) {
+                    if (!c.type.equals("HOME")) continue;
+                    int nw = Math.round(c.w * 1.35f), nh = Math.round(c.h * 1.35f);
+                    if (l.refCols > 0) c.x = Math.max(0f, c.x - (nw - c.w) / 2f / l.refCols);
+                    if (l.refRows > 0) c.y = Math.max(0f, c.y - (nh - c.h) / 2f / l.refRows);
+                    c.w = nw;
+                    c.h = nh;
+                }
+            }
+            saveLayouts(out);
+            prefs.edit().putBoolean("layouts_homebig", true).apply();
+        }
         return out;
     }
 
     /**
      * 0.60.3 : la Flex divisée laisse la place à la Flex par console (ConsolePad), en tête de liste ;
-     * ordre Flex, 2D, 3D, les tiennes, puis Mini (en chantier). La Flex devient la manette active,
+     * ordre Flex, 2D, 3D, les tiennes, puis Mini (en construction). La Flex devient la manette active,
      * Mini ne l'est plus. Les retouches d'écran faites sur l'ancienne Flex sont oubliées.
      */
     private void migrateFlex(java.util.List<ControlLayout> list) {
@@ -185,7 +207,7 @@ final class Store {
 
     String activeLayout() {
         String a = prefs.getString("layout_active", "Flex");
-        // Mini est en chantier (0.60.3) : on retombe sur la Flex.
+        // Mini est en construction (0.60.3) : on retombe sur la Flex.
         return a.equals("Mini") ? "Flex" : a;
     }
 
@@ -266,18 +288,32 @@ final class Store {
         return uri != null ? uri : String.valueOf(path);
     }
 
-    /** Profil d'émulation par défaut : performance, balanced ou quality. */
+    /**
+     * Profil d'émulation par défaut : performance pour les consoles récentes (SystemInfo.isModern),
+     * balanced pour les anciennes. Ce réglage global ne s'applique qu'aux anciennes ; chaque
+     * console récente démarre en performance (voir defaultProfile(system)).
+     */
     String defaultProfile() {
-        return prefs.getString("profile_default", "balanced");
+        return CoreProfiles.normalize(prefs.getString("profile_default", "balanced"));
+    }
+
+    /** Profil par défaut d'une console : Performance dès la PS3 (décision de BOSS), sinon le réglage global. */
+    String defaultProfile(String system) {
+        return SystemInfo.isModern(system) ? "performance" : defaultProfile();
     }
 
     void setDefaultProfile(String id) {
         prefs.edit().putString("profile_default", id).apply();
     }
 
-    /** Profil choisi pour un jeu (sinon celui par défaut). */
+    /** Profil choisi pour un jeu (sinon celui par défaut) ; un ancien « quality » devient « balanced ». */
     String gameProfile(String game) {
-        return prefs.getString("gprof_" + game, defaultProfile());
+        return CoreProfiles.normalize(prefs.getString("gprof_" + game, defaultProfile()));
+    }
+
+    /** Idem avec la console du jeu : sans choix propre, une console récente démarre en Performance. */
+    String gameProfile(String game, String system) {
+        return CoreProfiles.normalize(prefs.getString("gprof_" + game, defaultProfile(system)));
     }
 
     void setGameProfile(String game, String id) {
@@ -382,7 +418,7 @@ final class Store {
         prefs.edit().putBoolean("smooth_" + system, on).apply();
     }
 
-    /** Pack d'icônes : « auto » suit le thème, sinon trait, givre, braise, petale, phosphore. */
+    /** Pack d'icônes : « auto » suit le thème, sinon trait, givre, braise, petale, phosphore, neon, bambou, lune. */
     String iconPack() {
         // Les icônes suivent le thème tant que le store de thèmes communautaires n'est pas ouvert.
         return "auto";
@@ -409,12 +445,22 @@ final class Store {
         prefs.edit().putBoolean("intro", on).apply();
     }
 
-    boolean scanlines() {
-        return prefs.getBoolean("scanlines", true);
+    /** Pastilles : coins arrondis autour du jeu, de la manette et de la barre du haut (BOSS, 20/10). */
+    boolean pills() {
+        return prefs.getBoolean("pills", true);
     }
 
-    void setScanlines(boolean on) {
-        prefs.edit().putBoolean("scanlines", on).apply();
+    void setPills(boolean on) {
+        prefs.edit().putBoolean("pills", on).apply();
+    }
+
+    /** Voile sombre sur le fond d'écran de l'accueil ; éteint par défaut. */
+    boolean dimBackdrop() {
+        return prefs.getBoolean("dim_backdrop", false);
+    }
+
+    void setDimBackdrop(boolean on) {
+        prefs.edit().putBoolean("dim_backdrop", on).apply();
     }
 
     /** Plein écran (manette à l'écran masquée) dès qu'une manette physique est branchée. */
@@ -499,6 +545,173 @@ final class Store {
         prefs.edit().putBoolean("menu_sound", on).apply();
     }
 
+    /** Volume des bruits de l'interface, 0 à 100. */
+    int uiVolume() {
+        return prefs.getInt("ui_volume", 60);
+    }
+
+    void setUiVolume(int v) {
+        prefs.edit().putInt("ui_volume", Math.max(0, Math.min(100, v))).apply();
+    }
+
+    /** Musique d'accueil en boucle (par thème). */
+    boolean animatedBackdrop() {
+        return prefs.getBoolean("animated_backdrop", true);
+    }
+
+    void setAnimatedBackdrop(boolean on) {
+        prefs.edit().putBoolean("animated_backdrop", on).apply();
+    }
+
+    // ------------------------------------------------------------ Accessibilité (0.62.5)
+
+    /** Main qui tient le téléphone : droitier par défaut (flèche retour et listes à droite). */
+    boolean rightHanded() {
+        return prefs.getBoolean("a11y_right", true);
+    }
+
+    void setRightHanded(boolean on) {
+        prefs.edit().putBoolean("a11y_right", on).apply();
+    }
+
+    /** Taille des textes : 0 normale, 1 grande, 2 très grande. */
+    int a11yText() {
+        return prefs.getInt("a11y_text", 0);
+    }
+
+    void setA11yText(int v) {
+        prefs.edit().putInt("a11y_text", v).apply();
+    }
+
+    boolean highContrast() {
+        return prefs.getBoolean("a11y_contrast", false);
+    }
+
+    void setHighContrast(boolean on) {
+        prefs.edit().putBoolean("a11y_contrast", on).apply();
+    }
+
+    boolean reduceMotion() {
+        return prefs.getBoolean("a11y_motion", false);
+    }
+
+    void setReduceMotion(boolean on) {
+        prefs.edit().putBoolean("a11y_motion", on).apply();
+    }
+
+    /** Gâchettes à bascule : un appui les enfonce, le suivant les relâche. */
+    boolean latchTriggers() {
+        return prefs.getBoolean("a11y_latch", false);
+    }
+
+    void setLatchTriggers(boolean on) {
+        prefs.edit().putBoolean("a11y_latch", on).apply();
+    }
+
+    /** Joysticks : course réduite (0 normale, 1 courte, 2 très courte) pour les petits gestes. */
+    int stickReach() {
+        return prefs.getInt("a11y_reach", 0);
+    }
+
+    void setStickReach(int v) {
+        prefs.edit().putInt("a11y_reach", v).apply();
+    }
+
+    /** Vibration plus longue et plus forte à chaque appui. */
+    boolean strongHaptics() {
+        return prefs.getBoolean("a11y_haptics", false);
+    }
+
+    void setStrongHaptics(boolean on) {
+        prefs.edit().putBoolean("a11y_haptics", on).apply();
+    }
+
+    // ------------------------------------------------------------ Mises à jour (0.62.5)
+
+    boolean autoUpdates() {
+        return prefs.getBoolean("upd_auto", true);
+    }
+
+    void setAutoUpdates(boolean on) {
+        prefs.edit().putBoolean("upd_auto", on).apply();
+    }
+
+    /** Préversions : builds de test (corrections rapides) en plus des versions stables. */
+    boolean previewUpdates() {
+        return prefs.getBoolean("upd_beta", true);
+    }
+
+    void setPreviewUpdates(boolean on) {
+        prefs.edit().putBoolean("upd_beta", on).apply();
+    }
+
+    long lastUpdateCheck() {
+        return prefs.getLong("upd_last", 0);
+    }
+
+    void setLastUpdateCheck(long t) {
+        prefs.edit().putLong("upd_last", t).apply();
+    }
+
+    String notifiedUpdate() {
+        return prefs.getString("upd_notified", "");
+    }
+
+    void setNotifiedUpdate(String v) {
+        prefs.edit().putString("upd_notified", v).apply();
+    }
+
+    /** Version dont la fenêtre « Installer ultérieurement » a été choisie, et quand (redemande après 24 h). */
+    String postponedUpdate() {
+        return prefs.getString("upd_postponed", "");
+    }
+
+    long postponedUpdateAt() {
+        return prefs.getLong("upd_postponed_at", 0);
+    }
+
+    void postponeUpdate(String version) {
+        prefs.edit().putString("upd_postponed", version).putLong("upd_postponed_at", System.currentTimeMillis()).apply();
+    }
+
+    /** Dernière mise à jour trouvée {version, apk, page, notes}, gardée pour la fenêtre des reprises suivantes ; null si aucune. */
+    String[] foundUpdate() {
+        String v = prefs.getString("upd_found", "");
+        if (v.isEmpty()) return null;
+        return new String[] {v, prefs.getString("upd_found_apk", ""), prefs.getString("upd_found_page", ""),
+                prefs.getString("upd_found_notes", "")};
+    }
+
+    void setFoundUpdate(String v, String apk, String page, String notes) {
+        prefs.edit().putString("upd_found", v == null ? "" : v).putString("upd_found_apk", apk == null ? "" : apk)
+                .putString("upd_found_page", page == null ? "" : page).putString("upd_found_notes", notes == null ? "" : notes).apply();
+    }
+
+    boolean setupAdvanced() {
+        return prefs.getBoolean("setup_advanced", false);
+    }
+
+    void setSetupAdvanced(boolean on) {
+        prefs.edit().putBoolean("setup_advanced", on).apply();
+    }
+
+    boolean musicOn() {
+        return prefs.getBoolean("music_on", true);
+    }
+
+    void setMusicOn(boolean on) {
+        prefs.edit().putBoolean("music_on", on).apply();
+    }
+
+    /** Volume de la musique d'accueil, 0 à 100. */
+    int musicVolume() {
+        return prefs.getInt("music_volume", 40);
+    }
+
+    void setMusicVolume(int v) {
+        prefs.edit().putInt("music_volume", Math.max(0, Math.min(100, v))).apply();
+    }
+
     boolean haptics() {
         return hapticLevel() > 0;
     }
@@ -547,6 +760,33 @@ final class Store {
                 .putString("ss_id", id).putString("ss_pw", pw).apply();
     }
 
+    /** Gâchettes de la Flex : en arc autour des joysticks (par défaut) ou à leur place d'origine. */
+    boolean ergoTriggers() {
+        return prefs.getBoolean("ergo_triggers", true);
+    }
+
+    void setErgoTriggers(boolean on) {
+        prefs.edit().putBoolean("ergo_triggers", on).apply();
+    }
+
+    /** Touche FORMAT verrouillée : plus de changement par un appui involontaire. */
+    /** Andon (lumière d'ambiance autour du jeu) : off, theme, image, mix, soft. */
+    String glowMode() {
+        return prefs.getString("andon", "image");
+    }
+
+    void setGlowMode(String m) {
+        prefs.edit().putString("andon", m).apply();
+    }
+
+    boolean formatLocked() {
+        return prefs.getBoolean("format_locked", false);
+    }
+
+    void setFormatLocked(boolean on) {
+        prefs.edit().putBoolean("format_locked", on).apply();
+    }
+
     /** ATH de monitoring en jeu : images/s, vitesse, processeur, mémoire, batterie, chauffe. */
     boolean hud() {
         return prefs.getBoolean("hud", false);
@@ -583,9 +823,18 @@ final class Store {
         prefs.edit().putInt("hud_size", s).apply();
     }
 
-    /** Couleur des libellés : "rtss" (orange), "codec" (vert) ou "white". */
+    /** Couleur des libellés : "phone" (accent du téléphone), "theme", "rtss" (orange), "codec" (vert) ou "white". */
     String hudColor() {
-        return prefs.getString("hud_color", "rtss");
+        return prefs.getString("hud_color", "phone");
+    }
+
+    /** Unité des températures de l'ATH : "c" ou "f". */
+    String tempUnit() {
+        return prefs.getString("temp_unit", "c");
+    }
+
+    void setTempUnit(String u) {
+        prefs.edit().putString("temp_unit", u).apply();
     }
 
     void setHudColor(String s) {
@@ -689,6 +938,15 @@ final class Store {
         return new HashSet<String>(prefs.getStringSet("remote_clients", new HashSet<String>()));
     }
 
+    /** App de Remote Play préférée d'une plateforme (« app:paquet/activité »), ou null. */
+    String remotePreferred(String group) {
+        return prefs.getString("remote_pref_" + group, null);
+    }
+
+    void setRemotePreferred(String group, String uri) {
+        prefs.edit().putString("remote_pref_" + group, uri).apply();
+    }
+
     void setRemoteClient(String component, boolean on) {
         Set<String> s = remoteClients();
         if (on) s.add(component);
@@ -703,6 +961,15 @@ final class Store {
 
     void setAppsGrid(boolean on) {
         prefs.edit().putBoolean("apps_grid", on).apply();
+    }
+
+    /** Tri du lanceur d'apps : 0 A→Z, 1 Z→A, 2 installées récemment, 3 mises à jour récemment, 4 jeux d'abord. */
+    int appsSort() {
+        return prefs.getInt("apps_sort", 0);
+    }
+
+    void setAppsSort(int v) {
+        prefs.edit().putInt("apps_sort", v).apply();
     }
 
     boolean isFavorite(Game g) {

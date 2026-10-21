@@ -32,7 +32,7 @@ final class PadDesign {
     private static final float SH_H = 2.5f;
     private static final float PILL_W = 4f;      // Select, Start… (64 × 28 dp)
     private static final float PILL_H = 1.75f;
-    private static final float HOME = 3.5f;      // Home (56 dp)
+    private static final float HOME = 4.75f;     // Home (76 dp, 1,35 × l'ancien 56 dp)
 
     private PadDesign() {
     }
@@ -68,10 +68,23 @@ final class PadDesign {
         bottom = rowAtBottom(w, h, bottom, true);
         float s = solve(o, w, h, bottom, true);
         float m = M * s, g = G * s;
-        shoulders(o, w, s, "L2", "L", "R2", "R");
         float rS = STICK * s / 2, rD = DPAD * s / 2, rF = faceRadius(FACE * s);
         float[] left = stagger(w, h, m, g, rS, rD, s);
         float[] right = stagger(w, h, m, g, rF, rS, s);
+        // Gâchettes en arc au-dessus du joystick gauche et du losange (0.62, façon X et Y de la
+        // GameCube), sinon empilées dans les coins du haut (disposition d'origine).
+        float[][] bl = arc(left[0], left[1], rS, true, s, left[0]);
+        float[][] br = arc(w - right[0], right[1], rF, false, s, right[0]);
+        if (ConsolePad.ergo && inside(bl, w, h, s) && inside(br, w, h, s)) {
+            o.bean("L2", bl[0]);
+            o.bean("L", bl[1]);
+            o.bean("R2", br[0]);
+            o.bean("R", br[1]);
+            ConsolePad.corners(o, w, s, 0);
+        } else {
+            shoulders(o, w, s, "L2", "L", "R2", "R");
+            ConsolePad.cornersBeside(o, w, s);
+        }
         o.circle("STICK_L", left[0], left[1], rS);
         o.circle("DPAD", left[2], left[3], rD);
         face(o, w - right[0], right[1], FACE * s);
@@ -118,6 +131,7 @@ final class PadDesign {
         float oy = Math.min(h - m - rL - 0.35f * p, h - m - b / 2 - p);
         for (int i = 0; i < 4; i++) o.circle(keys[i], ox + at[i][0], oy + at[i][1], b / 2);
         center(o, w, h, s, bottom);
+        ConsolePad.corners(o, w, s, 0);
     }
 
     // ------------------------------------------------------------------ Mini
@@ -150,6 +164,30 @@ final class PadDesign {
         o.circle("B", cx + d, cy, b / 2);
     }
 
+    /**
+     * Deux gâchettes en haricots posées sur un arc au-dessus d'un groupe (centre cx, cy, rayon r) :
+     * la 2 côté bord de l'écran, la 1 côté centre. Renvoie [x, y, l, h, degrés] pour chacune.
+     */
+    private static float[][] arc(float cx, float cy, float r, boolean left, float s, float room) {
+        return ConsolePad.beanArc(2, cx, cy, r, left, s, G * s, room);
+    }
+
+    /** Les gâchettes tournées restent-elles dans la zone, hors de la rangée du centre ? */
+    private static boolean inside(float[][] beans, float w, float h, float s) {
+        float mg = M * s;
+        float ch = (HOME / 2 + G + PILL_W) * s;
+        for (float[] b : beans) {
+            double a = Math.toRadians(b[4]);
+            float ex = (float) (Math.abs(b[2] * Math.cos(a)) + Math.abs(b[3] * Math.sin(a))) / 2;
+            float ey = (float) (Math.abs(b[2] * Math.sin(a)) + Math.abs(b[3] * Math.cos(a))) / 2;
+            float cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
+            if (cx - ex < mg || cx + ex > w - mg || cy - ey < mg || cy + ey > h) return false;
+            if (!ConsolePad.cornerClear(cx, cy, ex, ey, w, s)) return false;
+            if (Math.abs(cx - w / 2) < ex + ch) return false;
+        }
+        return true;
+    }
+
     /** Gâchettes empilées dans les coins du haut, la 2 au-dessus de la 1. */
     private static void shoulders(Out o, float w, float s, String l2, String l1, String r2, String r1) {
         float m = M * s, g = G * s, sw = SH_W * s, sh = SH_H * s;
@@ -161,7 +199,7 @@ final class PadDesign {
 
     /**
      * Rangée du centre : Maison exactement au milieu ; Select et Start de chaque côté, à sa hauteur ;
-     * Accélérer, sauvegarde et chargement rapides sur la rangée voisine, dans le même ordre.
+     * sauvegarde et chargement rapides sur la rangée voisine. Format et Accélérer sont dans les coins.
      */
     private static void center(Out o, float w, float h, float s, boolean bottom) {
         float m = M * s, g = G * s, hm = HOME * s, pw = PILL_W * s, ph = PILL_H * s;
@@ -172,9 +210,8 @@ final class PadDesign {
         o.box("SELECT", w / 2 - sideX - pw / 2, cy - ph / 2, pw, ph);
         o.box("START", w / 2 + sideX - pw / 2, cy - ph / 2, pw, ph);
         float rowY = bottom ? homeY - g - ph : homeY + hm + g;
-        o.box("FAST", w / 2 - pw / 2, rowY, pw, ph);
-        o.box("QSAVE", w / 2 - sideX - pw / 2, rowY, pw, ph);
-        o.box("QLOAD", w / 2 + sideX - pw / 2, rowY, pw, ph);
+        o.box("QSAVE", w / 2 - g / 2 - pw, rowY, pw, ph);
+        o.box("QLOAD", w / 2 + g / 2, rowY, pw, ph);
     }
 
     /**
@@ -193,7 +230,7 @@ final class PadDesign {
     }
 
     private static float centerHeight() {
-        return HOME + G + PILL_H;
+        return HOME + 2 * G + 2 * PILL_H;
     }
 
     /**
@@ -216,7 +253,7 @@ final class PadDesign {
         float ch = centerHalf() * s, cH = centerHeight() * s;
         // Haut de la zone libre pour les pouces, sous les gâchettes (ou la rangée du centre).
         float shBottom = xbox ? m + 2 * SH_H * s + g : 0;
-        if (xbox && m + SH_W * s + g > w / 2 - ch && !bottom) return false;
+        if (xbox && m + SH_W * s + g + ConsolePad.ICON * s + g > w / 2 - ch && !bottom) return false;
         float cTop = bottom ? h - m - cH : m, cBottom = bottom ? h - m : m + cH;
         if (xbox) {
             float rS = STICK * s / 2, rD = DPAD * s / 2, rF = faceRadius(FACE * s);
@@ -237,6 +274,8 @@ final class PadDesign {
         if (2 * m + 2 * rL + panelW + 2 * g > w) return false;
         if (h - 2 * m < Math.max(2 * rL, panelH)) return false;
         if (!clear(m + rL, h - m - rL, rL, w, ch, cTop, cBottom, g)) return false;
+        if (!ConsolePad.cornerClear(m + rL, h - m - rL, rL, s, 0)) return false;
+        if (h - m - panelH < ConsolePad.cornerBottom(s, 0)) return false;
         float px = w - m - panelW, pyTop = h - m - panelH;
         // Le panneau de boutons ne doit pas passer sous la rangée du centre.
         return px > w / 2 + ch + g || pyTop > cBottom + g || h - m < cTop - g;
@@ -263,6 +302,25 @@ final class PadDesign {
             for (int i = 0; i < keys.size(); i++) {
                 if (boxes[i] == null && keys.get(i).type.equals(type)) {
                     boxes[i] = new float[] {x, y, w, h};
+                    return;
+                }
+            }
+        }
+
+        /** Haricot : la boîte tournée et sa courbure (ConsolePad.bean). */
+        void bean(String type, float[] b) {
+            for (int i = 0; i < keys.size(); i++) {
+                if (boxes[i] == null && keys.get(i).type.equals(type)) {
+                    boxes[i] = b.clone();
+                    return;
+                }
+            }
+        }
+
+        void tilted(String type, float x, float y, float w, float h, float deg) {
+            for (int i = 0; i < keys.size(); i++) {
+                if (boxes[i] == null && keys.get(i).type.equals(type)) {
+                    boxes[i] = new float[] {x, y, w, h, deg};
                     return;
                 }
             }

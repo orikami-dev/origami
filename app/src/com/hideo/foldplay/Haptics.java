@@ -21,6 +21,8 @@ final class Haptics {
         int level = new Store(v.getContext()).hapticLevel();
         if (level <= 0) return;
         level = Math.min(3, level);
+        // Accessibilité : vibration la plus forte et deux fois plus longue.
+        if (Theme.STRONG_HAPTICS) level = 3;
         Vibrator vib = (Vibrator) v.getContext().getSystemService(Context.VIBRATOR_SERVICE);
         if (vib == null || !vib.hasVibrator()) {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
@@ -28,7 +30,7 @@ final class Haptics {
         }
         try {
             int amp = vib.hasAmplitudeControl() ? AMP[level] : VibrationEffect.DEFAULT_AMPLITUDE;
-            vib.vibrate(VibrationEffect.createOneShot(MS[level], amp));
+            vib.vibrate(VibrationEffect.createOneShot(Theme.STRONG_HAPTICS ? MS[level] * 2 : MS[level], amp));
         } catch (RuntimeException e) {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         }

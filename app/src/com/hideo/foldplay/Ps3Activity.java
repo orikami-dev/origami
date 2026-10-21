@@ -36,6 +36,7 @@ public class Ps3Activity extends Activity {
     private Store store;
     private Pads pads;
     private FrameLayout stage;
+    private Andon andon;
     private SurfaceView screen;
     private ControlDeckView deck;
     private TextView status;
@@ -46,10 +47,27 @@ public class Ps3Activity extends Activity {
     private float lx, ly, rx, ry;
     private boolean menuOpen;
     private HudOverlay hud;
+    private FramePeak peak;
+    private Boolean lastFill;
+
+    private static boolean USED;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        // Ce processus a déjà servi à un jeu (sortie avant la fin du chargement, par exemple) : le moteur
+        // y est resté à moitié initialisé et ne lirait rien. On relance le jeu dans un processus neuf.
+        if (USED) {
+            startActivity(new android.content.Intent(this, MainActivity.class)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                            | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    .putExtra(MainActivity.EXTRA_RESTART, new android.content.Intent(getIntent())));
+            DebugLog.markClean(this);
+            android.os.Process.killProcess(android.os.Process.myPid());
+            return;
+        }
+        USED = true;
         Theme.inGame = true;
         I18n.attach(this);
         Theme.sync(this);
@@ -61,6 +79,10 @@ public class Ps3Activity extends Activity {
         title = getIntent().getStringExtra(EXTRA_TITLE);
         if (title == null) title = "PlayStation 3";
         build();
+        DebugLog.event("[PS3] onCreate : jeu « " + title + " », chemin " + path + ", profil "
+                + EngineSettings.profile(this, EngineSettings.PS3));
+        DebugLog.snapshot(this, "PS3 création");
+        DebugLog.perfStart(this, "PS3");
         if (!Ps3Core.present(this)) {
             fail("Le moteur PS3 n'est pas dans cette version d'Origami.");
             return;
@@ -75,10 +97,20 @@ public class Ps3Activity extends Activity {
                 boolean ok = Ps3Core.nativeInitialize(Ps3Core.root(Ps3Activity.this), "00000001",
                         Build.VERSION.SDK_INT >= 31 ? Build.SOC_MODEL : Build.HARDWARE);
                 ready = ok;
+                DebugLog.event("[PS3] nativeInitialize ok=" + ok + (ok ? "" : ", erreur " + safeError()));
                 runOnUiThread(new Runnable() {
                     public void run() {
-                        if (!ready) fail("Le moteur PS3 n'a pas pu démarrer.");
-                        else next();
+                        if (!ready) {
+                            fail("Le moteur PS3 n'a pas pu démarrer.");
+                            return;
+                        }
+                        // La fenêtre a pu arriver pendant l'initialisation (course) : on la donne maintenant.
+                        android.view.SurfaceHolder sh = screen.getHolder();
+                        if (!surfaceSeen && sh.getSurface() != null && sh.getSurface().isValid()) {
+                            android.graphics.Rect r = sh.getSurfaceFrame();
+                            giveSurface(sh, r.width(), r.height());
+                        }
+                        next();
                     }
                 });
             }
@@ -95,6 +127,17 @@ public class Ps3Activity extends Activity {
 
     // ------------------------------------------------------------------ écran
 
+    /** Remet la fenêtre au moteur (sa taille d'abord : il la lit dès qu'il a une fenêtre). */
+    private void giveSurface(SurfaceHolder h, int w, int hh) {
+        Ps3Core.nativeSurfaceSize(w, hh);
+        int event = surface == null ? Ps3Core.SURFACE_CREATED : Ps3Core.SURFACE_CHANGED;
+        surface = h.getSurface();
+        Ps3Core.nativeSurface(surface, event);
+        surfaceSeen = true;
+        DebugLog.event("[PS3] surface reçue " + w + "×" + hh);
+        maybeBoot();
+    }
+
     private void build() {
         stage = new FrameLayout(this);
         stage.setBackgroundColor(0xFF000000);
@@ -104,14 +147,11 @@ public class Ps3Activity extends Activity {
             }
 
             public void surfaceChanged(SurfaceHolder h, int format, int w, int hh) {
-                if (!ready) return;
-                // La taille avant l'événement : le moteur la lit dès qu'il a une fenêtre.
-                Ps3Core.nativeSurfaceSize(w, hh);
-                int event = surface == null ? Ps3Core.SURFACE_CREATED : Ps3Core.SURFACE_CHANGED;
-                surface = h.getSurface();
-                Ps3Core.nativeSurface(surface, event);
-                surfaceSeen = true;
-                maybeBoot();
+                if (!ready) {
+                    DebugLog.event("[PS3] surface " + w + "×" + hh + " arrivée avant le moteur : prise en compte dès qu'il est prêt");
+                    return;
+                }
+                giveSurface(h, w, hh);
             }
 
             public void surfaceDestroyed(SurfaceHolder h) {
@@ -120,6 +160,7 @@ public class Ps3Activity extends Activity {
             }
         });
         stage.addView(screen, new FrameLayout.LayoutParams(-1, -1));
+        andon = Andon.attach(stage, screen, store);
 
         deck = new ControlDeckView(this);
         deck.setSystem("ps3");
@@ -148,10 +189,24 @@ public class Ps3Activity extends Activity {
         status.setPadding(p, p, p, p);
         stage.addView(status, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
         setContentView(stage);
+        stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                if (b - t != ob - ot || r - l != or - ol) place();
+            }
+        });
+        formatKey();
         // ATH : le moteur donne la durée de sa dernière image.
+        peak = new FramePeak(new FramePeak.Probe() {
+            public long read() {
+                return ready ? Ps3Core.nativeFramePeriodNs() : -1;
+            }
+        }, false);
         hud = new HudOverlay(this, stage, store, "armsx3", new HudOverlay.Source() {
             public float fps(float seconds) {
                 if (!ready) return -1;
+                peak.start();
+                float avg = peak.takeFps();
+                if (avg > 0) return avg;
                 try {
                     long ns = Ps3Core.nativeFramePeriodNs();
                     return ns > 0 ? 1e9f / ns : -1;
@@ -161,11 +216,22 @@ public class Ps3Activity extends Activity {
             }
 
             public float frameMaxMs() {
-                return -1;
+                peak.start();
+                return peak.takeMs();
             }
 
             public boolean paused() {
                 return menuOpen;
+            }
+
+            public String renderRes() {
+                // Définition réellement appliquée par le moteur : 720p × l'échelle choisie (Demon's Souls plafonné).
+                try {
+                    int pct = Integer.parseInt(Ps3Core.nativeSettingsGet("Video@@Resolution Scale").trim());
+                    return Math.round(1280 * pct / 100f) + "×" + Math.round(720 * pct / 100f);
+                } catch (Throwable e) {
+                    return null;
+                }
             }
         });
         hud.setScreen(screen);
@@ -179,26 +245,35 @@ public class Ps3Activity extends Activity {
      */
     private void place() {
         boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-        boolean pad = pads != null && pads.any();
+        boolean pad = pads != null && pads.any() && store.padFullscreen();
         FrameLayout.LayoutParams sl = (FrameLayout.LayoutParams) screen.getLayoutParams();
         FrameLayout.LayoutParams dl = (FrameLayout.LayoutParams) deck.getLayoutParams();
         int h = getResources().getDisplayMetrics().heightPixels;
+        int strip = 0;
         if (land || pad) {
-            sl.height = -1;
-            sl.gravity = Gravity.TOP;
-            dl.height = -1;
-            dl.gravity = Gravity.BOTTOM;
+            GameLayout.full(sl, dl);
             deck.setOverlay(true, store.overlayOpacity());
         } else {
-            sl.height = h / 2;
-            sl.gravity = Gravity.TOP;
-            dl.height = h / 2;
-            dl.gravity = Gravity.BOTTOM;
+            strip = GameLayout.portrait(this, stage.getHeight(), sl, dl);
             deck.setOverlay(false, store.overlayOpacity());
+        }
+        if (hud != null) {
+            hud.setStrip(strip);
+            hud.apply();
         }
         deck.setVisibility(pad ? View.GONE : View.VISIBLE);
         screen.setLayoutParams(sl);
         deck.setLayoutParams(dl);
+        // Messages du moteur (chargement, compilation) : au milieu de l'écran du haut en portrait,
+        // au milieu de l'écran en paysage (demande BOSS, 0.62).
+        if (status != null) {
+            FrameLayout.LayoutParams tl = (FrameLayout.LayoutParams) status.getLayoutParams();
+            tl.height = sl.height;
+            tl.topMargin = sl.topMargin;
+            tl.gravity = Gravity.TOP;
+            status.setLayoutParams(tl);
+        }
+        applyFormat();
     }
 
     @Override
@@ -254,10 +329,13 @@ public class Ps3Activity extends Activity {
         if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) return;
         if (CodecMenu.find(stage) != null) return;
         booted = true;
+        DebugLog.event("[PS3] démarrage du jeu : applyPs3 puis nativeBoot");
         new Thread(new Runnable() {
             public void run() {
-                EngineSettings.applyPs3(Ps3Activity.this);
+                EngineSettings.applyPs3(Ps3Activity.this, title + " " + path);
                 final int r = Ps3Core.nativeBoot(path);
+                DebugLog.event("[PS3] nativeBoot a rendu " + r + " (" + Ps3Core.bootName(r) + ")");
+                DebugLog.snapshot(Ps3Activity.this, "PS3 après nativeBoot");
                 runOnUiThread(new Runnable() {
                     public void run() {
                         if (r == Ps3Core.BOOT_OK || r == Ps3Core.BOOT_ALREADY_ADDED) {
@@ -281,16 +359,35 @@ public class Ps3Activity extends Activity {
     }
 
     /** Le jeu s'arrête de lui-même (Quitter depuis le menu du jeu) : on revient à la bibliothèque. */
+    private int lastState = -99;
+
     private void watch() {
         stage.postDelayed(new Runnable() {
             public void run() {
                 if (isFinishing()) return;
                 int s = Ps3Core.nativeState();
-                if (s == Ps3Core.STOPPED || s == Ps3Core.READY) {
+                if (s != lastState) {
+                    DebugLog.event("[PS3] état du moteur " + lastState + " -> " + s + " (titre " + Ps3Core.nativeTitleId() + ")");
+                    lastState = s;
+                }
+                boolean moving = android.os.SystemClock.uptimeMillis() < stateUntil;
+                if (s == Ps3Core.RUNNING && stateMsg != null) {
+                    // Le moteur est reparti de l'état écrit (sauvegarde) ou relu (chargement).
+                    I18n.toast(Ps3Activity.this, stateMsg, android.widget.Toast.LENGTH_SHORT).show();
+                    stateMsg = null;
+                    stateUntil = 0;
+                    status(null);
+                } else if ((s == Ps3Core.STOPPED || s == Ps3Core.READY) && !moving) {
+                    if (stateMsg != null) {
+                        stateMsg = null;
+                        fail("Le moteur ne s'est pas relancé après la sauvegarde rapide. Ce jeu ne la "
+                                + "permet peut-être pas : utilise la sauvegarde du jeu.");
+                        return;
+                    }
                     finish();
                     return;
                 }
-                stage.postDelayed(this, 1000);
+                stage.postDelayed(this, moving ? 500 : 1000);
             }
         }, 3000);
     }
@@ -387,10 +484,48 @@ public class Ps3Activity extends Activity {
         }, "ps3-firmware").start();
     }
 
+
+    // ------------------------------------------------------------------ format d'image (touche FORMAT)
+
+    private ScreenFormat.Key formatKey;
+
+    private ScreenFormat.Key formatKey() {
+        if (formatKey == null) {
+            formatKey = new ScreenFormat.Key(store, "ps3", ScreenFormat.KEYS, new ScreenFormat.Host() {
+                public void applyFormat() { Ps3Activity.this.applyFormat(); }
+
+                public void say(String text) {
+                    I18n.say(Ps3Activity.this, text);
+                }
+
+                public void refreshKeys() { if (deck != null) deck.refreshKeys(); }
+            });
+        }
+        return formatKey;
+    }
+
+    /** Cadre la surface du moteur selon le format choisi (Auto, 16:9, 4:3 ou Étirer). */
+    private void applyFormat() {
+        if (stage == null || screen == null) return;
+        boolean land = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        boolean full = land || (pads != null && pads.any() && store.padFullscreen());
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        int w = stage.getWidth() > 0 ? stage.getWidth() : dm.widthPixels;
+        int h = full ? (stage.getHeight() > 0 ? stage.getHeight() : dm.heightPixels) : dm.heightPixels / 2;
+        boolean fill = ScreenFormat.fit(screen, w, h, ScreenFormat.gravityFor(full), store.displayMode("ps3"));
+        if (lastFill != null && lastFill == fill) return;
+        lastFill = fill;
+        try { Ps3Core.nativeSettingsSet("Video@@Stretch To Display Area", String.valueOf(fill)); } catch (Throwable ignored) { }
+    }
+
     // ------------------------------------------------------------------ manette
 
     /** Touches Origami vers la manette PS3, par position : A = Croix, B = Rond, X = Carré, Y = Triangle. */
     private void press(String key, boolean down) {
+        if (key.equals("ASPECT")) {
+            formatKey().press(down);
+            return;
+        }
         if (key.equals("HOME")) {
             if (down) home();
             return;
@@ -417,6 +552,12 @@ public class Ps3Activity extends Activity {
             return;
         } else if (key.equals("QLOAD")) {
             if (down) quickLoad();
+            return;
+        } else if (key.equals("FAST")) {
+            if (down) {
+                I18n.toast(this, "Pas d'accélération sur PlayStation 3 : le moteur ne l'offre pas.",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
             return;
         } else return;
         if (down) {
@@ -520,10 +661,31 @@ public class Ps3Activity extends Activity {
                         quickLoad();
                     }
                 })
-                .item("Menu de la console", "Le menu PS du jeu (trophées, quitter…)", new Runnable() {
+                .item("Menu de la console", "Le menu PlayStation du jeu (trophées, quitter…)", new Runnable() {
                     public void run() {
                         resumeGame();
                         Ps3Core.nativeHomeMenu();
+                    }
+                })
+                .sub("Affichage", "ATH, format d'image, Lumen", new Runnable() {
+                    public void run() {
+                        EngineMenus.display(Ps3Activity.this, stage, store, "ps3", "PLAYSTATION 3", backHome(), new Runnable() {
+                            public void run() { if (hud != null) hud.apply(); }
+                        }, new Runnable() {
+                            public void run() {
+                                applyFormat();
+                                if (deck != null) deck.refreshKeys();
+                            }
+                        }, new Runnable() {
+                            public void run() { if (andon != null) andon.refresh(); }
+                        });
+                    }
+                })
+                .sub("Options contrôleur", "Manette, transparence, gâchettes", new Runnable() {
+                    public void run() {
+                        EngineMenus.controller(Ps3Activity.this, stage, store, deck, backHome(), new Runnable() {
+                            public void run() { place(); }
+                        });
                     }
                 })
                 .sub("Profil et réglages", EngineSettings.profileName(this, EngineSettings.PS3), new Runnable() {
@@ -531,11 +693,8 @@ public class Ps3Activity extends Activity {
                         EngineSettings.menu(Ps3Activity.this, stage, EngineSettings.PS3, "PLAYSTATION 3", backHome());
                     }
                 })
-                .check("ATH", "Images/s, processeur, batterie…", store.hud(), new Runnable() {
-                    public void run() {
-                        store.setHud(!store.hud());
-                        if (hud != null) hud.apply();
-                    }
+                .item("Redémarrer le jeu", "Relance le jeu depuis le début", new Runnable() {
+                    public void run() { restart(); }
                 })
                 .item("Quitter le jeu", null, new Runnable() {
                     public void run() { quit(); }
@@ -565,17 +724,62 @@ public class Ps3Activity extends Activity {
         Theme.fullscreen(this);
     }
 
+    /**
+     * Sur PS3, un état se sauvegarde en arrêtant la machine, qui repart aussitôt de l'état écrit
+     * (ARMSX3 : Emu.Kill puis Restart). Pendant ce passage le moteur est « arrêté » : watch() ne doit
+     * pas prendre ça pour la fin du jeu, sinon on revenait à l'accueil sans rien dire.
+     */
+    private volatile long stateUntil;
+    private volatile String stateMsg;
+
     private void quickSave() {
-        boolean ok = Ps3Core.nativeSaveState(1);
-        I18n.toast(this, ok ? "Partie sauvegardée." : "Sauvegarde impossible ici.", android.widget.Toast.LENGTH_SHORT).show();
+        if (stateMsg != null) return;
+        stateUntil = android.os.SystemClock.uptimeMillis() + 90000;
+        stateMsg = "Partie sauvegardée.";
+        status("Sauvegarde rapide…");
+        new Thread(new Runnable() {
+            public void run() {
+                // Le moteur attend une image pour la vignette : pas sur le fil de l'interface.
+                final boolean ok = Ps3Core.nativeSaveState(1);
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        if (ok) return;
+                        stateUntil = 0;
+                        stateMsg = null;
+                        status(null);
+                        I18n.toast(Ps3Activity.this, "Sauvegarde impossible ici.", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }, "ps3-save").start();
     }
 
     private void quickLoad() {
+        if (stateMsg != null) return;
         if (!Ps3Core.nativeHasState(1)) {
             I18n.toast(this, "Aucune sauvegarde rapide.", android.widget.Toast.LENGTH_SHORT).show();
             return;
         }
-        Ps3Core.nativeLoadState(1);
+        stateUntil = android.os.SystemClock.uptimeMillis() + 120000;
+        stateMsg = "Sauvegarde rapide chargée.";
+        status("Chargement de la sauvegarde rapide…");
+        if (!Ps3Core.nativeLoadState(1)) {
+            stateUntil = 0;
+            stateMsg = null;
+            status(null);
+            I18n.toast(this, "Chargement impossible.", android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Relance le jeu : le moteur tourne dans son propre processus, qui meurt à la sortie. L'accueil
+     * (autre processus) reçoit l'intention et rouvre le jeu une fois le moteur arrêté.
+     */
+    private void restart() {
+        // Passerelle noire dans le processus principal : elle relance le jeu une fois ce processus mort,
+        // sans repasser par l'accueil (l'ancien EXTRA_RESTART n'est plus utilisé ici).
+        RelaunchActivity.from(this);
+        quit();
     }
 
     private void quit() {
@@ -593,6 +797,7 @@ public class Ps3Activity extends Activity {
     }
 
     private void fail(String msg) {
+        DebugLog.event("[PS3] échec affiché : " + msg);
         new CodecMenu(this).title("PlayStation 3", title)
                 .message(msg)
                 .item("Retour", null, new Runnable() {
@@ -611,6 +816,11 @@ public class Ps3Activity extends Activity {
         super.onResume();
         if (hud != null) hud.apply();
         Theme.fullscreen(this);
+        // Retour de l'éditeur de manette : la disposition a pu changer.
+        if (deck != null) {
+            deck.reloadFromSource();
+            place();
+        }
         if (ready) Ps3Core.nativeBackground(false);
     }
 
@@ -620,18 +830,42 @@ public class Ps3Activity extends Activity {
         if (ready) Ps3Core.nativeBackground(true);
     }
 
+    /** Qui ferme l'écran du jeu, et quand : la pile d'appels est écrite au journal. */
+    @Override
+    public void finish() {
+        DebugLog.event("[PS3] finish() appelé, isFinishing=" + isFinishing(), new Throwable("finish"));
+        super.finish();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        DebugLog.event("[PS3] onStart");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        DebugLog.event("[PS3] onStop, isFinishing=" + isFinishing());
+        DebugLog.snapshot(this, "PS3 arrêt de l'écran");
+    }
+
     @Override
     protected void onDestroy() {
+        DebugLog.event("[PS3] onDestroy, isFinishing=" + isFinishing());
+        DebugLog.perfStop();
         super.onDestroy();
         if (hud != null) hud.stop();
+        if (peak != null) peak.stop();
         Theme.inGame = false;
         // Le processus « :ps3 » ne sert qu'au jeu : on le termine pour libérer la mémoire du moteur.
-        if (isFinishing() && booted) {
+        if (isFinishing()) {
             try {
                 Ps3Core.nativeKill();
             } catch (Throwable ignored) {
                 // Déjà arrêté.
             }
+            DebugLog.markClean(this);
             android.os.Process.killProcess(android.os.Process.myPid());
         }
     }

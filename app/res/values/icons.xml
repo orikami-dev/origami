@@ -5,4 +5,7 @@
     <color name="icon_bg_ecarlate">#FF120C0D</color>
     <color name="icon_bg_sakura">#FF120E12</color>
     <color name="icon_bg_ambre">#FF110F0A</color>
+    <color name="icon_bg_neon">#FF0D0A13</color>
+    <color name="icon_bg_jade">#FF0A100E</color>
+    <color name="icon_bg_argent">#FF0C0D10</color>
 </resources>

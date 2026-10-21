@@ -44,7 +44,15 @@ cat > "$WORK/build/version.h" <<H
 #define XE_BUILD_DATE __DATE__
 #endif
 H
+# ccache (0.66) : une recompilation après un petit correctif ne refait que les fichiers touchés.
+# tools/native-cache.sh restore/save garde le cache entre deux conteneurs.
+LAUNCH=()
+if command -v ccache >/dev/null; then
+  export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}" CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-12G}" CCACHE_SLOPPINESS=time_macros,include_file_mtime
+  LAUNCH=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+fi
 cmake -S "$SRC" -B "$WORK/build" -G Ninja \
+  "${LAUNCH[@]}" \
   -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-30 -DANDROID_STL=c++_static \
   -DCMAKE_BUILD_TYPE=Release
