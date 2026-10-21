@@ -92,6 +92,21 @@ final class SystemInfo {
     /** Entrées d'action (« Actualiser la bibliothèque ») glissées dans une catégorie. */
     static final SystemInfo ACTION = new SystemInfo("action", "Bibliothèque", "MAJ", null, 0xFF3A4150, a(), a());
 
+    /**
+     * Consoles « récentes » (PS3 et après) : le profil Performance est leur défaut (décision de BOSS).
+     * ATTENTION : toute future console (ps4, xboxone, ps5, xseries, switch2…) doit être ajoutée ici.
+     */
+    private static final java.util.Set<String> MODERN = new java.util.HashSet<String>(java.util.Arrays.asList(
+            "ps3", "x360", "ps4", "xboxone", "ps5", "xseries", "switch", "switch2", "wiiu"));
+
+    static boolean isModern(String systemId) {
+        return systemId != null && MODERN.contains(systemId);
+    }
+
+    static boolean isModern(SystemInfo s) {
+        return s != null && isModern(s.id);
+    }
+
     static int order(SystemInfo s) {
         for (int i = 0; i < ALL.length; i++) if (ALL[i] == s) return i;
         return ALL.length;

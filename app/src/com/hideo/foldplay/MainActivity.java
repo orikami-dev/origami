@@ -334,7 +334,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Ⓐ sur une entrée : jeu (émulateur), application, client à installer ou action. */
     private void open(Game g) {
         if (g.uri.startsWith("action:remote:")) {
-            remoteMenu(g.group);
+            // Client par défaut choisi : il s'ouvre directement ; Home permet d'en changer.
+            MobileApps.Client pref = MobileApps.preferred(this, store, g.group);
+            if (pref != null) MobileApps.open(this, store, pref.game());
+            else remoteMenu(g.group);
         } else if (g.uri.startsWith("action:addclient:")) {
             addClientMenu(g.group);
         } else if (g.isApp()) {
@@ -1530,6 +1533,11 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     private void showEmulationOptions() {
         final Game g = shown.isEmpty() ? null : shown.get(selected);
+        // Remote Play (BOSS, 0.66.5) : Home sur une plateforme ouvre le choix du client.
+        if (g != null && g.uri.startsWith("action:remote:")) {
+            remoteMenu(g.group);
+            return;
+        }
         CodecMenu m = new CodecMenu(this).title("Options", g == null ? "BIBLIOTHÈQUE" : g.system.shortName + " · " + g.title);
         if (g != null) {
             String emu = launcher.emulatorLabel(g);
@@ -1539,31 +1547,47 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
             });
         }
-        final boolean auto = store.autoCovers();
-        m.check("Jaquettes automatiques", "Images de boîte téléchargées automatiquement", auto, new Runnable() {
-            public void run() {
-                store.setAutoCovers(!auto);
-                if (!auto) fetchCovers();
-                showEmulationOptions();
+        // Menu Home réduit aux réglages par jeu / par émulateur (demande de BOSS) : jaquettes automatiques,
+        // dossier de jeux et rescan restent dans Réglages et Bibliothèque, la manette dans l'icône manette.
+        if (g != null) {
+            final String sys = g.system.id;
+            final boolean engine = sys.equals(EngineSettings.PS3) || sys.equals(EngineSettings.X360);
+            if (engine || (g.system.core != null && CoreProfiles.matters(this, g.system.core))) {
+                String cur = engine ? EngineSettings.profileName(this, sys)
+                        : CoreProfiles.name(store.gameProfile(Store.gameId(g.uri, g.path), sys));
+                m.sub("Profil et réglages", cur, new Runnable() {
+                    public void run() { gameProfileMenu(g, engine); }
+                });
             }
-        });
-        m.item("Choisir le dossier de jeux", null, new Runnable() { public void run() { pickFolder(); } });
-        if (store.treeUri() != null) {
-            m.item("Rescanner le dossier", null, new Runnable() { public void run() { scan(Uri.parse(store.treeUri())); } });
         }
-        m.item("Personnaliser la manette", "Disposition, teintes, opacité", new Runnable() {
-            public void run() {
-                startActivity(new Intent(MainActivity.this, LayoutEditorActivity.class));
-            }
-        });
-        m.item("Passer en vue grille", null, new Runnable() {
-            public void run() {
-                store.setFlexView(false);
-                rebuild();
-            }
-        });
+        // 0.66.5 (BOSS) : seulement l'émulateur et le profil du jeu ; la vue se change dans Réglages.
         m.show(menuHost());
         status("⌂ · options");
+    }
+
+    /** Profil et réglages d'un jeu : moteur PS3 / 360 (réglages complets) ou profil par jeu d'un cœur libretro. */
+    private void gameProfileMenu(final Game g, boolean engine) {
+        final Runnable back = new Runnable() {
+            public void run() { showEmulationOptions(); }
+        };
+        if (engine) {
+            EngineSettings.menu(this, menuHost(), g.system.id, g.system.name.toUpperCase(), back);
+            return;
+        }
+        final String id = Store.gameId(g.uri, g.path);
+        String cur = store.gameProfile(id, g.system.id);
+        CodecMenu pm = new CodecMenu(this).title("Profil et réglages", g.system.shortName + " · " + g.title)
+                .message("Le profil de ce jeu s'applique à son prochain lancement.").onBack(back);
+        for (int i = 0; i < CoreProfiles.IDS.length; i++) {
+            final String pid = CoreProfiles.IDS[i];
+            pm.radio(CoreProfiles.NAMES[i], CoreProfiles.HELP[i], pid.equals(cur), new Runnable() {
+                public void run() {
+                    store.setGameProfile(id, pid);
+                    gameProfileMenu(g, false);
+                }
+            });
+        }
+        pm.show(menuHost());
     }
 
     /** Le menu s'affiche dans la moitié haute en vue Flex, sur tout l'écran sinon. */
@@ -1917,8 +1941,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             return;
         }
         final String id = Store.gameId(g.uri, g.path);
-        final String prof = store.gameProfile(id);
-        final boolean isDefault = prof.equals(store.defaultProfile());
+        final String prof = store.gameProfile(id, g.system.id);
+        final boolean isDefault = prof.equals(store.defaultProfile(g.system.id));
         new CodecMenu(this).title(g.title, "OPTIONS DE LANCEMENT")
                 .item("Lancer", g.system.name + " · profil " + CoreProfiles.name(prof), new Runnable() {
                     public void run() { launcher.launch(g); }
@@ -1942,7 +1966,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                             }
                         })
                 .check("Profil par défaut", isDefault ? "Les autres jeux démarrent aussi en " + CoreProfiles.name(prof)
-                        : "Par défaut : " + CoreProfiles.name(store.defaultProfile()) + " · cocher pour prendre "
+                        : "Par défaut : " + CoreProfiles.name(store.defaultProfile(g.system.id)) + " · cocher pour prendre "
                         + CoreProfiles.name(prof), isDefault, new Runnable() {
                     public void run() {
                         if (!isDefault) store.setDefaultProfile(prof);
@@ -2158,7 +2182,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         // 0.60.6). D'ici là, les icônes suivent le thème (iconPackMenu reste prêt).
         m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "👷‍♂️🚧 Arrive avec le store de thèmes.");
         // Partage de thèmes entre joueurs : annoncé, pas encore ouvert.
-        m.subIf(store.pills(), "Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu, en jeu", new Runnable() {
+        m.subIf(store.pills(), "Lumen", EngineMenus.andonLabel(store) + " · lumière autour du jeu, en jeu", new Runnable() {
             public void run() {
                 EngineMenus.andon(MainActivity.this, CodecMenu.hostFor(MainActivity.this), store, new Runnable() {
                     public void run() { themeMenu(); }

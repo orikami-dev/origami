@@ -515,21 +515,17 @@ public class X360Activity extends WindowedAppActivity {
                 .item("Reprendre", null, new Runnable() {
                     public void run() { resumeGame(); }
                 })
-                .subIf(store.pills(), "Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu", new Runnable() {
+                .sub("Affichage", "ATH, format d'image, Lumen", new Runnable() {
                     public void run() {
-                        EngineMenus.andon(X360Activity.this, stage, store, backHome(), new Runnable() {
-                            public void run() { if (andon != null) andon.refresh(); }
-                        });
-                    }
-                })
-                .sub("Format d'image", ScreenFormat.label(store.displayMode("x360"))
-                        + (store.formatLocked() ? " · verrouillé" : ""), new Runnable() {
-                    public void run() {
-                        EngineMenus.format(X360Activity.this, stage, store, "x360", backHome(), new Runnable() {
+                        EngineMenus.display(X360Activity.this, stage, store, "x360", "XBOX 360", backHome(), new Runnable() {
+                            public void run() { if (hud != null) hud.apply(); }
+                        }, new Runnable() {
                             public void run() {
                                 applyFormat();
                                 if (deck != null) deck.refreshKeys();
                             }
+                        }, new Runnable() {
+                            public void run() { if (andon != null) andon.refresh(); }
                         });
                     }
                 })
@@ -545,13 +541,7 @@ public class X360Activity extends WindowedAppActivity {
                         EngineSettings.menu(X360Activity.this, stage, EngineSettings.X360, "XBOX 360", backHome());
                     }
                 })
-                .check("ATH", "Images/s, processeur, batterie…", store.hud(), new Runnable() {
-                    public void run() {
-                        store.setHud(!store.hud());
-                        if (hud != null) hud.apply();
-                    }
-                })
-                .item("Redémarrer la console", "Relance le jeu depuis le début", new Runnable() {
+                .item("Redémarrer le jeu", "Relance le jeu depuis le début", new Runnable() {
                     public void run() { restart(); }
                 })
                 .item("Quitter le jeu", null, new Runnable() {
@@ -564,16 +554,11 @@ public class X360Activity extends WindowedAppActivity {
     }
 
     /**
-     * Relance le jeu : le moteur tourne dans son propre processus, qui meurt à la sortie. L'accueil
-     * (autre processus) reçoit l'intention et rouvre le jeu une fois le moteur arrêté.
+     * Relance le jeu : Xenia ne sait pas repartir proprement. Une passerelle noire (processus principal)
+     * relance l'activité une fois ce processus mort (onDestroy le termine), sans passer par l'accueil.
      */
     private void restart() {
-        android.content.Intent again = new android.content.Intent(getIntent());
-        startActivity(new android.content.Intent(this, MainActivity.class)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                        | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                .putExtra(MainActivity.EXTRA_RESTART, again));
+        RelaunchActivity.from(this);
         finish();
     }
 

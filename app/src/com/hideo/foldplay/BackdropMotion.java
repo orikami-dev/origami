@@ -161,6 +161,42 @@ final class BackdropMotion {
 
     // ------------------------------------------------------------------ Ambre
 
+    /**
+     * Ville Art déco : deux projecteurs lents balaient le ciel depuis l'horizon (un tour de boucle,
+     * aller-retour) et quelques étoiles en losange scintillent.
+     */
+    static void ville(Canvas c, float w, float h, float u, int accent, float t) {
+        float ground = h * 0.9f;
+        for (int i = 0; i < 2; i++) {
+            float bx = w * (i == 0 ? 0.06f : 0.72f);
+            double ang = -Math.PI / 2 + (i == 0 ? 0.55 : -0.5) * Math.sin(TAU * (t + i * 0.37f));
+            float len = Math.max(h * 0.95f, w * 0.5f), spread = len * 0.045f;
+            float tx = bx + (float) Math.cos(ang) * len, ty = ground + (float) Math.sin(ang) * len;
+            float nx = (float) -Math.sin(ang) * spread, ny = (float) Math.cos(ang) * spread;
+            PATH.reset();
+            PATH.moveTo(bx, ground);
+            PATH.lineTo(tx + nx, ty + ny);
+            PATH.lineTo(tx - nx, ty - ny);
+            PATH.close();
+            P.setShader(new LinearGradient(bx, ground, tx, ty, a(accent, i == 0 ? 0x16 : 0x2A), a(accent, 0), Shader.TileMode.CLAMP));
+            c.drawPath(PATH, P);
+        }
+        P.setShader(null);
+        for (int i = 0; i < 14; i++) {
+            float x = w * (0.35f + 0.65f * rnd(i, 1)), y = h * 0.04f + h * 0.5f * rnd(i, 2);
+            float tw = 0.5f + 0.5f * (float) Math.sin(TAU * (1 + i % 3) * t + i * 2.1f);
+            float s = u * (0.002f + 0.002f * rnd(i, 3));
+            PATH.reset();
+            PATH.moveTo(x, y - s * 2);
+            PATH.lineTo(x + s, y);
+            PATH.lineTo(x, y + s * 2);
+            PATH.lineTo(x - s, y);
+            PATH.close();
+            P.setColor(a(0xFFFFE2A0, (int) (20 + 110 * tw)));
+            c.drawPath(PATH, P);
+        }
+    }
+
     /** Vieux terminal : bande claire qui descend, scintillement de tube et curseur qui clignote. */
     static void terminal(Canvas c, float w, float h, float u, int accent, float t) {
         float y = fract(3 * t) * (h * 1.3f) - h * 0.15f;

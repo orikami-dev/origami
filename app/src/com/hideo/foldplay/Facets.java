@@ -417,12 +417,153 @@ final class Facets {
     /** Variante Ambre en service : soleil Art déco, choisi par BOSS le 19/10. */
     static final int AMBRE = 1;
 
-    /** Ambre : 0 trace d'oscilloscope pliée, 1 soleil Art déco en gradins, 2 cascade de curseurs. */
+    /** Fond d'écran d'Ambre : la ville Art déco la nuit (le soleil, variante 1, reste celui de la manette). */
+    static final int AMBRE_FOND = 3;
+
+    /** Ambre : 0 trace d'oscilloscope pliée, 1 soleil Art déco en gradins, 2 cascade de curseurs, 3 ville Art déco. */
     static void ambre(Canvas c, float w, float h, int accent, int fold, float k, int variant) {
         Facets f = new Facets(c, accent, fold, k, 47);
         if (variant == 1) f.deco(w, h);
         else if (variant == 2) f.cursors(w, h);
+        else if (variant == 3) f.ville(w, h);
         else f.scope(w, h);
+    }
+
+    private void box(float x0, float y0, float x1, float y1, int color) {
+        p.setColor(color);
+        c.drawRect(x0, y0, x1, y1, p);
+    }
+
+    /**
+     * Gratte-ciel à gradins : chaque étage est plié en deux (face gauche dans l'ombre, face droite
+     * un peu plus claire), liseré doré sur l'arête droite et sur le toit, fenêtres allumées au hasard.
+     * lum règle l'éclat (faible au centre, là où passent les listes).
+     */
+    private void tour(float cx, float base, float bw, float th, int tiers, boolean spire, float lum, float q) {
+        float y = base;
+        float hw = bw / 2;
+        float lw = Math.max(1f, q / 22f);
+        for (int i = 0; i < tiers; i++) {
+            float eh = th * (i == 0 ? 0.42f : 0.58f / Math.max(1, tiers - 1)) ;
+            float x0 = cx - hw, x1 = cx + hw, top = y - eh;
+            box(x0, top, cx, y + 1, a(0xFF0A0705, 0xF2));
+            box(cx, top, x1, y + 1, a(0xFF14100A, 0xF2));
+            // Pilastres : fines lignes dorées verticales, à la place des pavés de fenêtres.
+            int cols = Math.max(2, Math.round(hw * 2 / (q * 0.42f)));
+            float cw = (x1 - x0) / cols;
+            for (int k2 = 1; k2 < cols; k2++) {
+                line(x0 + k2 * cw, top + eh * 0.06f, x0 + k2 * cw, y - eh * 0.04f, lw, a(fold, Math.round(0x16 * lum)));
+            }
+            // Fenêtres : petites fentes ambrées, rares et dispersées.
+            float wh = Math.min(q * 0.28f, eh * 0.09f);
+            for (float wy = top + eh * 0.14f; wy < y - eh * 0.1f; wy += wh * 2.6f) {
+                for (int k2 = 0; k2 < cols; k2++) {
+                    if (rnd() > 0.34f * lum + 0.05f) continue;
+                    float wx = x0 + k2 * cw + cw * 0.3f;
+                    box(wx, wy, wx + cw * 0.4f, wy + wh, a(sh[rnd() < 0.3f ? 4 : 3], Math.round((0x30 + 0x50 * rnd()) * lum)));
+                }
+            }
+            // Liserés de lumière : arête droite et toit.
+            line(x1, top, x1, y, lw * 1.4f, a(sh[3], Math.round(0x68 * lum)));
+            line(x0, top, x1, top, lw, a(fold, Math.round(0x5A * lum)));
+            y = top;
+            hw *= 0.74f;
+        }
+        if (spire) {
+            // Flèche : triangle plié en deux, trait d'or au centre et deux barrettes.
+            float sh2 = th * 0.34f;
+            tri(cx - hw * 0.8f, y, cx, y - sh2, cx, y, a(0xFF0A0705, 0xF2));
+            tri(cx, y, cx, y - sh2, cx + hw * 0.8f, y, a(0xFF14100A, 0xF2));
+            line(cx, y, cx, y - sh2, lw, a(fold, Math.round(0x78 * lum)));
+            line(cx + hw * 0.8f, y, cx, y - sh2, lw, a(sh[3], Math.round(0x70 * lum)));
+            line(cx - hw * 0.45f, y - sh2 * 0.3f, cx + hw * 0.45f, y - sh2 * 0.3f, lw, a(fold, Math.round(0x50 * lum)));
+            line(cx - hw * 0.25f, y - sh2 * 0.55f, cx + hw * 0.25f, y - sh2 * 0.55f, lw, a(fold, Math.round(0x50 * lum)));
+        }
+    }
+
+    /**
+     * Ville Art déco la nuit (fond d'écran) : éventail de rayons très discret dans le coin haut droit,
+     * frise de chevrons en haut, rayons montant de la tour maîtresse, deux plans de gratte-ciel à gradins
+     * (reflet doré sur les arêtes). Les tours hautes sont aux bords ; le centre et la gauche, où se posent
+     * les listes, restent bas et sombres. Le ciel (dégradé, lueur d'horizon) est posé par ThemeBackdrop.
+     */
+    private void ville(float w, float h) {
+        float u = Math.max(w, h);
+        float H0 = Math.min(h, w * 0.9f);
+        float q = Math.min(w, h * 1.2f) * 0.06f;
+        float ground = h * 0.9f;
+        float lw = Math.max(1f, u / 1100f);
+        // Éventail Art déco dans le coin haut droit : rayons fins en triangles pliés, arcs concentriques.
+        float fx = w, fy = 0, fr = Math.min(w * 0.75f, h * 0.7f);
+        int rays = 14;
+        for (int i = 0; i < rays; i++) {
+            double t0 = Math.PI / 2 + Math.PI / 2 * (i + 0.12) / rays, t1 = Math.PI / 2 + Math.PI / 2 * (i + 0.88) / rays;
+            double tm = (t0 + t1) / 2;
+            float r = fr * ((i & 1) == 0 ? 1f : 0.82f);
+            float ex = fx + (float) Math.cos(tm) * r, ey = fy + (float) Math.sin(tm) * r;
+            tri(fx, fy, ex, ey, fx + (float) Math.cos(t0) * r * 0.9f, fy + (float) Math.sin(t0) * r * 0.9f, a(sh[1], 0x12));
+            tri(fx, fy, ex, ey, fx + (float) Math.cos(t1) * r * 0.9f, fy + (float) Math.sin(t1) * r * 0.9f, a(sh[3], 0x0E));
+        }
+        p.setStyle(Paint.Style.STROKE);
+        android.graphics.RectF ring = new android.graphics.RectF();
+        for (int i = 1; i <= 4; i++) {
+            float rr = fr * (0.2f + 0.2f * i);
+            p.setStrokeWidth(lw);
+            p.setColor(a(fold, 0x2A - i * 5));
+            ring.set(fx - rr, fy - rr, fx + rr, fy + rr);
+            c.drawArc(ring, 90, 90, false, p);
+        }
+        p.setStyle(Paint.Style.FILL);
+        // Frise de chevrons pliés le long du bord haut, qui s'éteint vers la gauche.
+        float cw = q * 0.55f;
+        for (float x = w * 0.45f; x < w + cw; x += cw * 2) {
+            float fade = Math.min(1f, (x - w * 0.45f) / (w * 0.4f));
+            tri(x, q * 0.5f, x + cw, q * 0.5f + cw, x + cw, q * 0.5f, a(sh[1], Math.round(0x24 * fade)));
+            tri(x + cw, q * 0.5f, x + cw, q * 0.5f + cw, x + cw * 2, q * 0.5f, a(sh[3], Math.round(0x24 * fade)));
+        }
+        line(w * 0.45f, q * 0.5f, w, q * 0.5f, lw, a(fold, 0x20));
+        line(w * 0.45f, q * 0.5f + cw * 1.3f, w, q * 0.5f + cw * 1.3f, lw, a(fold, 0x14));
+        // Rayons montant de la tour maîtresse (très discrets).
+        float hx = w * 0.845f;
+        for (int i = -4; i <= 4; i++) {
+            double ang = -Math.PI / 2 + i * 0.2;
+            line(hx, ground - H0 * 0.7f, hx + (float) Math.cos(ang) * u, ground - H0 * 0.7f + (float) Math.sin(ang) * u,
+                    lw, a(fold, 0x0C + (i % 2 == 0 ? 6 : 0)));
+        }
+        // Second plan : tours lointaines, pâles dans la brume de l'horizon.
+        long keep = seed;
+        float bx = -q;
+        while (bx < w + q) {
+            float bw = q * (1.2f + 1.6f * rnd());
+            float x = bx + bw / 2, fx2 = x / w;
+            float edge = Math.min(1f, Math.abs(fx2 - 0.4f) * 2.2f);
+            float bh = H0 * (0.08f + 0.2f * rnd()) * (0.5f + 0.7f * edge);
+            box(bx, ground - bh, bx + bw, ground + 1, a(0xFF1B130A, 0xB0));
+            box(bx + bw * 0.5f, ground - bh, bx + bw, ground + 1, a(0xFF241A0E, 0x90));
+            line(bx + bw, ground - bh, bx + bw, ground, lw, a(fold, 0x28));
+            if (rnd() < 0.4f) box(bx + bw * 0.3f, ground - bh - q * 0.5f, bx + bw * 0.7f, ground - bh, a(0xFF1B130A, 0xB0));
+            bx += bw * (0.55f + 0.5f * rnd());
+        }
+        seed = keep;
+        // Premier plan : x (part de la largeur), largeur (en q), hauteur (part de H0), étages, flèche, éclat.
+        float[][] t = {
+            {0.035f, 2.4f, 0.34f, 3, 1, 0.9f}, {0.115f, 1.9f, 0.20f, 2, 0, 0.7f},
+            {0.20f, 2.4f, 0.09f, 2, 0, 0.35f}, {0.29f, 2.0f, 0.13f, 2, 0, 0.35f}, {0.385f, 2.7f, 0.08f, 1, 0, 0.3f},
+            {0.48f, 2.2f, 0.12f, 2, 0, 0.35f}, {0.57f, 2.0f, 0.09f, 1, 0, 0.4f},
+            {0.665f, 2.4f, 0.27f, 3, 0, 0.8f}, {0.75f, 2.8f, 0.42f, 4, 1, 0.9f},
+            {0.845f, 3.6f, 0.66f, 5, 1, 1f}, {0.935f, 2.6f, 0.46f, 4, 1, 0.9f}, {0.995f, 2.3f, 0.30f, 3, 0, 0.8f},
+        };
+        for (int i = 0; i < t.length; i++) {
+            tour(w * t[i][0], ground, q * t[i][1], H0 * t[i][2], Math.round(t[i][3]), t[i][4] > 0, t[i][5], q);
+        }
+        // Sol : quai sombre et filet d'or sur la ligne d'horizon, reflets en traits.
+        box(0, ground, w, h, a(0xFF080604, 0xF6));
+        line(0, ground, w, ground, lw * 1.5f, a(fold, 0x50));
+        line(0, ground + q * 0.35f, w, ground + q * 0.35f, lw, a(fold, 0x18));
+        for (int i = 0; i < 9; i++) {
+            float x = w * (0.5f + 0.5f * rnd());
+            line(x, ground + q * 0.6f, x, ground + q * (0.9f + 1.2f * rnd()), lw, a(sh[3], 0x22));
+        }
     }
 
     /** Petit carré plié en deux triangles (diagonale = pli). */

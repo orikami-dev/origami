@@ -1,6 +1,6 @@
 package com.hideo.foldplay;
 import android.graphics.Color;
-final class Theme { static String THEME_ID="codec"; static int CODEC=0xFF4CFFA0; static final int CODEC0=0xFF4CFFA0, PANEL0=0xFF181A21, STEEL0=0xFF3A3F4B; static int LOGO=0; static boolean PAD_OWN;
+final class Theme { static String THEME_ID="codec"; static int CODEC=0xFF4CFFA0; static final int CODEC0=0xFF4CFFA0, PANEL0=0xFF181A21, STEEL0=0xFF3A3F4B; static int LOGO=0; static boolean ANIMATE=false; static boolean PAD_OWN;
  static final String[] THEMES={"codec","arctique","ecarlate","sakura","ambre"};
  static final int[] FOLDS={0xFFFFD23F,0xFFEAF9FF,0xFFFFB347,0xFFFFF0F7,0xFFFF7A2E};
  static final int[][] PAL={{0xFF0E0F13,0xFF181A21,0,0xFF4CFFA0},{0xFF0B1016,0xFF141C26,0,0xFF5CD6FF},{0xFF120C0D,0xFF1E1416,0,0xFFFF5A4E},{0xFF120E12,0xFF1E171E,0,0xFFFF8AC8},{0xFF110F0A,0xFF1D1A12,0,0xFFFFC14D}};

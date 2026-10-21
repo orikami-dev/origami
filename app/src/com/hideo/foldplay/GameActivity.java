@@ -1148,34 +1148,17 @@ public class GameActivity extends Activity {
                 })
                 .sub("Réglages de l'émulateur", CoreCatalog.name(core) + " · affichage, image, performances, son…",
                         new Runnable() { public void run() { showCoreOptions(); } })
+                .sub("Affichage", "ATH, format d'image, Lumen", new Runnable() {
+                    public void run() { showAffichage(); }
+                })
                 .sub("Options contrôleur", "Manette tactile et manettes physiques", new Runnable() {
                     public void run() { showControllerOptions(); }
-                })
-                .subIf(store.pills(), "Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu", new Runnable() {
-                    public void run() {
-                        EngineMenus.andon(GameActivity.this, stage, store, new Runnable() {
-                            public void run() { showOptions(); }
-                        }, new Runnable() {
-                            public void run() {
-                                if (andon != null) andon.refresh();
-                                stage.setBackground(stageBg(screenMode == 0 ? dp(28) : 0));
-                            }
-                        });
-                    }
                 })
                 .sub("Sauvegardes", "Importer ou exporter, vers une autre app ou un dossier", new Runnable() {
                     public void run() { showSaves(); }
                 })
                 .sub("Codes de triche", null, new Runnable() { public void run() { showCheats(); } })
-                .check("ATH de monitoring", "Images/s, processeur, batterie… (réglages dans Affichage)", store.hud(),
-                        new Runnable() {
-                            public void run() {
-                                store.setHud(!store.hud());
-                                applyHud();
-                                showOptions2();
-                            }
-                        })
-                .item("Redémarrer le jeu", null, new Runnable() {
+                .item("Redémarrer le jeu", "Relance le jeu depuis le début", new Runnable() {
                     public void run() { jobs.add(new Runnable() { public void run() { Libretro.nativeReset(); } }); }
                 })
                 .item("Quitter", "Revient à l'accueil ; la sauvegarde du jeu est enregistrée", new Runnable() {
@@ -1307,11 +1290,50 @@ public class GameActivity extends Activity {
         return key;
     }
 
-    private void showDisplay() {
-        String mode = store.displayMode(system);
-        CodecMenu m = codec("Format d'affichage", system.toUpperCase()).onBack(new Runnable() {
-            public void run() { showCoreOptions(); }
+    /** Sous-menu Affichage : ATH, format d'image et Lumen (BOSS : un seul endroit pour tout ce qui touche à l'image). */
+    private void showAffichage() {
+        CodecMenu m = codec("Affichage", title).onBack(new Runnable() { public void run() { showOptions2(); } });
+        m.check("ATH", "Images/s, processeur, batterie…", store.hud(), new Runnable() {
+            public void run() {
+                store.setHud(!store.hud());
+                applyHud();
+                showAffichage2();
+            }
         });
+        m.sub("Format d'image", displayLabel(store.displayMode(system)) + (smooth ? " · lissé" : " · pixels nets"),
+                new Runnable() {
+                    public void run() {
+                        showDisplay(new Runnable() { public void run() { showAffichage2(); } });
+                    }
+                });
+        m.subIf(store.pills(), "Lumen", EngineMenus.andonLabel(store) + " · lumière autour du jeu", new Runnable() {
+            public void run() {
+                EngineMenus.andon(GameActivity.this, stage, store, new Runnable() {
+                    public void run() { showAffichage2(); }
+                }, new Runnable() {
+                    public void run() {
+                        if (andon != null) andon.refresh();
+                        stage.setBackground(stageBg(screenMode == 0 ? dp(28) : 0));
+                    }
+                });
+            }
+        });
+        m.show(stage);
+    }
+
+    private void showAffichage2() {
+        CodecMenu cur = CodecMenu.find(stage);
+        if (cur != null) stage.removeView(cur);
+        showAffichage();
+    }
+
+    private void showDisplay() {
+        showDisplay(new Runnable() { public void run() { showCoreOptions(); } });
+    }
+
+    private void showDisplay(final Runnable back) {
+        String mode = store.displayMode(system);
+        CodecMenu m = codec("Format d'affichage", system.toUpperCase()).onBack(back);
         for (int i = 0; i < DISPLAY_KEYS.length; i++) {
             final String key = DISPLAY_KEYS[i];
             m.radio(DISPLAY_LABELS[i], DISPLAY_DETAILS[i], key.equals(mode), new Runnable() {
@@ -1326,7 +1348,7 @@ public class GameActivity extends Activity {
                 smooth = !smooth;
                 store.setSmooth(system, smooth);
                 applyDisplay();
-                showDisplay();
+                showDisplay(back);
             }
         });
         m.show(stage);

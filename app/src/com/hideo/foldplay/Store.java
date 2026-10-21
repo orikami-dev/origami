@@ -288,18 +288,32 @@ final class Store {
         return uri != null ? uri : String.valueOf(path);
     }
 
-    /** Profil d'émulation par défaut : performance, balanced ou quality. */
+    /**
+     * Profil d'émulation par défaut : performance pour les consoles récentes (SystemInfo.isModern),
+     * balanced pour les anciennes. Ce réglage global ne s'applique qu'aux anciennes ; chaque
+     * console récente démarre en performance (voir defaultProfile(system)).
+     */
     String defaultProfile() {
-        return prefs.getString("profile_default", "balanced");
+        return CoreProfiles.normalize(prefs.getString("profile_default", "balanced"));
+    }
+
+    /** Profil par défaut d'une console : Performance dès la PS3 (décision de BOSS), sinon le réglage global. */
+    String defaultProfile(String system) {
+        return SystemInfo.isModern(system) ? "performance" : defaultProfile();
     }
 
     void setDefaultProfile(String id) {
         prefs.edit().putString("profile_default", id).apply();
     }
 
-    /** Profil choisi pour un jeu (sinon celui par défaut). */
+    /** Profil choisi pour un jeu (sinon celui par défaut) ; un ancien « quality » devient « balanced ». */
     String gameProfile(String game) {
-        return prefs.getString("gprof_" + game, defaultProfile());
+        return CoreProfiles.normalize(prefs.getString("gprof_" + game, defaultProfile()));
+    }
+
+    /** Idem avec la console du jeu : sans choix propre, une console récente démarre en Performance. */
+    String gameProfile(String game, String system) {
+        return CoreProfiles.normalize(prefs.getString("gprof_" + game, defaultProfile(system)));
     }
 
     void setGameProfile(String game, String id) {

@@ -184,6 +184,12 @@
             android:exported="false"
             android:process=":x360"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode" />
+        <!-- Passerelle noire du « Redémarrer le jeu » des moteurs PS3 / 360 (processus principal). -->
+        <activity
+            android:name=".RelaunchActivity"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
         <activity
             android:name=".LayoutEditorActivity"
             android:exported="false"

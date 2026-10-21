@@ -46,10 +46,41 @@ final class EngineMenus {
         m.show(stage);
     }
 
-    /** Andon : lumière d'ambiance autour de l'écran du jeu, plusieurs modes. */
+    /**
+     * Sous-menu Affichage des moteurs PS3 / 360 : ATH, format d'image et Lumen (grisé sans les pastilles).
+     * Chaque sous-menu revient ici ; « back » ramène au menu Home.
+     */
+    static void display(final Activity a, final FrameLayout stage, final Store store, final String system,
+                        final String sub, final Runnable back, final Runnable applyHud,
+                        final Runnable applyFormat, final Runnable applyLumen) {
+        final Runnable self = new Runnable() {
+            public void run() {
+                CodecMenu old = CodecMenu.find(stage);
+                if (old != null) old.dismiss();
+                display(a, stage, store, system, sub, back, applyHud, applyFormat, applyLumen);
+            }
+        };
+        new CodecMenu(a).title("Affichage", sub).onBack(back)
+                .check("ATH", "Images/s, processeur, batterie…", store.hud(), new Runnable() {
+                    public void run() {
+                        store.setHud(!store.hud());
+                        applyHud.run();
+                    }
+                })
+                .sub("Format d'image", ScreenFormat.label(store.displayMode(system))
+                        + (store.formatLocked() ? " · verrouillé" : ""), new Runnable() {
+                    public void run() { format(a, stage, store, system, self, applyFormat); }
+                })
+                .subIf(store.pills(), "Lumen", andonLabel(store) + " · lumière autour du jeu", new Runnable() {
+                    public void run() { andon(a, stage, store, self, applyLumen); }
+                })
+                .show(stage);
+    }
+
+    /** Lumen (classe Andon) : lumière d'ambiance autour de l'écran du jeu, plusieurs modes. */
     static void andon(final Activity a, final FrameLayout stage, final Store store, final Runnable back,
                       final Runnable apply) {
-        CodecMenu m = new CodecMenu(a).title("Andon", "LUMIÈRE AUTOUR DU JEU").onBack(back);
+        CodecMenu m = new CodecMenu(a).title("Lumen", "LUMIÈRE AUTOUR DU JEU").onBack(back);
         String cur = store.glowMode();
         for (int i = 0; i < Andon.KEYS.length; i++) {
             final String k = Andon.KEYS[i];

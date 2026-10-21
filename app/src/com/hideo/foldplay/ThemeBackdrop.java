@@ -19,7 +19,7 @@ import android.graphics.drawable.Drawable;
  * - Arctique : glaciers, aurore et cristaux facettés, pliés comme la grue (Facets) ;
  * - Écarlate : flammes, escarbilles et chevrons d'alerte pliés (Facets) ;
  * - Sakura : mont, branche et fleurs de cerisier en papier plié (Facets) ;
- * - Ambre : vieux terminal (halo chaud, lignes, vignette) et décor plié (Facets.ambre) ;
+ * - Ambre : ville Art déco la nuit (gratte-ciel à gradins, liserés d'or, éventail ; ancien terminal gardé, AMBRE_VILLE) ;
  * - Couleurs de la manette : le radar plié à la teinte de la manette.
  */
 final class ThemeBackdrop extends Drawable {
@@ -124,7 +124,10 @@ final class ThemeBackdrop extends Drawable {
         if (id.equals("arctique")) BackdropMotion.snow(c, w, h, u, accent, t);
         else if (id.equals("ecarlate")) BackdropMotion.embers(c, w, h, u, accent, t);
         else if (id.equals("sakura")) BackdropMotion.petals(c, w, h, u, accent, t);
-        else if (id.equals("ambre")) BackdropMotion.terminal(c, w, h, u, accent, t);
+        else if (id.equals("ambre")) {
+            if (AMBRE_VILLE) BackdropMotion.ville(c, w, h, u, accent, t);
+            else BackdropMotion.terminal(c, w, h, u, accent, t);
+        }
         else BackdropMotion.radar(c, w, h, u, accent, t);
         c.restore();
         if (isVisible()) scheduleSelf(tick, android.os.SystemClock.uptimeMillis() + 33);
@@ -150,7 +153,10 @@ final class ThemeBackdrop extends Drawable {
         if (id.equals("arctique")) ice(c, w, h, u);
         else if (id.equals("ecarlate")) ember(c, w, h, u);
         else if (id.equals("sakura")) sakura(c, w, h, u);
-        else if (id.equals("ambre")) terminal(c, w, h, u);
+        else if (id.equals("ambre")) {
+            if (AMBRE_VILLE) ville(c, w, h, u);
+            else terminal(c, w, h, u);
+        }
         else radar(c, w, h, u);
         p.setShader(null);
         c.restore();
@@ -187,6 +193,26 @@ final class ThemeBackdrop extends Drawable {
         c.drawRect(0, 0, w, h, p);
         p.setShader(null);
         Facets.sakura(c, w, h, accent, fold, 1f, u / 1000f);
+    }
+
+    /** Fond d'Ambre : ville Art déco la nuit (BOSS) ; false rend l'ancien vieux terminal au soleil. */
+    static final boolean AMBRE_VILLE = true;
+
+    private void ville(Canvas c, float w, float h, float u) {
+        // Ciel : haut presque noir, puis brume ambrée qui monte de l'horizon, plus forte côté tours (droite).
+        p.setShader(new LinearGradient(0, 0, 0, h * 0.6f, 0xCC030201, 0x00030201, Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h * 0.6f, p);
+        p.setShader(new LinearGradient(0, h * 0.5f, 0, h * 0.9f, a(accent, 0), a(accent, 0x34), Shader.TileMode.CLAMP));
+        c.drawRect(0, h * 0.5f, w, h * 0.9f, p);
+        p.setShader(new RadialGradient(w * 0.84f, h * 0.9f, u * 0.55f, a(accent, 0x46), a(accent, 0), Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+        Facets.ambre(c, w, h, accent, fold, 1f, Facets.AMBRE_FOND);
+        // Vignette douce : les bords se ferment, le centre reste lisible.
+        p.setShader(new RadialGradient(w * 0.5f, h * 0.5f, u * 0.8f, new int[] {0, 0, 0x70000000},
+                new float[] {0f, 0.6f, 1f}, Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
     }
 
     private void terminal(Canvas c, float w, float h, float u) {

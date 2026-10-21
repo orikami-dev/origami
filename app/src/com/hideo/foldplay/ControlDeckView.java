@@ -70,7 +70,7 @@ final class ControlDeckView extends ViewGroup {
         gridMajor.setStrokeWidth(Math.max(1f, dp));
         setWillNotDraw(false);
         // Une « pilule » aux coins arrondis, qui découpe aussi l'image de fond.
-        if (!andonOff()) setBackground(Theme.pill(Theme.PANEL, Theme.pillR(ctx, 28 * dp)));
+        setBackground(Theme.pill(Theme.PANEL, Theme.pillR(ctx, 28 * dp)));
         setClipToOutline(true);
     }
 
@@ -358,19 +358,7 @@ final class ControlDeckView extends ViewGroup {
     private boolean bare() {
         if (editing) return false;
         android.content.res.Configuration c = getResources().getConfiguration();
-        return overlay || c.screenWidthDp > c.screenHeightDp || andonOff();
-    }
-
-    private Store ownStore;
-
-    /** Andon éteint (ou Pastilles coupées, qui l'éteint) : aucun fond de couleur, seulement les touches (BOSS). */
-    private boolean andonOff() {
-        Store s = source;
-        if (s == null) {
-            if (ownStore == null) ownStore = new Store(getContext());
-            s = ownStore;
-        }
-        return !s.pills() || "off".equals(s.glowMode());
+        return overlay || c.screenWidthDp > c.screenHeightDp;
     }
 
     /** Écran large, manette superposée : disposition en colonnes contre les bords. */

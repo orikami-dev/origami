@@ -7,7 +7,7 @@ import android.widget.FrameLayout;
 
 /**
  * Profils et réglages des moteurs à activité propre (PS3 : ARMSX3, Xbox 360 : Xenia), même modèle
- * que les cœurs libretro : un profil Performance / Équilibré / Qualité donne toutes les valeurs, et
+ * que les cœurs libretro : un profil Performance / Équilibré donne toutes les valeurs, et
  * chaque réglage peut ensuite être changé à la main dans le menu Home.
  */
 final class EngineSettings {
@@ -63,13 +63,8 @@ final class EngineSettings {
             {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "0"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "false"}, {"vsync", "true"}},
-            // balanced
+            // balanced : Qualité supprimée (×2 trop lourd) ; on garde ×1 avec filtrage anisotrope ×8, peu coûteux.
             {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
-                    {"anisotropic_override", "-1"}, {"gpu_allow_invalid_fetch_constants", "true"},
-                    {"async_shader_compilation", "false"}, {"vsync", "true"}},
-            // quality
-            // Qualité : ×8 (et non ×16) pour ménager la bande passante mémoire de l'Adreno.
-            {{"draw_resolution_scale", "2"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "8"}, {"gpu_allow_invalid_fetch_constants", "true"},
                     {"async_shader_compilation", "false"}, {"vsync", "true"}},
     };
@@ -99,20 +94,16 @@ final class EngineSettings {
             new Opt("Video@@Strict Rendering Mode", "Rendu strict", "Plus fidèle, plus lent.", "bool", BOOL, YESNO),
     };
 
-    // Définition (0.65.1) : le moteur accepte 25 à 800 %. Sur le Fold 8 les jeux lourds sont limités
-    // par le processeur, monter la définition chauffe sans gagner d'images : 75 % (≈ 540p, agrandi par
-    // SGSR) en Performance, 100 % en Équilibré, 150 % (1080p, proche de l'écran intérieur) en Qualité.
+    // Définition : le moteur accepte 25 à 800 %. Sur le Fold 8 les jeux lourds sont limités par le
+    // processeur, monter la définition chauffe sans gagner d'images : 75 % (≈ 540p, agrandi par SGSR)
+    // en Performance, 100 % avec FSR et anisotrope ×8 en Équilibré (Qualité supprimée par BOSS).
     private static final String[][][] PS3_PROFILES = {
             {{"Video@@Resolution Scale", "75"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "0"}, {"Video@@Output Scaling Mode", "Snapdragon Game Super Resolution"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
             {{"Video@@Resolution Scale", "100"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
-                    {"Video@@Anisotropic Filter Override", "4"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution"},
-                    {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
-                    {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
-            {{"Video@@Resolution Scale", "150"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
-                    {"Video@@Anisotropic Filter Override", "16"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution"},
+                    {"Video@@Anisotropic Filter Override", "8"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
     };
@@ -126,7 +117,9 @@ final class EngineSettings {
     }
 
     static String profile(Context ctx, String engine) {
-        return prefs(ctx, engine).getString("profile", new Store(ctx).defaultProfile());
+        // Les moteurs PS3 / 360 sont des consoles récentes : Performance par défaut (Store.defaultProfile(système)).
+        // Un ancien profil « quality » enregistré devient « balanced ».
+        return CoreProfiles.normalize(prefs(ctx, engine).getString("profile", new Store(ctx).defaultProfile(engine)));
     }
 
     static String profileName(Context ctx, String engine) {
@@ -240,23 +233,23 @@ final class EngineSettings {
         // textures asynchrone est rangé sous Video@@Vulkan.
         int prof = CoreProfiles.base(profile(ctx, PS3));
         String[][] cpu = {
-                {"Core@@SPU Block Size", new String[] {"Mega", "Mega", "Safe"}[prof]},
-                {"Core@@SPU XFloat Accuracy", new String[] {"Relaxed", "Approximate", "Approximate"}[prof]},
-                {"Core@@Max SPURS Threads", new String[] {"4", "6", "6"}[prof]},
-                {"Core@@Preferred SPU Threads", new String[] {"0", "0", "0"}[prof]},
+                {"Core@@SPU Block Size", "Mega"},
+                {"Core@@SPU XFloat Accuracy", new String[] {"Relaxed", "Approximate"}[prof]},
+                {"Core@@Max SPURS Threads", new String[] {"4", "6"}[prof]},
+                {"Core@@Preferred SPU Threads", "0"},
                 {"Video@@Shader Compiler Threads", "6"},
-                {"Video@@Relaxed ZCULL Sync", new String[] {"true", "true", "false"}[prof]},
+                {"Video@@Relaxed ZCULL Sync", "true"},
                 {"Video@@Vulkan@@Asynchronous Texture Streaming", "true"},
                 // 0.66 (nœuds relus dans libarmsx3-core.so, valeurs par défaut du moteur dans system_config.h) :
                 // la détection des boucles d'attente SPU rend la main au lieu de tourner à vide (désactivée
                 // par défaut), ce qui libère des cœurs pour la physique des destructions ; caches SPU et
                 // précompilation LLVM forcés au cas où un ancien fichier de configuration les aurait coupés,
                 // pour que le code des effets déjà vus ne soit plus recompilé en pleine partie ; envoi des
-                // commandes GPU en mode rapide sauf en Qualité.
+                // commandes GPU en mode rapide.
                 {"Core@@SPU loop detection", "true"},
                 {"Core@@SPU Cache", "true"},
                 {"Core@@LLVM Precompilation", "true"},
-                {"Video@@Vulkan@@Asynchronous Queue Scheduler", new String[] {"Fast", "Fast", "Safe"}[prof]},
+                {"Video@@Vulkan@@Asynchronous Queue Scheduler", "Fast"},
         };
         for (String[] kv : cpu) {
             try {

@@ -189,7 +189,7 @@ final class CodecMenu extends FrameLayout {
         return this;
     }
 
-    /** Comme sub, mais grisée et fermée quand elle ne sert à rien (ex. Andon sans pastilles). */
+    /** Comme sub, mais grisée et fermée quand elle ne sert à rien (ex. Lumen sans pastilles). */
     CodecMenu subIf(boolean enabled, String label, String detail, Runnable action) {
         if (enabled) return sub(label, detail, action);
         Item it = new Item(label, "Sans effet sans les pastilles", 0, null, true);

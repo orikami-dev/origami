@@ -74,11 +74,7 @@ final class RemoteEmblem {
             c.drawArc(R, 220, 100, false, LINE);
         }
         LINE.setAlpha(255);
-        TEXT.setColor(col[2]);
-        TEXT.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        TEXT.setTextAlign(Paint.Align.CENTER);
-        TEXT.setTextSize(side * 0.2f);
-        c.drawText(letter(id), cx, wy - side * 0.02f, TEXT);
+        // Lettre de la plateforme retirée (BOSS, 0.66.5) : l'emblème seul.
         // Fin liseré clair pour s'accorder aux autres tuiles.
         LINE.setStrokeWidth(Math.max(1f, side * 0.015f));
         LINE.setColor(Color.argb(90, 255, 255, 255));

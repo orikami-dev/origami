@@ -667,21 +667,17 @@ public class Ps3Activity extends Activity {
                         Ps3Core.nativeHomeMenu();
                     }
                 })
-                .subIf(store.pills(), "Andon", EngineMenus.andonLabel(store) + " · lumière autour du jeu", new Runnable() {
+                .sub("Affichage", "ATH, format d'image, Lumen", new Runnable() {
                     public void run() {
-                        EngineMenus.andon(Ps3Activity.this, stage, store, backHome(), new Runnable() {
-                            public void run() { if (andon != null) andon.refresh(); }
-                        });
-                    }
-                })
-                .sub("Format d'image", ScreenFormat.label(store.displayMode("ps3"))
-                        + (store.formatLocked() ? " · verrouillé" : ""), new Runnable() {
-                    public void run() {
-                        EngineMenus.format(Ps3Activity.this, stage, store, "ps3", backHome(), new Runnable() {
+                        EngineMenus.display(Ps3Activity.this, stage, store, "ps3", "PLAYSTATION 3", backHome(), new Runnable() {
+                            public void run() { if (hud != null) hud.apply(); }
+                        }, new Runnable() {
                             public void run() {
                                 applyFormat();
                                 if (deck != null) deck.refreshKeys();
                             }
+                        }, new Runnable() {
+                            public void run() { if (andon != null) andon.refresh(); }
                         });
                     }
                 })
@@ -697,13 +693,7 @@ public class Ps3Activity extends Activity {
                         EngineSettings.menu(Ps3Activity.this, stage, EngineSettings.PS3, "PLAYSTATION 3", backHome());
                     }
                 })
-                .check("ATH", "Images/s, processeur, batterie…", store.hud(), new Runnable() {
-                    public void run() {
-                        store.setHud(!store.hud());
-                        if (hud != null) hud.apply();
-                    }
-                })
-                .item("Redémarrer la console", "Relance le jeu depuis le début", new Runnable() {
+                .item("Redémarrer le jeu", "Relance le jeu depuis le début", new Runnable() {
                     public void run() { restart(); }
                 })
                 .item("Quitter le jeu", null, new Runnable() {
@@ -786,12 +776,9 @@ public class Ps3Activity extends Activity {
      * (autre processus) reçoit l'intention et rouvre le jeu une fois le moteur arrêté.
      */
     private void restart() {
-        android.content.Intent again = new android.content.Intent(getIntent());
-        startActivity(new android.content.Intent(this, MainActivity.class)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                        | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                .putExtra(MainActivity.EXTRA_RESTART, again));
+        // Passerelle noire dans le processus principal : elle relance le jeu une fois ce processus mort,
+        // sans repasser par l'accueil (l'ancien EXTRA_RESTART n'est plus utilisé ici).
+        RelaunchActivity.from(this);
         quit();
     }
 
