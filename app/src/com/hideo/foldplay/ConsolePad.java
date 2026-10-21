@@ -288,7 +288,7 @@ final class ConsolePad {
 
     // Mêmes tailles que PadDesign (cases de 16 dp).
     private static final float M = 1.25f, G = 0.5f, STICK = 8f, DPAD = 8.5f, LEVER = 9f, FACE = 3.6f;
-    private static final float SH_W = 5.75f, SH_H = 2.5f, PILL_W = 4f, PILL_H = 1.75f, HOME = 3.5f;
+    private static final float SH_W = 5.75f, SH_H = 2.5f, PILL_W = 4f, PILL_H = 1.75f, HOME = 4.75f;
     /** Format et Accélérer : petites icônes rondes calées dans les coins du haut (0.62.3). */
     static final float ICON = 2.6f, CORNER = 0.8f;
 

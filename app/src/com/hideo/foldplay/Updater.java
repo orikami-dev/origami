@@ -31,7 +31,11 @@ final class Updater {
     /** Préversions : la branche « preview » du dépôt contient preview.json et l'APK de test le plus récent (poussés d'ici, sans release). */
     static final String PREVIEW_RAW = "https://raw.githubusercontent.com/orikami-dev/origami/preview/";
     private static final String CHANNEL = "updates";
-    private static final long AUTO_EVERY_MS = 12L * 3600 * 1000;
+    private static final long AUTO_EVERY_MS = 6L * 3600 * 1000;
+    private static final long POSTPONE_MS = 24L * 3600 * 1000;
+    /** Une seule fenêtre « mise à jour disponible » par session, et jamais deux recherches à la fois. */
+    static boolean popupShown;
+    private static boolean checking;
 
     /** Résultat d'une recherche. error non nul : rien n'a pu être lu (dépôt privé, hors ligne…). */
     static final class Release {
@@ -178,18 +182,51 @@ final class Updater {
         return b.toString();
     }
 
-    /** Au démarrage : une recherche toutes les 12 h au plus, et une notification par nouvelle version. */
-    static void autoCheck(final Context ctx) {
+    /**
+     * À l'ouverture de l'accueil : une recherche toutes les 6 h au plus (canal choisi dans les réglages),
+     * une notification par nouvelle version et, si onNewer est fourni, la fenêtre « Mise à jour disponible »
+     * (sauf si cette version a été repoussée il y a moins de 24 h ou si la fenêtre a déjà paru).
+     */
+    static void autoCheck(final Context ctx, final Done onNewer) {
         final Store store = new Store(ctx);
-        if (!store.autoUpdates() || System.currentTimeMillis() - store.lastUpdateCheck() < (store.previewUpdates() ? 15L * 60 * 1000 : AUTO_EVERY_MS)) return;
+        if (!store.autoUpdates()) return;
+        // Mise à jour déjà trouvée par une recherche récente : la fenêtre peut reparaître sans réseau.
+        String[] f = store.foundUpdate();
+        if (f != null) {
+            if (compare(f[0], installed(ctx)) <= 0) {
+                store.setFoundUpdate(null, null, null, null);
+            } else if (onNewer != null && !popupShown && !isPostponed(store, f[0])) {
+                Release r = new Release();
+                r.version = f[0];
+                r.apkUrl = f[1].isEmpty() ? null : f[1];
+                r.pageUrl = f[2].isEmpty() ? null : f[2];
+                r.summary = f[3];
+                r.newer = true;
+                onNewer.done(r);
+            }
+        }
+        if (checking || System.currentTimeMillis() - store.lastUpdateCheck() < AUTO_EVERY_MS) return;
+        checking = true;
         check(ctx, new Done() {
             public void done(Release r) {
-                if (r.error == null && r.newer && !r.version.equals(store.notifiedUpdate())) {
+                checking = false;
+                if (r.error != null) return;
+                if (!r.newer) {
+                    store.setFoundUpdate(null, null, null, null);
+                    return;
+                }
+                store.setFoundUpdate(r.version, r.apkUrl, r.pageUrl, r.summary);
+                if (!r.version.equals(store.notifiedUpdate())) {
                     store.setNotifiedUpdate(r.version);
                     Updater.notify(ctx, r);
                 }
+                if (onNewer != null && !popupShown && !isPostponed(store, r.version)) onNewer.done(r);
             }
         });
+    }
+
+    private static boolean isPostponed(Store store, String version) {
+        return version.equals(store.postponedUpdate()) && System.currentTimeMillis() - store.postponedUpdateAt() < POSTPONE_MS;
     }
 
     static void notify(Context ctx, Release r) {

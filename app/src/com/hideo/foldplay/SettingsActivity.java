@@ -973,10 +973,11 @@ public class SettingsActivity extends Activity {
                         store.setPills(on);
                     }
                 });
-        toggle("Mode Tsuru par défaut", "Écran interne ; sinon Washi. "
-                + "L'écran externe ouvre toujours Washi", store.flexView(), new Toggle() {
+        // 0.66.4 (BOSS) : l'accueil part en Washi par défaut, l'option se lit donc dans ce sens.
+        toggle("Mode Washi par défaut", "Écran interne ; sinon Tsuru. "
+                + "L'écran externe ouvre toujours Washi", !store.flexView(), new Toggle() {
             public void set(boolean on) {
-                store.setFlexView(on);
+                store.setFlexView(!on);
             }
         });
         toggle("Mode Tsuru à l'ouverture", "Déplier le pliant dans Origami passe en mode jeu",
@@ -1133,7 +1134,7 @@ public class SettingsActivity extends Activity {
     private void updates() {
         header("Version installée");
         note("Origami " + Updater.installed(this));
-        toggle("Rechercher automatiquement", "Vérifie au démarrage et prévient par une notification",
+        toggle("Vérifier automatiquement", "Vérifie toutes les 6 h à l'ouverture de l'accueil, puis prévient par une notification et une fenêtre",
                 store.autoUpdates(), new Toggle() {
                     public void set(boolean on) {
                         store.setAutoUpdates(on);

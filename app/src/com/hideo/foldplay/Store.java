@@ -45,9 +45,9 @@ final class Store {
         prefs.edit().putString("tree", uri).apply();
     }
 
-    /** Vue Flex partout (par défaut), ou vue liste/grille selon l'écran. */
+    /** Vue Flex (Tsuru) partout, ou Washi (par défaut depuis la 0.66.4) selon l'écran. */
     boolean flexView() {
-        return prefs.getBoolean("flex_view", true);
+        return prefs.getBoolean("flex_view", false);
     }
 
     void setFlexView(boolean on) {
@@ -81,6 +81,22 @@ final class Store {
             for (ControlLayout l : out) l.ensureAspect();
             saveLayouts(out);
             prefs.edit().putBoolean("layouts_v0610", true).apply();
+        }
+        if (!prefs.getBoolean("layouts_homebig", false)) {
+            // Maison agrandie de 35 % sur les manettes retouchées (les fournies sont placées par PadDesign).
+            for (ControlLayout l : out) {
+                if (l.stock) continue;
+                for (ControlLayout.Control c : l.controls) {
+                    if (!c.type.equals("HOME")) continue;
+                    int nw = Math.round(c.w * 1.35f), nh = Math.round(c.h * 1.35f);
+                    if (l.refCols > 0) c.x = Math.max(0f, c.x - (nw - c.w) / 2f / l.refCols);
+                    if (l.refRows > 0) c.y = Math.max(0f, c.y - (nh - c.h) / 2f / l.refRows);
+                    c.w = nw;
+                    c.h = nh;
+                }
+            }
+            saveLayouts(out);
+            prefs.edit().putBoolean("layouts_homebig", true).apply();
         }
         return out;
     }
@@ -628,6 +644,32 @@ final class Store {
 
     void setNotifiedUpdate(String v) {
         prefs.edit().putString("upd_notified", v).apply();
+    }
+
+    /** Version dont la fenêtre « Installer ultérieurement » a été choisie, et quand (redemande après 24 h). */
+    String postponedUpdate() {
+        return prefs.getString("upd_postponed", "");
+    }
+
+    long postponedUpdateAt() {
+        return prefs.getLong("upd_postponed_at", 0);
+    }
+
+    void postponeUpdate(String version) {
+        prefs.edit().putString("upd_postponed", version).putLong("upd_postponed_at", System.currentTimeMillis()).apply();
+    }
+
+    /** Dernière mise à jour trouvée {version, apk, page, notes}, gardée pour la fenêtre des reprises suivantes ; null si aucune. */
+    String[] foundUpdate() {
+        String v = prefs.getString("upd_found", "");
+        if (v.isEmpty()) return null;
+        return new String[] {v, prefs.getString("upd_found_apk", ""), prefs.getString("upd_found_page", ""),
+                prefs.getString("upd_found_notes", "")};
+    }
+
+    void setFoundUpdate(String v, String apk, String page, String notes) {
+        prefs.edit().putString("upd_found", v == null ? "" : v).putString("upd_found_apk", apk == null ? "" : apk)
+                .putString("upd_found_page", page == null ? "" : page).putString("upd_found_notes", notes == null ? "" : notes).apply();
     }
 
     boolean setupAdvanced() {

@@ -247,7 +247,7 @@ final class ControlLayout {
         l.refCols = c;
         l.refRows = r;
         l.add("L", 1, 1, 5, 2, c, r);
-        l.add("HOME", 8, 1, 4, 4, c, r);
+        l.add("HOME", 7, 1, 6, 6, c, r); // Maison agrandie (x1,35 ou presque), BOSS
         l.add("R", 14, 1, 5, 2, c, r);
         l.add("DPAD", 1, 8, 8, 8, c, r);
         l.add("Y", 13, 7, 3, 3, c, r);

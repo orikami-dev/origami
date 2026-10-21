@@ -2,6 +2,13 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.4
+
+- Mises à jour : vérification automatique toutes les 6 heures, avec une fenêtre codec « Installer » ou « Installer ultérieurement » (redemande après 24 heures) et une barre de téléchargement aux couleurs du thème.
+- Bouton Home agrandi sur toutes les manettes.
+- Andon éteint : plus de fond coloré derrière les manettes, seules les touches restent.
+- Réglages : l'option devient « Mode Washi par défaut », et l'accueil s'ouvre en Washi par défaut.
+
 ## 0.66.3
 
 - Assistant de démarrage : plus de fond visible derrière la barre de notifications et la barre de navigation.

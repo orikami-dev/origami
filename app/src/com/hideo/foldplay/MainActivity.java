@@ -139,7 +139,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         store = new Store(this);
         if (!store.setupDone()) startActivity(new Intent(this, SetupActivity.class));
         Updater.cleanup(this);
-        Updater.autoCheck(this);
         if (Libretro.available()) store.adoptBuiltinOnce();
         launcher = new Launcher(this, store);
         covers = new CoverLoader(getContentResolver(), getPackageManager());
@@ -168,6 +167,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     protected void onResume() {
         super.onResume();
         resumed = true;
+        // Mise à jour : recherche automatique (6 h au plus), fenêtre codec seulement sur l'accueil.
+        Updater.autoCheck(this, new Updater.Done() {
+            public void done(Updater.Release r) { updatePopup(r); }
+        });
         Theme.orientation(this);
         UiSound.musicStart(this);
         // Couleurs de la manette changées dans l'éditeur : l'interface suit.
@@ -339,6 +342,49 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         } else {
             launcher.launch(g);
         }
+    }
+
+    /** Fenêtre codec « Mise à jour disponible » : Installer (téléchargement avec progression) ou plus tard (24 h). */
+    private void updatePopup(final Updater.Release r) {
+        if (!resumed || isFinishing() || isDestroyed() || Updater.popupShown) return;
+        if (CodecMenu.find(menuHost()) != null) return;
+        Updater.popupShown = true;
+        String msg = "Origami " + r.version + " " + I18n.tr("est prête à être téléchargée.");
+        if (r.summary != null && !r.summary.isEmpty()) msg += "\n\n" + r.summary;
+        final CodecMenu m = new CodecMenu(this).title("Mise à jour disponible", "Origami " + r.version).message(msg);
+        m.item("Installer", null, new Runnable() {
+            public void run() { updateDownload(r); }
+        });
+        m.item("Installer ultérieurement", null, new Runnable() {
+            public void run() { store.postponeUpdate(r.version); }
+        });
+        m.onBack(new Runnable() {
+            public void run() {
+                store.postponeUpdate(r.version);
+                m.dismiss();
+            }
+        });
+        m.show(menuHost());
+    }
+
+    /** Téléchargement de la mise à jour, avec le pourcentage dans la même fenêtre codec. */
+    private void updateDownload(final Updater.Release r) {
+        final CodecMenu m = new CodecMenu(this).title("Mise à jour", "Origami " + r.version)
+                .message(I18n.tr("Téléchargement…") + " 0 %").progress(0);
+        m.item("Fermer", null, new Runnable() {
+            public void run() { }
+        });
+        m.show(menuHost());
+        Updater.install(this, r, new Updater.Progress() {
+            public void progress(int pct) {
+                m.progress(pct).updateMessage(I18n.tr("Téléchargement…") + " " + pct + " %");
+            }
+
+            public void done(boolean ok) {
+                UiSound.play(MainActivity.this, ok ? UiSound.DONE : UiSound.ERROR);
+                m.updateMessage(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android" : "Échec du téléchargement"));
+            }
+        });
     }
 
     @Override

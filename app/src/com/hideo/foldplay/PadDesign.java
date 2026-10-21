@@ -32,7 +32,7 @@ final class PadDesign {
     private static final float SH_H = 2.5f;
     private static final float PILL_W = 4f;      // Select, Start… (64 × 28 dp)
     private static final float PILL_H = 1.75f;
-    private static final float HOME = 3.5f;      // Home (56 dp)
+    private static final float HOME = 4.75f;     // Home (76 dp, 1,35 × l'ancien 56 dp)
 
     private PadDesign() {
     }

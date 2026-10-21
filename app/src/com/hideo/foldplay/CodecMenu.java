@@ -315,6 +315,16 @@ final class CodecMenu extends FrameLayout {
     }
 
     /** Change le paragraphe d'un menu déjà affiché (progression d'un téléchargement), sans le rouvrir. */
+    private int progressPct = -1;
+    private View progressView;
+
+    /** Barre de progression aux couleurs du thème sous le paragraphe (0 à 100) ; à appeler avant ou après show. */
+    CodecMenu progress(int pct) {
+        progressPct = Math.max(0, Math.min(100, pct));
+        if (progressView != null) progressView.setBackground(Theme.progressPill(progressPct / 100f, px(6)));
+        return this;
+    }
+
     void updateMessage(String m) {
         message = m;
         if (messageView != null) messageView.setText(m);
@@ -444,6 +454,14 @@ final class CodecMenu extends FrameLayout {
             msg.setLineSpacing(0, 1.15f);
             msg.setPadding(px(18), px(2), px(18), px(10));
             card.addView(msg);
+        }
+        progressView = null;
+        if (progressPct >= 0) {
+            progressView = new View(getContext());
+            progressView.setBackground(Theme.progressPill(progressPct / 100f, px(6)));
+            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(-1, px(12));
+            plp.setMargins(px(18), px(2), px(18), px(12));
+            card.addView(progressView, plp);
         }
 
         LinearLayout list = new LinearLayout(getContext());
