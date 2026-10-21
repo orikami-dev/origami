@@ -238,7 +238,8 @@ final class EngineSettings {
                 {"Core@@SPU XFloat Accuracy", new String[] {"Relaxed", "Approximate"}[prof]},
                 {"Core@@Max SPURS Threads", new String[] {"4", "6"}[prof]},
                 {"Core@@Preferred SPU Threads", "0"},
-                {"Video@@Shader Compiler Threads", "6"},
+                // 0.66.14 : 3 au lieu de 6, le pilote Adreno a planté deux fois dans vkCreateGraphicsPipelines au démarrage (journal du 21/10).
+                {"Video@@Shader Compiler Threads", "3"},
                 {"Video@@Relaxed ZCULL Sync", "true"},
                 {"Video@@Vulkan@@Asynchronous Texture Streaming", "true"},
                 // 0.66 (nœuds relus dans libarmsx3-core.so, valeurs par défaut du moteur dans system_config.h) :
