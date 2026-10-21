@@ -138,6 +138,7 @@ public class SettingsActivity extends Activity {
                     result.addView(text(I18n.tr(r.error), 14, Theme.MUTED));
                 } else if (!r.newer) {
                     result.addView(text(I18n.tr("Origami est à jour."), 14, Theme.TEXT));
+                    if (r.info != null) result.addView(text(r.info, 11, Theme.MUTED));
                 } else {
                     result.addView(text("Origami " + r.version, 18, Theme.CODEC));
                     if (r.summary != null && !r.summary.isEmpty()) result.addView(text(r.summary, 14, Theme.TEXT));

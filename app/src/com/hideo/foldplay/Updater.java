@@ -41,6 +41,7 @@ final class Updater {
     static final class Release {
         String version, summary, apkUrl, pageUrl, error;
         boolean newer;
+        String info;
     }
 
     interface Done {
@@ -85,11 +86,18 @@ final class Updater {
 
     private static Release fetch(Context ctx) {
         Release stable = fetchStable(ctx);
-        if (!new Store(ctx).previewUpdates()) return stable;
-        Release pre = fetchPreview(ctx);
-        if (pre.error != null) return stable;
-        if (stable.error != null || !stable.newer || compare(pre.version, stable.version) > 0) return pre;
-        return stable;
+        boolean wantPre = new Store(ctx).previewUpdates();
+        Release pre = wantPre ? fetchPreview(ctx) : null;
+        // Détail affiché sous « Origami est à jour » (0.66.20) : installée, stable, préversion, erreurs.
+        String info = "Installée " + installed(ctx) + " · stable " + (stable.error != null ? "erreur (" + stable.error + ")" : stable.version)
+                + " · préversion " + (pre == null ? "désactivée" : pre.error != null ? "erreur (" + pre.error + ")" : pre.version);
+        DebugLog.event("Mise à jour : " + info);
+        Release out;
+        if (pre == null || pre.error != null) out = stable;
+        else if (stable.error != null || !stable.newer || compare(pre.version, stable.version) > 0) out = pre;
+        else out = stable;
+        out.info = info;
+        return out;
     }
 
     private static Release fetchPreview(Context ctx) {
