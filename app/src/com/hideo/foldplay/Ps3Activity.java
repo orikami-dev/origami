@@ -428,6 +428,7 @@ public class Ps3Activity extends Activity {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+        if (ScreenCapture.onResult(this, request, result, data)) return;
         if (request != REQ_FIRMWARE) return;
         if (result != RESULT_OK || data == null || data.getData() == null) {
             if (getIntent().getBooleanExtra(EXTRA_FIRMWARE, false) || !Ps3Core.firmwareInstalled(this)) finish();
@@ -524,6 +525,13 @@ public class Ps3Activity extends Activity {
     private void press(String key, boolean down) {
         if (key.equals("ASPECT")) {
             formatKey().press(down);
+            return;
+        }
+        if (key.equals("SHOT") || key.equals("REC")) {
+            if (down) {
+                if (key.equals("SHOT")) ScreenCapture.shot(this, screen, title);
+                else ScreenCapture.video(this, title);
+            }
             return;
         }
         if (key.equals("HOME")) {
@@ -648,18 +656,6 @@ public class Ps3Activity extends Activity {
         new CodecMenu(this).title(title, "PLAYSTATION 3")
                 .item("Reprendre", null, new Runnable() {
                     public void run() { resumeGame(); }
-                })
-                .item("Sauvegarde rapide", "Emplacement 1", new Runnable() {
-                    public void run() {
-                        resumeGame();
-                        quickSave();
-                    }
-                })
-                .item("Chargement rapide", "Emplacement 1", new Runnable() {
-                    public void run() {
-                        resumeGame();
-                        quickLoad();
-                    }
                 })
                 .item("Menu de la console", "Le menu PlayStation du jeu (trophées, quitter…)", new Runnable() {
                     public void run() {
@@ -852,6 +848,7 @@ public class Ps3Activity extends Activity {
 
     @Override
     protected void onDestroy() {
+        ScreenCapture.gameClosed(this);
         DebugLog.event("[PS3] onDestroy, isFinishing=" + isFinishing());
         DebugLog.perfStop();
         super.onDestroy();

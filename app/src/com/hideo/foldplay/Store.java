@@ -82,6 +82,12 @@ final class Store {
             saveLayouts(out);
             prefs.edit().putBoolean("layouts_v0610", true).apply();
         }
+        if (!prefs.getBoolean("layouts_v06621", false)) {
+            // 0.66.21 : touches CAPTURE et VIDÉO ajoutées à toutes les manettes.
+            for (ControlLayout l : out) l.ensureCaptures();
+            saveLayouts(out);
+            prefs.edit().putBoolean("layouts_v06621", true).apply();
+        }
         if (!prefs.getBoolean("layouts_homebig", false)) {
             // Maison agrandie de 35 % sur les manettes retouchées (les fournies sont placées par PadDesign).
             for (ControlLayout l : out) {

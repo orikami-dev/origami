@@ -58,15 +58,17 @@ final class EngineSettings {
 
     private static final String[][][] X360_PROFILES = {
             // performance
+            // Shaders en arrière-plan rétablis (0.66.21) : Xenia ouvre son cache de shaders sans attendre et compte
+            // sur ce mode pour sauter les dessins pas encore prêts. Coupé (0.66.9), DMC 4 et Skyrim ne démarraient plus.
             // Relecture « rapide » partout (0.65.3) : avec « aucune », DMC 4 n'affichait aucune image en Performance.
             // FBO partout : le chemin FSI demande une extension absente des puces Adreno.
             {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "0"}, {"gpu_allow_invalid_fetch_constants", "true"},
-                    {"async_shader_compilation", "false"}, {"vsync", "true"}},
+                    {"async_shader_compilation", "true"}, {"vsync", "true"}},
             // balanced : Qualité supprimée (×2 trop lourd) ; on garde ×1 avec filtrage anisotrope ×8, peu coûteux.
             {{"draw_resolution_scale", "1"}, {"render_target_path_vulkan", "fbo"}, {"readback_resolve", "fast"},
                     {"anisotropic_override", "8"}, {"gpu_allow_invalid_fetch_constants", "true"},
-                    {"async_shader_compilation", "false"}, {"vsync", "true"}},
+                    {"async_shader_compilation", "true"}, {"vsync", "true"}},
     };
 
     private static final Opt[] PS3_OPTS = {

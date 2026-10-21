@@ -370,6 +370,13 @@ public class X360Activity extends WindowedAppActivity {
             formatKey().press(down);
             return;
         }
+        if (key.equals("SHOT") || key.equals("REC")) {
+            if (down) {
+                if (key.equals("SHOT")) ScreenCapture.shot(this, screen, title);
+                else ScreenCapture.video(this, title);
+            }
+            return;
+        }
         if (key.equals("HOME")) {
             if (down) home();
             return;
@@ -510,7 +517,7 @@ public class X360Activity extends WindowedAppActivity {
         }
         menuOpen = true;
         nativePad(0, true, 0, 0, 0, 0, 0, 0, 0);
-        try { nativePause(true); } catch (Throwable ignored) { }
+        pause(true);
         new CodecMenu(this).title(title, "XBOX 360")
                 .item("Reprendre", null, new Runnable() {
                     public void run() { resumeGame(); }
@@ -562,6 +569,32 @@ public class X360Activity extends WindowedAppActivity {
         finish();
     }
 
+    /** Pause en cours côté moteur : la reprise n'est demandée que si la pause a été demandée. */
+    private boolean enginePaused;
+
+    /**
+     * Pause ou reprise du moteur, jamais sur le fil de l'interface (0.66.21) : Emulator::Pause attend que le fil
+     * audio de Xenia l'acquitte, et tant que le jeu n'a pas démarré ce fil ne répond pas (ANR puis arrêt
+     * de l'app, journal du 21/10). Pas de pause non plus avant la première image : il n'y a rien à figer.
+     */
+    private void pause(final boolean on) {
+        if (on) {
+            long n;
+            try { n = nativeFrames(); } catch (Throwable t) { n = 0; }
+            if (n <= 0) return;
+        } else if (!enginePaused) {
+            return;
+        }
+        enginePaused = on;
+        PAUSER.execute(new Runnable() {
+            public void run() {
+                try { nativePause(on); } catch (Throwable ignored) { }
+            }
+        });
+    }
+
+    private static final java.util.concurrent.ExecutorService PAUSER = java.util.concurrent.Executors.newSingleThreadExecutor();
+
     /** Retour du sous-menu vers le menu Home. */
     private Runnable backHome() {
         return new Runnable() {
@@ -577,7 +610,7 @@ public class X360Activity extends WindowedAppActivity {
         CodecMenu m = CodecMenu.find(stage);
         if (m != null) m.dismiss();
         menuOpen = false;
-        try { nativePause(false); } catch (Throwable ignored) { }
+        pause(false);
         Theme.fullscreen(this);
         send();
     }
@@ -596,6 +629,12 @@ public class X360Activity extends WindowedAppActivity {
     }
 
     // ------------------------------------------------------------------ cycle de vie
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        ScreenCapture.onResult(this, request, result, data);
+    }
 
     @Override
     protected void onResume() {
@@ -632,6 +671,7 @@ public class X360Activity extends WindowedAppActivity {
     @Override
     protected void onDestroy() {
         DebugLog.event("[360] onDestroy, isFinishing=" + isFinishing());
+        ScreenCapture.gameClosed(this);
         DebugLog.perfStop();
         super.onDestroy();
         if (hud != null) hud.stop();

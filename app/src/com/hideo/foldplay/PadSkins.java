@@ -68,7 +68,7 @@ final class PadSkins {
         else if (id.equals("ecarlate")) Facets.ecarlate(c, w, h, accent, Theme.fold(), 0.75f, ECARLATE_PAD_JAPON ? Facets.MANETTE : 1);
         else if (id.equals("sakura") && SAKURA_PAD_RIVIERE) Facets.sakura(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
         else if (id.equals("sakura")) sakura(c, box, accent, dp, p);
-        else if (id.equals("ambre")) ambre(c, box, accent, dp, p);
+        else if (id.equals("ambre")) Facets.ambre(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
         else if (id.equals("neon")) Facets.neon(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
         else if (id.equals("jade")) Facets.jade(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
         else if (id.equals("argent")) Facets.argent(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);

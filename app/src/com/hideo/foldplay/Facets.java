@@ -437,6 +437,7 @@ final class Facets {
         else if (variant == 2) f.cursors(w, h);
         else if (variant == 3) f.ville(w, h);
         else if (variant == AMBRE_TOKYO) f.tokyo(w, h);
+        else if (variant == MANETTE) f.megapolePad(w, h);
         else f.scope(w, h);
     }
 
@@ -1686,22 +1687,46 @@ final class Facets {
         }
         // Rivière : eau sombre, reflet de la lune, écailles en perspective.
         vgrad(0, bank, w, h, a(0xFF100B16, 0xF6), a(0xFF06040A, 0xFA));
-        for (int i = 0; i < 14; i++) {
-            float t = i / 14f, y = bank + (h - bank) * (float) Math.pow(t, 1.4) + q * 0.3f, ww = mr * (1.5f - t * 0.7f);
-            box(mx - ww, y, mx + ww, y + Math.max(1.5f, q * 0.07f), a(sh[4], Math.round(0x1A * (1f - t * 0.5f))));
-        }
-        float y = bank + q * 0.5f;
-        int row = 0;
-        while (y < h + q) {
-            float t = (y - bank) / (h - bank), r = q * (0.8f + 1.8f * t);
-            for (float x = -r + ((row & 1) == 0 ? 0 : r); x < w + r; x += 2 * r) {
-                float k2 = 0.45f + 0.55f * Math.min(1f, x / w);
-                arcLine(x, y, r, 180, 180, lw, a(sh[2], Math.round((0x10 + 0x18 * t) * k2)));
-                arcLine(x, y, r * 0.66f, 180, 180, lw, a(sh[3], Math.round((0x0C + 0x12 * t) * k2)));
+        // Eau (0.66.21) : des bandes de facettes triangulaires qui s'élargissent vers le spectateur, plus claires
+        // dans la colonne de la lune (le reflet se brise en éclats), des rides en ellipses et des traits de lumière.
+        int bands = 16;
+        for (int i = 0; i < bands; i++) {
+            float t0 = i / (float) bands, t1 = (i + 1) / (float) bands;
+            float ya = bank + (h - bank) * (float) Math.pow(t0, 1.5), yb = bank + (h - bank) * (float) Math.pow(t1, 1.5);
+            float wd = q * (0.9f + 3.2f * t1), off = hash(i, 11) * wd;
+            int k = 0;
+            for (float x = -wd + off; x < w + wd; x += wd, k++) {
+                float cxm = x + wd * 0.5f, near = Math.max(0f, 1f - Math.abs(cxm - mx) / (mr * (3.2f + 3f * t1)));
+                float r = hash(i * 97 + k, 3);
+                int col = r < 0.33f ? sh[1] : r < 0.66f ? sh[2] : sh[3];
+                int al = Math.round((0x06 + 0x0E * r) * (1f + t1) + 0x3C * near * near * (0.4f + 0.6f * r));
+                if (near > 0.55f && r > 0.5f) col = sh[4];
+                poly(a(col, al), x, yb, x + wd, yb, x + wd * 0.5f, ya);
+                float r2 = hash(i * 53 + k, 5);
+                poly(a(r2 < 0.5f ? sh[1] : sh[3], Math.round((0x05 + 0x0C * r2) * (1f + t1) + 0x2C * near * near * r2)), x + wd * 0.5f, ya, x + wd * 1.5f, ya, x + wd, yb);
+                // Arête fine éclairée sur le côté de la lune.
+                if (near > 0.25f) line(x, yb, x + wd * 0.5f, ya, lw, a(sh[4], Math.round(0x34 * near)));
             }
-            y += r * 0.5f;
-            row++;
         }
+        // Éclats de la lune sur l'eau : traits horizontaux brisés, de plus en plus larges.
+        for (int i = 0; i < 22; i++) {
+            float t = (float) Math.pow(i / 22f, 1.3f), yy = bank + (h - bank) * (float) Math.pow(t, 1.5) + q * 0.2f;
+            if (rnd() < 0.25f) continue;
+            float ww = mr * (0.5f + 2.2f * t) * (0.4f + 0.9f * rnd()), dx = (rnd() - 0.5f) * mr * (1.2f + 2f * t);
+            line(mx + dx - ww, yy, mx + dx + ww, yy, Math.max(lw, q * (0.03f + 0.05f * t)), a(sh[4], Math.round(0x70 * (1f - 0.55f * t))));
+        }
+        // Rides : ellipses aplaties qui s'élargissent vers le bas.
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(lw);
+        for (int i = 0; i < 9; i++) {
+            float t = rnd(), yy = bank + (h - bank) * (0.12f + 0.85f * t), xx = w * (0.05f + 0.9f * rnd()), rx2 = q * (0.6f + 2.2f * t);
+            for (int m2 = 0; m2 < 2; m2++) {
+                float k2 = 1f + 0.55f * m2;
+                p.setColor(a(sh[3], Math.round((0x30 - 0x14 * m2) * (0.5f + 0.5f * t))));
+                c.drawOval(new RectF(xx - rx2 * k2, yy - rx2 * k2 * 0.16f, xx + rx2 * k2, yy + rx2 * k2 * 0.16f), p);
+            }
+        }
+        p.setStyle(Paint.Style.FILL);
         // Pont en dos d'âne, posé sur deux îlots de berge : culées sur la terre, piles qui plongent dans l'eau,
         // reflet de l'arche sur la rivière (la ligne d'eau du pont est un peu en avant de la berge lointaine).
         float cx = w * 0.78f, sp = Math.min(w * 0.17f, H0 * 0.3f), rise = H0 * 0.1f, th = q * 0.32f;
@@ -1782,7 +1807,7 @@ final class Facets {
 
     /**
      * Codec, manette de la base : l'écran radar vu de la console. Anneaux en seize pans et rayons qui se lèvent
-     * du bas (comme le soleil d'Ambre), faisceau pâle, échos, règle de fréquence en haut, onde radio sur le
+     * du bas (comme le soleil d'Ambre), règle de fréquence en haut, onde radio sur le
      * quadrillage du sol, étoiles et lignes de balayage. Tout au trait, rien de plein sous les touches.
      */
     private void basePad(float w, float h) {
@@ -1806,21 +1831,7 @@ final class Facets {
             double t = Math.PI * 2 * s2 / 16;
             line(cx, cy, cx + (float) Math.cos(t) * u, cy + (float) Math.sin(t) * u, lw, a(sh[2], 0x14));
         }
-        // Faisceau : éventail pâle qui s'éteint en tournant, arête au ton du pli.
-        float R = m * 0.86f;
-        double lead = -Math.PI * 0.42;
-        for (int b = 0; b < 10; b++) {
-            double t0 = lead - b * 0.05, t1 = t0 - 0.05;
-            tri(cx, cy, cx + (float) Math.cos(t0) * R, cy + (float) Math.sin(t0) * R,
-                    cx + (float) Math.cos(t1) * R, cy + (float) Math.sin(t1) * R, a(sh[(b & 1) == 0 ? 3 : 2], Math.round(0x10 * (1f - b / 10f))));
-        }
-        line(cx, cy, cx + (float) Math.cos(lead) * R, cy + (float) Math.sin(lead) * R, lw * 1.2f, a(sh[4], 0x34));
-        for (int i = 0; i < 5; i++) {
-            double t = -Math.PI * (0.44 + 0.22 * rnd());
-            float d = m * (0.3f + 0.6f * rnd()), s = m * 0.012f;
-            float ex = cx + (float) Math.cos(t) * d, ey = cy + (float) Math.sin(t) * d;
-            kite(ex, ey + s, s * 2, s * 0.9f, -Math.PI / 2, 2, 4, 0x48, false);
-        }
+        // Le faisceau et les échos ne sont plus dessinés ici : ils tournent et s'allument dans PadMotion (0.66.21).
         // Règle de fréquence le long du bord haut, plus nette au milieu.
         float step = m * 0.03f;
         for (int i = 0; i * step < w; i++) {
@@ -1845,6 +1856,116 @@ final class Facets {
             px = x;
             py = y;
         }
+        scan(w, h);
+    }
+
+
+    // ---- Ambre, manette (0.66.21) : la métropole vue de près
+
+    /** Gratte-ciel de la façade : {x, largeur, hauteur} en fractions de la largeur et de la hauteur, du bord gauche au bord droit. */
+    private static final float[][] MEGA_NEAR = {{-0.02f, 0.13f, 0.86f, 1f}, {0.1f, 0.1f, 0.58f, 0.8f}, {0.19f, 0.08f, 0.34f, 0.6f},
+        {0.73f, 0.08f, 0.36f, 0.6f}, {0.8f, 0.1f, 0.62f, 0.8f}, {0.9f, 0.13f, 0.9f, 1f}};
+
+    /** Repères partagés avec PadMotion : toits des six tours proches (x, y) puis plate-forme de la tour (x, y, demi-largeur, hauteur). */
+    static float[] megapolePts(float w, float h) {
+        float m = Math.min(w, h), q = m * 0.06f, ground = h * 0.92f, top = -h * 0.25f, hb = m * 0.38f, ht = m * 0.05f, yd = h * 0.3f;
+        float[] out = new float[16];
+        for (int i = 0; i < 6; i++) {
+            out[i * 2] = w * (MEGA_NEAR[i][0] + MEGA_NEAR[i][1] * 0.5f);
+            out[i * 2 + 1] = ground - h * MEGA_NEAR[i][2];
+        }
+        float sPos = (ground - yd) / (ground - top);
+        out[12] = w * 0.5f;
+        out[13] = yd;
+        out[14] = (ht + (hb - ht) * (float) Math.pow(1f - sPos, 1.7)) * 1.9f;
+        out[15] = q * 0.7f;
+        return out;
+    }
+
+    /**
+     * Ambre, manette : le pied de la tour rouge et blanche au milieu (treillis, arche, plate-forme), des tours
+     * de verre sur les côtés avec leurs enseignes verticales, des fils en travers, la rue et ses reflets.
+     * Les feux d'avion, les projecteurs et les fenêtres qui s'allument sont dans PadMotion.
+     */
+    private void megapolePad(float w, float h) {
+        float u = Math.max(w, h), m = Math.min(w, h), lw = Math.max(1f, u / 900f), q = m * 0.06f, ground = h * 0.92f;
+        vgrad(0, 0, w, h, a(0xFF1C140A, 0x60), a(0xFF060403, 0x90));
+        glow(w * 0.5f, ground, m * 0.9f, sh[2], 0x22);
+        for (int i = 0; i < 22; i++) star(w * rnd(), h * 0.4f * rnd(), u * (0.001f + 0.0012f * rnd()), 0x18 + Math.round(rnd() * 0x30));
+        nuage(w * 0.3f, h * 0.14f, w * 0.18f, q * 0.6f, 0x40);
+        nuage(w * 0.52f, h * 0.24f, w * 0.2f, q * 0.55f, 0x38);
+        // Tour : corps en treillis rouge et blanc qui sort par le haut.
+        float tcx = w * 0.5f, top = -h * 0.25f, hb = m * 0.38f, ht = m * 0.05f, bodyH = ground - top;
+        float[] tg = {tcx, hb, ht};
+        int red = 0xFFD8432E, white = 0xFFFFE6C0;
+        path.reset();
+        path.moveTo(tcx - hb, ground);
+        for (int i = 1; i <= 20; i++) path.lineTo(tcx - towerHalf(tg, i / 20f), ground - bodyH * i / 20f);
+        for (int i = 20; i >= 0; i--) path.lineTo(tcx + towerHalf(tg, i / 20f), ground - bodyH * i / 20f);
+        path.close();
+        p.setColor(a(0xFF100B07, 0xE0));
+        c.drawPath(path, p);
+        int nb = 12;
+        for (int k2 = 0; k2 < nb; k2++) {
+            float s0 = k2 / (float) nb, s1 = (k2 + 1) / (float) nb;
+            float y0 = ground - bodyH * s0, y1 = ground - bodyH * s1, h0 = towerHalf(tg, s0), h1 = towerHalf(tg, s1);
+            boolean isRed = ((k2 / 2) & 1) == 0;
+            int col = isRed ? red : white;
+            poly(a(col, isRed ? 0x2C : 0x1C), tcx - h0, y0, tcx + h0, y0, tcx + h1, y1, tcx - h1, y1);
+            line(tcx - h0, y0, tcx + h1, y1, lw * 1.1f, a(col, isRed ? 0x88 : 0x70));
+            line(tcx + h0, y0, tcx - h1, y1, lw * 1.1f, a(col, isRed ? 0x88 : 0x70));
+            if (k2 < 5) {
+                // Grandes travées du bas : croix intermédiaires.
+                float ym = (y0 + y1) / 2, hm = towerHalf(tg, (s0 + s1) / 2);
+                line(tcx - h0, y0, tcx - hm * 0.2f, ym, lw, a(col, 0x50));
+                line(tcx + h0, y0, tcx + hm * 0.2f, ym, lw, a(col, 0x50));
+                line(tcx - h0 * 0.5f, y0, tcx - h1 * 0.5f, y1, lw * 0.9f, a(col, 0x40));
+                line(tcx + h0 * 0.5f, y0, tcx + h1 * 0.5f, y1, lw * 0.9f, a(col, 0x40));
+            }
+            line(tcx - h1, y1, tcx + h1, y1, lw * 1.3f, a(col, isRed ? 0xA0 : 0x88));
+            line(tcx - h0, y0, tcx - h1, y1, lw * 2.4f, a(col, isRed ? 0xB8 : 0x98));
+            line(tcx + h0, y0, tcx + h1, y1, lw * 2.4f, a(col, isRed ? 0xB8 : 0x98));
+        }
+        // Arche entre les jambes.
+        path.reset();
+        path.moveTo(tcx - hb * 0.62f, ground);
+        path.quadTo(tcx - hb * 0.58f, ground - h * 0.2f, tcx, ground - h * 0.22f);
+        path.quadTo(tcx + hb * 0.58f, ground - h * 0.2f, tcx + hb * 0.62f, ground);
+        path.close();
+        p.setColor(a(0xFF0A0705, 0xEC));
+        c.drawPath(path, p);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(lw * 1.8f);
+        p.setColor(a(red, 0xA0));
+        c.drawPath(path, p);
+        p.setStyle(Paint.Style.FILL);
+        // Plate-forme d'observation.
+        float[] mp = megapolePts(w, h);
+        float yd = mp[13], dw = mp[14], dh = mp[15];
+        poly(a(0xFF0C0806, 0xF6), tcx - dw * 0.8f, yd - dh, tcx + dw * 0.8f, yd - dh, tcx + dw, yd, tcx - dw, yd);
+        box(tcx - dw, yd, tcx + dw, yd + dh * 0.45f, a(0xFF0C0806, 0xF6));
+        line(tcx - dw * 0.8f, yd - dh, tcx + dw * 0.8f, yd - dh, lw * 1.4f, a(red, 0xB0));
+        line(tcx - dw, yd, tcx + dw, yd, lw * 1.4f, a(white, 0x90));
+        // Tours de verre : lointaines (hauteur en fraction de h), puis proches.
+        float[][] far = {{0f, .16f, .62f}, {.1f, .12f, .5f}, {.2f, .1f, .4f}, {.7f, .1f, .42f}, {.79f, .12f, .52f}, {.88f, .14f, .66f}};
+        for (float[] b : far) glass(w * b[0], ground, w * b[1], h * b[2], 0.6f, false, q, 1);
+        for (float[] b : MEGA_NEAR) glass(w * b[0], ground, w * b[1], h * b[2], b[3], true, q, 1);
+        // Enseignes verticales sans texte sur les flancs proches.
+        enseigne(w * 0.112f, h * 0.36f, q * 0.5f, h * 0.3f, 1, q);
+        enseigne(w * 0.205f, h * 0.62f, q * 0.45f, h * 0.2f, 2, q);
+        enseigne(w * 0.86f, h * 0.3f, q * 0.5f, h * 0.34f, 3, q);
+        enseigne(w * 0.755f, h * 0.6f, q * 0.45f, h * 0.22f, 0, q);
+        // Fils en travers.
+        fil(0, h * 0.16f, w, h * 0.22f, h * 0.05f, lw);
+        fil(0, h * 0.19f, w, h * 0.27f, h * 0.05f, lw);
+        fil(0, h * 0.48f, w * 0.32f, h * 0.44f, h * 0.03f, lw);
+        fil(w * 0.68f, h * 0.44f, w, h * 0.5f, h * 0.03f, lw);
+        // Rue : sol sombre, filet d'or et reflets verticaux des enseignes.
+        box(0, ground, w, h, a(0xFF080604, 0xF8));
+        line(0, ground, w, ground, lw * 1.5f, a(fold, 0x50));
+        float[] rx = {0.125f, 0.22f, 0.875f, 0.77f};
+        int[] rc2 = {0xFFE0452B, fold, 0xFFFFE2A0, sh[3]};
+        for (int i = 0; i < 4; i++) vgrad(w * rx[i] - q * 0.25f, ground, w * rx[i] + q * 0.25f, h, a(rc2[i], 0x30), a(rc2[i], 0));
         scan(w, h);
     }
 
@@ -2386,18 +2507,7 @@ final class Facets {
             float y = cy + R * (1.15f + 0.22f * i), ww2 = R * (0.9f - 0.1f * i) * (0.7f + 0.5f * rnd());
             box(cx - ww2, y, cx + ww2, y + Math.max(lw, m * 0.01f), a(i % 2 == 0 ? cyan : mag, Math.round(0x30 * (1f - i / 8f))));
         }
-        // Ronds de pluie sur les flaques.
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(lw);
-        for (int i = 0; i < 16; i++) {
-            float x = w * rnd(), y = h * (0.2f + 0.78f * rnd()), r = m * (0.02f + 0.05f * rnd());
-            for (int k2 = 0; k2 < 3; k2++) {
-                float rr = r * (1f + 0.7f * k2);
-                p.setColor(a(k2 == 0 ? Theme.lighten(cyan, 0.4f) : (i % 2 == 0 ? cyan : mag), 0x34 - k2 * 0x0C));
-                c.drawOval(new RectF(x - rr, y - rr * 0.32f, x + rr, y + rr * 0.32f), p);
-            }
-        }
-        p.setStyle(Paint.Style.FILL);
+        // Les ronds de pluie sont animés dans PadMotion (0.66.21) : chaque goutte qui touche le sol en fait.
         // Pluie fine.
         for (int i = 0; i < 70; i++) {
             float x = w * rnd(), y = h * rnd(), len = m * (0.03f + 0.05f * rnd());
@@ -2660,6 +2770,19 @@ final class Facets {
         }
     }
 
+    /** Lanternes de la manette Jade : {x, y, rayon, genre} par lanterne (0 sous l'avant-toit, 1 sur l'escalier, 2 suspendue). Partagé avec PadMotion. */
+    static float[] jadePadLanterns(float w, float h) {
+        float m = Math.min(w, h), q = m * 0.085f, bw = q * 3.4f, tx = w * 0.5f, ty = h * 0.6f, hwa = q * 0.9f;
+        return new float[] {tx - bw * 0.5f, ty - q * 0.45f, q * 0.17f, 0, tx + bw * 0.5f, ty - q * 0.45f, q * 0.17f, 0,
+            tx - hwa * 0.95f, h * 0.86f, q * 0.15f, 1, tx + hwa * 0.95f, h * 0.86f, q * 0.15f, 1,
+            w * 0.36f, m * 0.2f, m * 0.045f, 2, w * 0.64f, m * 0.2f, m * 0.045f, 2};
+    }
+
+    /** Monts facettés de la manette Jade : crête en deux faces posée sur base. */
+    private void padMonts(float w, float h, float base, float[] peaks, int dark, int light, int alpha, float lw) {
+        monts(w, h, base, peaks, dark, light, alpha, lw, 0x22);
+    }
+
     /**
      * Jade, manette : la bambouseraie de près. Tiges serrées sur les côtés, une trouée au milieu où l'on devine
      * le toit du temple dans la brume, deux lanternes suspendues de part et d'autre du bouton origami.
@@ -2668,27 +2791,110 @@ final class Facets {
         float u = Math.max(w, h), m = Math.min(w, h), lw = Math.max(1f, u / 900f);
         vgrad(0, 0, w, h, a(0xFF0E1A14, 0x40), a(0xFF050A07, 0x80));
         glow(w * 0.5f, h * 0.5f, m * 0.7f, sh[3], 0x1A);
-        // Toit du temple au loin, dans la trouée.
-        float tx = w * 0.5f, ty = h * 0.56f, tw = m * 0.42f;
+        // Temple dans la trouée (0.66.21), avec le détail du fond : éperon de roche facetté, soubassement, deux étages
+        // de piliers aux ouvertures chaudes et croisillons, double toit à tuiles et coins relevés, escalier.
+        float tx = w * 0.5f, q = m * 0.085f, bw = q * 3.4f, ty = h * 0.6f, ry = ty + q * 0.5f, rr = h * 1.02f - ry;
+        float[] lf = {-0.7f, 0f, -1.05f, 0.2f, -1.6f, 0.42f, -2.0f, 0.62f, -2.55f, 0.82f, -3.1f, 1f};
+        float[] rf = {0.72f, 0f, 1.05f, 0.18f, 0.95f, 0.4f, 1.35f, 0.62f, 1.2f, 0.8f, 1.9f, 1f};
+        float[] mb = {0.15f, 0.12f, m * 0.2f, 0.5f, 0.1f, m * 0.26f, 0.85f, 0.12f, m * 0.22f};
+        padMonts(w, h, h * 0.5f, mb, 0xFF13211B, 0xFF1F3329, 0xC0, lw);
+        brume(w, h * 0.48f, m * 0.14f, 0x2C);
+        path.reset();
+        path.moveTo(tx + lf[0] * bw, ry);
+        for (int i = 2; i < lf.length; i += 2) path.lineTo(tx + lf[i] * bw, ry + lf[i + 1] * rr);
+        for (int i = rf.length - 2; i >= 0; i -= 2) path.lineTo(tx + rf[i] * bw, ry + rf[i + 1] * rr);
+        path.close();
+        p.setColor(a(0xFF0B1513, 0xFC));
+        c.drawPath(path, p);
+        poly(a(0xFF1A2E28, 0xB0), tx + 0.1f * bw, ry, tx + 0.72f * bw, ry, tx + 1.05f * bw, ry + 0.18f * rr, tx + 0.35f * bw, ry + 0.3f * rr);
+        poly(a(0xFF152722, 0x90), tx + 0.35f * bw, ry + 0.3f * rr, tx + 1.05f * bw, ry + 0.18f * rr, tx + 0.95f * bw, ry + 0.4f * rr, tx + 0.2f * bw, ry + 0.55f * rr);
+        poly(a(0xFF152722, 0x80), tx + 0.2f * bw, ry + 0.55f * rr, tx + 0.95f * bw, ry + 0.4f * rr, tx + 1.35f * bw, ry + 0.62f * rr, tx + 0.7f * bw, ry + 0.85f * rr);
+        poly(a(0xFF060D0B, 0xA0), tx - 0.7f * bw, ry, tx + 0.1f * bw, ry, tx + 0.35f * bw, ry + 0.3f * rr, tx - 1.05f * bw, ry + 0.2f * rr);
+        poly(a(0xFF060D0B, 0x90), tx - 1.6f * bw, ry + 0.42f * rr, tx + 0.2f * bw, ry + 0.55f * rr, tx - 0.2f * bw, ry + 0.8f * rr, tx - 2.0f * bw, ry + 0.62f * rr);
+        line(tx + 0.72f * bw, ry, tx + 1.05f * bw, ry + 0.18f * rr, lw * 1.2f, a(sh[3], 0x48));
+        line(tx + 1.05f * bw, ry + 0.18f * rr, tx + 0.95f * bw, ry + 0.4f * rr, lw, a(sh[3], 0x30));
+        line(tx + 0.95f * bw, ry + 0.4f * rr, tx + 1.35f * bw, ry + 0.62f * rr, lw, a(sh[3], 0x30));
+        line(tx - 0.7f * bw, ry, tx - 1.05f * bw, ry + 0.2f * rr, lw, a(sh[2], 0x30));
+        line(tx - 1.05f * bw, ry + 0.2f * rr, tx - 1.6f * bw, ry + 0.42f * rr, lw, a(sh[2], 0x28));
+        box(tx - bw * 0.62f, ty, tx + bw * 0.62f, ty + q * 0.5f, a(0xFF08100C, 0xFA));
+        line(tx - bw * 0.62f, ty, tx + bw * 0.62f, ty, lw, a(sh[3], 0x40));
+        for (int i = 0; i <= 8; i++) line(tx - bw * 0.6f + bw * 1.2f * i / 8, ty + q * 0.08f, tx - bw * 0.6f + bw * 1.2f * i / 8, ty + q * 0.42f, lw * 0.8f, a(sh[3], 0x18));
         for (int tier = 0; tier < 2; tier++) {
-            float ww = tw * (1f - 0.35f * tier), yb = ty - tier * m * 0.12f;
+            float tw = bw * (1f - 0.32f * tier), yb = ty - tier * q * 1.55f, bh = q * (tier == 0 ? 1f : 0.75f);
+            box(tx - tw / 2, yb - bh, tx + tw / 2, yb, a(0xFF0A130F, 0xFA));
+            // Galerie : balustrade à barreaux.
+            line(tx - tw / 2 - q * 0.15f, yb - bh * 0.08f, tx + tw / 2 + q * 0.15f, yb - bh * 0.08f, lw * 1.2f, a(sh[3], 0x40));
+            for (int i = 0; i <= 10; i++) {
+                float x = tx - tw / 2 - q * 0.15f + (tw + q * 0.3f) * i / 10;
+                line(x, yb - bh * 0.08f, x, yb - bh * 0.26f, lw * 0.8f, a(sh[3], 0x30));
+            }
+            int cols = tier == 0 ? 5 : 3;
+            for (int i = 0; i < cols; i++) {
+                float x0 = tx - tw / 2 + tw * (i + 0.18f) / cols, x1 = tx - tw / 2 + tw * (i + 0.82f) / cols;
+                box(x0, yb - bh * 0.82f, x1, yb - bh * 0.28f, a(fold, i == cols / 2 ? 0x60 : 0x2C));
+                line((x0 + x1) / 2, yb - bh * 0.82f, (x0 + x1) / 2, yb - bh * 0.28f, lw * 0.7f, a(0xFF0A130F, 0xC0));
+                line(x0, yb - bh * 0.55f, x1, yb - bh * 0.55f, lw * 0.7f, a(0xFF0A130F, 0xC0));
+                box(x1, yb - bh, x1 + tw * 0.36f / cols, yb, a(0xFF050A08, 0xF0));
+            }
+            for (int i = 0; i <= cols; i++) {
+                float x = tx - tw / 2 + tw * i / cols;
+                box(x - q * 0.05f, yb - bh - q * 0.12f, x + q * 0.05f, yb - bh, a(0xFF050A08, 0xF8));
+            }
+            float yr = yb - bh, ew = tw * 0.5f + q * 0.9f, rh = q * 0.55f;
             path.reset();
-            path.moveTo(tx - ww * 0.75f, yb - m * 0.03f);
-            path.quadTo(tx - ww * 0.55f, yb + m * 0.01f, tx - ww * 0.4f, yb - m * 0.015f);
-            path.lineTo(tx - ww * 0.28f, yb - m * 0.07f);
-            path.lineTo(tx + ww * 0.28f, yb - m * 0.07f);
-            path.lineTo(tx + ww * 0.4f, yb - m * 0.015f);
-            path.quadTo(tx + ww * 0.55f, yb + m * 0.01f, tx + ww * 0.75f, yb - m * 0.03f);
+            path.moveTo(tx - ew - q * 0.35f, yr - rh * 0.45f);
+            path.quadTo(tx - ew * 0.75f, yr + q * 0.05f, tx - tw * 0.42f, yr - rh * 0.2f);
+            path.lineTo(tx - tw * 0.3f, yr - rh);
+            path.lineTo(tx + tw * 0.3f, yr - rh);
+            path.lineTo(tx + tw * 0.42f, yr - rh * 0.2f);
+            path.quadTo(tx + ew * 0.75f, yr + q * 0.05f, tx + ew + q * 0.35f, yr - rh * 0.45f);
             path.close();
-            p.setColor(a(0xFF0A1410, 0xB0));
+            p.setColor(a(0xFF060D09, 0xFC));
             c.drawPath(path, p);
-            line(tx - ww * 0.28f, yb - m * 0.07f, tx + ww * 0.28f, yb - m * 0.07f, lw, a(sh[3], 0x40));
-            box(tx - ww * 0.3f, yb, tx + ww * 0.3f, yb + m * 0.06f, a(0xFF0A1410, 0xA0));
-            for (int i = 0; i < 3; i++) box(tx - ww * 0.25f + ww * 0.2f * i, yb + m * 0.012f, tx - ww * 0.17f + ww * 0.2f * i, yb + m * 0.05f, a(fold, 0x40));
+            // Tuiles : traits du faîte à l'égout.
+            for (int i = -8; i <= 8; i++) {
+                float xt = tx + tw * 0.3f * i / 8, xe = tx + (tw * 0.42f + (ew - tw * 0.42f) * Math.abs(i) / 8 * 0.6f) * (i / 8f) * 1.05f;
+                line(xt, yr - rh, xe, yr - rh * 0.2f, lw * 0.7f, a(sh[2], 0x22));
+            }
+            line(tx - ew - q * 0.35f, yr - rh * 0.45f, tx - tw * 0.42f, yr - rh * 0.2f, lw * 1.2f, a(sh[3], 0x60));
+            line(tx + tw * 0.42f, yr - rh * 0.2f, tx + ew + q * 0.35f, yr - rh * 0.45f, lw * 1.2f, a(sh[3], 0x70));
+            line(tx - tw * 0.3f, yr - rh, tx + tw * 0.3f, yr - rh, lw * 1.4f, a(sh[3], 0x80));
+            // Coins relevés : pointe dorée et clochette.
+            for (int sd = -1; sd <= 1; sd += 2) {
+                float cx2 = tx + sd * (ew + q * 0.35f), cb = tx + sd * (ew + q * 0.2f);
+                disc(cx2, yr - rh * 0.45f, q * 0.05f, a(fold, 0x90));
+                line(cb, yr - rh * 0.42f, cb, yr - rh * 0.42f + q * 0.3f, lw * 0.7f, a(0xFF0A0605, 0xE0));
+                disc(cb, yr - rh * 0.42f + q * 0.33f, q * 0.05f, a(fold, 0x80));
+            }
+            if (tier == 1) {
+                for (int r2 = 0; r2 < 5; r2++) disc(tx, yr - rh - q * (0.2f + 0.17f * r2), q * (0.09f - 0.01f * r2), a(fold, 0x70));
+                line(tx, yr - rh, tx, yr - rh - q * 1.05f, lw * 1.5f, a(fold, 0x70));
+                disc(tx, yr - rh - q * 1.1f, q * 0.08f, a(fold, 0x90));
+            }
         }
-        line(tx, ty - m * 0.19f, tx, ty - m * 0.26f, lw, a(fold, 0x50));
-        brume(w, ty + m * 0.06f, m * 0.18f, 0x30);
-        brume(w, h * 0.88f, m * 0.2f, 0x22);
+        // Escalier droit jusqu'à la porte.
+        float hwa = q * 0.9f, hwb = q * 0.42f, ya = h * 1.0f;
+        poly(a(0xFF1A2B25, 0xF0), tx - hwa, ya, tx + hwa, ya, tx + hwb, ry, tx - hwb, ry);
+        int ns = Math.max(6, Math.round((ya - ry) / (q * 0.22f)));
+        for (int i = 1; i < ns; i++) {
+            float t = i / (float) ns, y = ya + (ry - ya) * t, hw = hwa + (hwb - hwa) * t;
+            line(tx - hw, y, tx + hw, y, lw, a(sh[4], Math.round(0x40 * (1f - 0.4f * t))));
+            line(tx - hw, y + lw * 1.6f, tx + hw, y + lw * 1.6f, lw, a(0xFF050B09, 0x90));
+        }
+        line(tx - hwa, ya, tx - hwb, ry, lw * 1.4f, a(sh[3], 0x50));
+        line(tx + hwa, ya, tx + hwb, ry, lw * 1.4f, a(sh[2], 0x30));
+        brume(w, ty + q * 1.2f, m * 0.12f, 0x22);
+        brume(w, h * 0.95f, m * 0.16f, 0x26);
+        // Lanternes : sous l'avant-toit, sur l'escalier, suspendues de part et d'autre du bouton origami.
+        float[] lp = jadePadLanterns(w, h);
+        for (int i = 0; i < lp.length / 4; i++) {
+            float lx = lp[i * 4], ly = lp[i * 4 + 1], lr = lp[i * 4 + 2];
+            int kind = (int) lp[i * 4 + 3];
+            if (kind == 0) line(lx, ly - lr * 1.8f, lx, ly - lr, lw, a(0xFF0A0605, 0xE0));
+            else if (kind == 1) line(lx, ly + lr, lx, ly + q * 1.1f, lw * 1.4f, a(0xFF0A0605, 0xF0));
+            else line(lx, 0, lx, ly - lr * 1.1f, lw, a(0xFF0A0605, 0xE0));
+            lanterne(lx, ly, lr, lw, 0xC0);
+        }
         // Tiges : plus nombreuses et plus nettes vers les bords.
         float node = m * 0.26f;
         for (int side = 0; side < 2; side++) {
@@ -2699,12 +2905,6 @@ final class Facets {
                 int al = Math.round(0x50 + 0xA0 * (1f - t));
                 bambou(x, -m * 0.05f, h + m * 0.05f, wd, (rnd() - 0.5f) * 0.04f, node, 1, al, lw, rnd() < 0.6f);
             }
-        }
-        // Lanternes suspendues de part et d'autre du bouton origami.
-        for (int side = 0; side < 2; side++) {
-            float lx = w * (side == 0 ? 0.36f : 0.64f), ly = m * 0.2f, r = m * 0.045f;
-            line(lx, 0, lx, ly - r * 1.1f, lw, a(0xFF0A0605, 0xE0));
-            lanterne(lx, ly, r, lw, 0xC0);
         }
         for (int i = 0; i < 12; i++) disc(w * (0.15f + 0.7f * rnd()), h * (0.3f + 0.65f * rnd()), m * 0.006f, a(fold, 0x50 + Math.round(rnd() * 0x50)));
     }

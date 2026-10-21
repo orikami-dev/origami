@@ -278,6 +278,8 @@ final class ConsolePad {
             l.add("FAST", 19, 8, 6, 2, c, r);
             l.add("ASPECT", 19, 11, 6, 2, c, r);
             l.add("QLOAD", 26, 1, 5, 2, c, r);
+            l.add("SHOT", 26, 11, 3, 2, c, r);
+            l.add("REC", 15, 11, 3, 2, c, r);
         }
         l.kind = "flex";
         l.stock = true;
@@ -355,6 +357,9 @@ final class ConsolePad {
         float y = m + stack * (SH_H * k + g);
         o.box("ASPECT", m, y, ic, ic);
         o.box("FAST", w - m - ic, y, ic, ic);
+        // Capture à droite de Format, Vidéo à gauche d'Accélérer (0.66.21), sur la même ligne.
+        o.box("SHOT", m + ic + g, y, ic, ic);
+        o.box("REC", w - m - 2 * ic - g, y, ic, ic);
     }
 
     /** Variante à côté des gâchettes empilées, vers le centre, à leur hauteur. */
@@ -362,6 +367,8 @@ final class ConsolePad {
         float m = M * k, g = G * k, ic = ICON * k, x = m + SH_W * k + g;
         o.box("ASPECT", x, m, ic, ic);
         o.box("FAST", w - x - ic, m, ic, ic);
+        o.box("SHOT", x + ic + g, m, ic, ic);
+        o.box("REC", w - x - 2 * ic - g, m, ic, ic);
     }
 
     /** Bas des icônes de coin (avec l'écart), pour stack rangées de gâchettes empilées au-dessus. */

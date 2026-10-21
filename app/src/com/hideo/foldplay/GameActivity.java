@@ -902,6 +902,13 @@ public class GameActivity extends Activity {
             formatKey().press(down);
             return;
         }
+        if (key.equals("SHOT") || key.equals("REC")) {
+            if (down) {
+                if (key.equals("SHOT")) ScreenCapture.shot(this, screen, title);
+                else ScreenCapture.video(this, title);
+            }
+            return;
+        }
         if (key.equals("FAST")) {
             if (down) {
                 fast = !fast;
@@ -1140,12 +1147,6 @@ public class GameActivity extends Activity {
                     });
         }
         pause
-                .item("Sauvegarde rapide", "Remplace l'état sauvegardé de ce jeu", new Runnable() {
-                    public void run() { jobs.add(new Runnable() { public void run() { saveState(); } }); }
-                })
-                .item("Chargement rapide", "Revient au dernier état sauvegardé", new Runnable() {
-                    public void run() { jobs.add(new Runnable() { public void run() { loadState(); } }); }
-                })
                 .sub("Réglages de l'émulateur", CoreCatalog.name(core) + " · affichage, image, performances, son…",
                         new Runnable() { public void run() { showCoreOptions(); } })
                 .sub("Affichage", "ATH, format d'image, Lumen", new Runnable() {
@@ -2256,6 +2257,7 @@ public class GameActivity extends Activity {
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
         if (SaveTransfer.onResult(this, request, result, data)) return;
+        if (ScreenCapture.onResult(this, request, result, data)) return;
         if (request != REQ_SAVE || result != RESULT_OK || data == null || data.getData() == null) return;
         importSave(data.getData());
     }
@@ -2296,6 +2298,7 @@ public class GameActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        ScreenCapture.gameClosed(this);
         Theme.inGame = false;
         super.onDestroy();
         running = false;

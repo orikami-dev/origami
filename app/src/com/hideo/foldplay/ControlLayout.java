@@ -19,7 +19,7 @@ final class ControlLayout {
 
     /** Types de touches disponibles, dans l'ordre du menu « Ajouter ». */
     static final String[] TYPES = {"DPAD", "STICK_L", "STICK_R", "A", "B", "X", "Y", "L", "R", "L2", "R2",
-        "L3", "R3", "SELECT", "START", "HOME", "TOUCHPAD", "FAST", "QSAVE", "QLOAD", "ASPECT"};
+        "L3", "R3", "SELECT", "START", "HOME", "TOUCHPAD", "FAST", "QSAVE", "QLOAD", "ASPECT", "SHOT", "REC"};
 
     /** Nom affiché dans le menu « Ajouter ». */
     static String label(String type) {
@@ -36,6 +36,8 @@ final class ControlLayout {
         if (type.equals("QSAVE")) return "Sauvegarde rapide";
         if (type.equals("QLOAD")) return "Chargement rapide";
         if (type.equals("ASPECT")) return "Format d'image (appui long : verrouiller)";
+        if (type.equals("SHOT")) return "Capture d'écran";
+        if (type.equals("REC")) return "Enregistrer une vidéo";
         return type;
     }
 
@@ -278,6 +280,7 @@ final class ControlLayout {
         out.add(arcade());
         out.add(xbox());
         out.add(mini());
+        for (ControlLayout l : out) l.ensureCaptures();
         return out;
     }
 
@@ -742,7 +745,8 @@ final class ControlLayout {
         if (t.equals("STICK_L")) return R_STL;
         if (t.equals("STICK_R")) return R_STR;
         if (t.equals("SELECT") || t.equals("START") || t.equals("HOME") || t.equals("FAST")
-                || t.equals("QSAVE") || t.equals("QLOAD") || t.equals("ASPECT")) return R_TOP;
+                || t.equals("QSAVE") || t.equals("QLOAD") || t.equals("ASPECT")
+                || t.equals("SHOT") || t.equals("REC")) return R_TOP;
         return R_OTHER;
     }
 
@@ -790,6 +794,19 @@ final class ControlLayout {
         for (Control c : controls) if (c.type.equals("ASPECT")) return;
         int cols = refCols > 0 ? refCols : 43, rows = refRows > 0 ? refRows : 28;
         add("ASPECT", Math.max(0, cols / 2 - 3), Math.min(rows - 2, rows * 11 / 28), 6, 2, cols, rows);
+    }
+
+    /** Ajoute CAPTURE et VIDÉO (0.66.21) si la disposition ne les a pas : à côté de Format, au centre. */
+    void ensureCaptures() {
+        boolean shot = false, rec = false;
+        for (Control c : controls) {
+            if (c.type.equals("SHOT")) shot = true;
+            if (c.type.equals("REC")) rec = true;
+        }
+        int cols = refCols > 0 ? refCols : 43, rows = refRows > 0 ? refRows : 28, y = Math.min(rows - 2, rows * 11 / 28);
+        if (shot && rec) return;
+        if (!shot) add("SHOT", Math.min(cols - 3, cols / 2 + 4), y, 3, 2, cols, rows);
+        if (!rec) add("REC", Math.max(0, cols / 2 - 7), y, 3, 2, cols, rows);
     }
 
     Control add(String type, int cx, int cy, int w, int h, int cols, int rows) {

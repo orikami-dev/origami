@@ -450,15 +450,15 @@ final class Theme {
 
     /** Les thèmes : identifiant, nom, puis fond, panneau, panneau clair, accent, touches. */
     static final String[] THEMES = {"codec", "arctique", "ecarlate", "sakura", "ambre", "neon", "jade", "argent"};
-    static final String[] THEME_NAMES = {"Radar", "Arctique", "Écarlate", "Sakura", "Ambre", "Néon", "Jade", "Argent"};
+    static final String[] THEME_NAMES = {"Vigie", "Aurore", "Torii", "Hanami", "Mégapole", "Averse", "Brume", "Clair de lune"};
     static final String[] THEME_HELP = {
-        "Le vert de transmission sur fond nuit, l'original.",
-        "Bleu glacier sur un fond d'encre, froid et net.",
-        "Rouge d'alerte sur fond brun très sombre.",
-        "Rose de cerisier sur fond prune, plus doux.",
-        "Or chaud sur fond sépia, comme un vieux terminal.",
-        "Magenta et cyan sur fond d'encre violette, une ruelle sous la pluie.",
-        "Vrai vert jade, doux et bleuté, dans la brume : temple de montagne et bambous.",
+        "Le vert de transmission sur fond nuit : un radar qui balaie et des échos rouges qui s'allument.",
+        "Bleu glacier sous l'aurore boréale, avec les étoiles qui tournent autour de la Polaire.",
+        "Rouge d'alerte sous la lune rouge, un torii, des flammes et des nuages dorés.",
+        "Rose de cerisier au bord de la rivière : le pont de lune, l'eau et les pétales.",
+        "Or chaud sur la ville la nuit : la tour rouge et blanche, les tours de verre et leurs enseignes.",
+        "Magenta et cyan dans la ruelle sous la pluie : enseignes, flaques et gouttes qui font des ronds.",
+        "Vert jade dans la brume : le temple de montagne, son escalier, ses lanternes et les bambous.",
         "Argent et blanc sous la pleine lune, presque monochrome.",
     };
     private static final int[][] PALETTES = {

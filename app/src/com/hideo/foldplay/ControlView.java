@@ -162,7 +162,7 @@ final class ControlView extends View {
         }
         else if (t.startsWith("STICK")) drawStick(c, w, h);
         else if (t.equals("TOUCHPAD")) drawPad(c, w, h);
-        else if (t.equals("FAST") || t.equals("ASPECT")) drawCornerKey(c, w, h, t);
+        else if (t.equals("FAST") || t.equals("ASPECT") || t.equals("SHOT") || t.equals("REC")) drawCornerKey(c, w, h, t);
         else if (ControlLayout.pill(t)) drawPill(c, w, h, control.cap != null ? pillCap(control.cap) : pillLabel(t));
         else drawShoulder(c, w, h, t);
 
@@ -365,9 +365,11 @@ final class ControlView extends View {
         r.set(dp, dp, w - dp, h - dp);
         // Elle épouse le coin arrondi de la manette (0.62.5) : grand arrondi côté coin (Format en
         // haut à gauche, Accélérer en haut à droite), petits arrondis vers l'intérieur.
-        boolean left = t.equals("ASPECT");
+        // Capture et Vidéo (0.66.21) ne sont pas dans un coin : même touche, petits arrondis partout.
+        boolean left = t.equals("ASPECT"), flat = t.equals("SHOT") || t.equals("REC");
         float big = Math.min(r.width(), r.height()) * 0.62f, small = 6 * dp;
-        float[] radii = left ? new float[] {big, big, small, small, small, small, small, small}
+        float[] radii = flat ? new float[] {small, small, small, small, small, small, small, small}
+                : left ? new float[] {big, big, small, small, small, small, small, small}
                 : new float[] {small, small, big, big, small, small, small, small};
         path.reset();
         path.addRoundRect(r, radii, android.graphics.Path.Direction.CW);
@@ -380,7 +382,27 @@ final class ControlView extends View {
         float u = Math.min(w, h) * 0.22f, cx = w / 2, cy = h / 2;
         plain(Theme.MUTED);
         path.reset();
-        if (t.equals("FAST")) {
+        if (t.equals("SHOT")) {
+            // Appareil photo : boîtier au trait, viseur en bosse, objectif rond.
+            ring.setColor(Theme.MUTED);
+            ring.setStrokeWidth(Math.max(1.5f * dp, u * 0.2f));
+            float bw = u * 1.1f, bh = u * 0.75f;
+            r.set(cx - bw, cy - bh * 0.7f, cx + bw, cy + bh);
+            c.drawRoundRect(r, u * 0.25f, u * 0.25f, ring);
+            path.moveTo(cx - u * 0.45f, cy - bh * 0.7f);
+            path.lineTo(cx - u * 0.3f, cy - bh * 1.15f);
+            path.lineTo(cx + u * 0.3f, cy - bh * 1.15f);
+            path.lineTo(cx + u * 0.45f, cy - bh * 0.7f);
+            c.drawPath(path, ring);
+            c.drawCircle(cx, cy + bh * 0.15f, u * 0.42f, ring);
+        } else if (t.equals("REC")) {
+            // Enregistrement : anneau et point rouge.
+            ring.setColor(Theme.MUTED);
+            ring.setStrokeWidth(Math.max(1.5f * dp, u * 0.18f));
+            c.drawCircle(cx, cy, u * 1.0f, ring);
+            plain(0xFFE5484D);
+            c.drawCircle(cx, cy, u * 0.55f, fill);
+        } else if (t.equals("FAST")) {
             for (int i = 0; i < 2; i++) {
                 float x0 = cx - u + i * u;
                 path.moveTo(x0, cy - u * 0.8f);
