@@ -1,9 +1,7 @@
 package com.hideo.foldplay;
 
 import android.content.Context;
-import android.graphics.Camera;
 import android.graphics.Canvas;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.view.View;
@@ -18,20 +16,13 @@ final class OrigamiSplash extends View {
         void run();
     }
 
-    private static final float FOLD = Crane.FOLD;
-    private static final float CY = Crane.CY;
-    /** Base des ailes : elles se lèvent depuis cette ligne. */
-    private static final float WING_BASE = Crane.WING_BASE;
-
     /** Nuances du papier, tirées de l'accent du thème en cours. */
     private final int[] shades = Crane.shades(Theme.logo(Theme.CODEC));
 
-    private static final long UNFOLD = 700, WINGS = 450, HOLD = 250, OPEN = 450;
+    private static final long UNFOLD = 900, WINGS = 500, HOLD = 450, OPEN = 450;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
-    private final Camera camera = new Camera();
-    private final Matrix matrix = new Matrix();
     private final float dp;
     private long start;
     private Done done;
@@ -40,7 +31,6 @@ final class OrigamiSplash extends View {
     OrigamiSplash(Context ctx) {
         super(ctx);
         dp = ctx.getResources().getDisplayMetrics().density;
-        camera.setLocation(0, 0, -12);
     }
 
     void play(Done d) {
@@ -70,75 +60,63 @@ final class OrigamiSplash extends View {
         long now = android.os.SystemClock.uptimeMillis();
         if (start == 0) start = now;
         long t = start < 0 ? UNFOLD + WINGS : now - start;
-        float unfold = ease(clamp(t / (float) UNFOLD));
-        float wings = ease(clamp((t - UNFOLD) / (float) WINGS));
+        // 0.66.17 (choix F de BOSS) : les plis se tracent au trait, les facettes se remplissent, un reflet
+        // traverse la grue, puis elle s'efface sur l'accueil. Grue au centre, immobile.
+        float draw = clamp(t / (float) UNFOLD);
+        float fillK = ease(clamp((t - UNFOLD) / (float) WINGS));
         float open = clamp((t - UNFOLD - WINGS - HOLD) / (float) OPEN);
-
-        float size = Math.min(getWidth(), getHeight()) * 0.55f;
-        float s = size / Crane.SPAN * (1f + open * open * 2.2f);
-        float px = getWidth() / 2f;
-        float py = getHeight() / 2f - 24 * dp;
+        float size = Math.min(getWidth(), getHeight()) * 0.6f * (1f + open * 0.15f);
+        float s = size / 84f, cx = getWidth() / 2f, cy = getHeight() / 2f - 24 * dp;
         int alpha = Math.round(255 * (1f - open));
-
-        // Moitié droite, à plat.
-        c.save();
-        c.translate(px - FOLD * s, py - CY * s);
-        c.scale(s, s);
-        for (float[] f : Crane.WING_R) facet(c, f, wings, alpha, false);
-        for (float[] f : Crane.RIGHT) facet(c, f, 1f, alpha, false);
-        c.restore();
-
-        // Moitié gauche : tourne autour du pli, de repliée sur la droite (-180°) à ouverte (0°).
-        float angle = -180f * (1f - unfold);
-        boolean back = angle < -90f;
-        camera.save();
-        // Perspective douce, quelle que soit la taille de l'écran (la caméra compte en pouces de 72 px).
-        camera.setLocation(0, 0, -Math.max(8f, size * 3f / 72f));
-        camera.rotateY(angle);
-        camera.getMatrix(matrix);
-        camera.restore();
-        matrix.preTranslate(-px, -py);
-        matrix.postTranslate(px, py);
-        c.save();
-        c.concat(matrix);
-        c.translate(px - FOLD * s, py - CY * s);
-        c.scale(s, s);
-        for (float[] f : Crane.WING_L) facet(c, f, wings, alpha, back);
-        for (float[] f : Crane.LEFT) facet(c, f, 1f, alpha, back);
-        c.restore();
-
-        // Pli central aux couleurs du thème, le dernier posé.
-        c.save();
-        c.translate(px - FOLD * s, py - CY * s);
-        c.scale(s, s);
-        paint.setColor(Theme.fold());
-        paint.setAlpha(alpha);
-        c.drawRect(Crane.HINGE[0], Crane.HINGE[1], Crane.HINGE[2], Crane.HINGE[3], paint);
-        c.restore();
+        int layer = c.saveLayer(null, null);
+        paint.setStrokeJoin(Paint.Join.ROUND);
+        paint.setStrokeWidth(Math.max(1.5f, 1.4f * s));
+        for (int i = 0; i < Crane.FLY.length; i++) {
+            float[] f = Crane.FLY[i];
+            path.reset();
+            float per = 0, lx = 0, ly = 0;
+            for (int k = 1; k + 1 < f.length; k += 2) {
+                float x = cx + (f[k] - Crane.FLY_CX) * s, y = cy + (f[k + 1] - Crane.FLY_CY) * s;
+                if (k == 1) path.moveTo(x, y);
+                else { path.lineTo(x, y); per += (float) Math.hypot(x - lx, y - ly); }
+                lx = x;
+                ly = y;
+            }
+            path.close();
+            per += (float) Math.hypot(cx + (f[1] - Crane.FLY_CX) * s - lx, cy + (f[2] - Crane.FLY_CY) * s - ly);
+            int col = i == 0 ? Theme.fold() : shades[(int) f[0]];
+            if (fillK > 0f) {
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(col);
+                paint.setAlpha(Math.round(alpha * fillK));
+                c.drawPath(path, paint);
+            }
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setColor(fillK > 0f ? Theme.darken(col, 0.45f) : shades[3]);
+            paint.setAlpha(alpha);
+            paint.setPathEffect(draw < 1f ? new android.graphics.DashPathEffect(new float[] {per * draw, per}, 0) : null);
+            c.drawPath(path, paint);
+            paint.setPathEffect(null);
+        }
+        paint.setStyle(Paint.Style.FILL);
+        // Reflet qui traverse la grue pendant la pause.
+        float g = clamp((t - UNFOLD - WINGS + 150) / (float) (HOLD + 300));
+        if (g > 0f && g < 1f && open <= 0f) {
+            float band = size * 0.4f, bx = cx - size + 2 * size * g;
+            paint.setShader(new android.graphics.LinearGradient(bx - band, cy - size / 2, bx + band, cy + size / 2,
+                    new int[] {0x00FFFFFF, 0x55FFFFFF, 0x00FFFFFF}, null, android.graphics.Shader.TileMode.CLAMP));
+            paint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_ATOP));
+            c.drawRect(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2, paint);
+            paint.setXfermode(null);
+            paint.setShader(null);
+        }
+        c.restoreToCount(layer);
 
         if (open >= 1f) {
             finish();
             return;
         }
         if (start >= 0) postInvalidateOnAnimation();
-    }
-
-    /** Une facette ; une aile se lève de sa base (k de 0 à 1) ; vue de dos, le papier est plus sombre. */
-    private void facet(Canvas c, float[] f, float k, int alpha, boolean back) {
-        if (k <= 0.01f) return;
-        path.reset();
-        for (int i = 1; i + 1 < f.length; i += 2) {
-            float x = f[i];
-            float y = f[i + 1];
-            if (k < 1f) y = WING_BASE + (y - WING_BASE) * k;
-            if (i == 1) path.moveTo(x, y);
-            else path.lineTo(x, y);
-        }
-        path.close();
-        int color = shades[(int) f[0]];
-        paint.setColor(back ? Theme.darken(color, 0.55f) : color);
-        paint.setAlpha(alpha);
-        c.drawPath(path, paint);
     }
 
     private static float clamp(float v) {

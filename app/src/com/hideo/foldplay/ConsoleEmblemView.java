@@ -49,9 +49,12 @@ final class ConsoleEmblemView extends View {
         label.setColor(tint);
 
         // Le pictogramme occupe les deux tiers du haut, le sigle le tiers du bas.
-        float size = Math.min(w, h * 0.62f);
+        // Paramètres : pas de sigle, son nom est déjà écrit dessous ; le pictogramme prend toute la place.
+        // 0.66.16 (BOSS) : seules les consoles et Remote Play gardent un sigle ; les autres ont leur nom écrit dessous.
+        boolean bare = system == SystemInfo.SETTINGS || system == SystemInfo.ANDROID || system == SystemInfo.ACTION;
+        float size = bare ? Math.min(w, h) * 0.86f : Math.min(w, h * 0.62f);
         float cx = w / 2f;
-        float cy = h * 0.34f;
+        float cy = bare ? h / 2f : h * 0.34f;
         if (pk.equals("phosphore")) {
             // Rémanence : la silhouette, pâle et décalée, sous l'emblème.
             int ghost = c.saveLayerAlpha(0, 0, w, h, 110);
@@ -64,6 +67,7 @@ final class ConsoleEmblemView extends View {
         finish(c, pk, cx, cy, size);
         c.restoreToCount(layer);
 
+        if (bare) return;
         label.setTextSize(Math.min(h * 0.2f, w / Math.max(3, system.shortName.length()) * 1.1f));
         c.drawText(system.shortName, cx, h * 0.9f, label);
         mark(c, pk, cx + label.measureText(system.shortName) / 2f, h * 0.9f, label.getTextSize(), accent);
@@ -123,6 +127,22 @@ final class ConsoleEmblemView extends View {
             over.setColor(0x47000000);
             float step = Math.max(3f, s * 0.04f);
             for (float y = t; y < b; y += step) c.drawRect(l, y, rr, y + step * 0.4f, over);
+        } else if (pk.equals("neon")) {
+            // Reflet sur le bitume mouillé : le bas prend la lueur cyan du thème.
+            over.setColor(Theme.alpha(Theme.fold(), 0x48));
+            c.drawRect(l, t + s * 0.68f, rr, b, over);
+            over.setColor(0x30000000);
+            c.drawRect(l, t + s * 0.66f, rr, t + s * 0.68f, over);
+        } else if (pk.equals("bambou")) {
+            // Tiges de bambou : fines rayures verticales et un nœud.
+            over.setColor(0x2E000000);
+            float step = Math.max(4f, s * 0.12f);
+            for (float x = l; x < rr; x += step) c.drawRect(x, t, x + step * 0.18f, b, over);
+            c.drawRect(l, t + s * 0.55f, rr, t + s * 0.57f, over);
+        } else if (pk.equals("lune")) {
+            // Clair de lune : halo pâle en haut à droite.
+            over.setColor(0x3CFFFFFF);
+            c.drawCircle(rr - s * 0.12f, t + s * 0.12f, s * 0.45f, over);
         }
     }
 
@@ -161,6 +181,35 @@ final class ConsoleEmblemView extends View {
         } else if (pk.equals("phosphore")) {
             // Curseur plein, posé sur la ligne du sigle.
             c.drawRect(x + ts * 0.2f, base - ts * 0.7f, x + ts * 0.2f + ts * 0.4f, base, over);
+        } else if (pk.equals("neon")) {
+            // Goutte de pluie.
+            path.reset();
+            path.moveTo(mx, my - m);
+            path.quadTo(mx + m * 0.75f, my + m * 0.1f, mx + m * 0.6f, my + m * 0.45f);
+            path.quadTo(mx, my + m * 1.05f, mx - m * 0.6f, my + m * 0.45f);
+            path.quadTo(mx - m * 0.75f, my + m * 0.1f, mx, my - m);
+            path.close();
+            c.drawPath(path, over);
+        } else if (pk.equals("bambou")) {
+            path.reset();
+            path.moveTo(mx - m, my + m);
+            path.lineTo(mx, my + m * 0.2f);
+            path.lineTo(mx + m, my - m);
+            path.close();
+            c.drawPath(path, over);
+            over.setColor(Theme.alpha(accent, 0x80));
+            path.reset();
+            path.moveTo(mx - m, my + m);
+            path.lineTo(mx + m * 0.4f, my + m * 0.4f);
+            path.lineTo(mx + m, my - m);
+            path.close();
+            c.drawPath(path, over);
+        } else if (pk.equals("lune")) {
+            c.drawCircle(mx, my, m * 0.6f, over);
+            over.setStyle(Paint.Style.STROKE);
+            over.setStrokeWidth(Math.max(1f, ts * 0.04f));
+            c.drawCircle(mx, my, m, over);
+            over.setStyle(Paint.Style.FILL);
         }
     }
 
@@ -200,6 +249,8 @@ final class ConsoleEmblemView extends View {
         // et un écran qui reçoit le jeu avec une manette devant. Aucun logo de plateforme.
         SHAPES.put("android", "F r -0.48 -0.25 0.48 0.25 0.09;C r -0.37 -0.19 0.37 0.19 0.02;F r -0.25 -0.10 0.25 0.12 0.10;C x -0.12 0.01 0.09;C o 0.09 -0.02 0.028;C o 0.16 0.05 0.028;C o 0.43 0 0.018");
         SHAPES.put("remote", "F r -0.46 -0.40 0.30 0.12 0.04;C r -0.40 -0.34 0.24 0.06 0.01;F p -0.14 -0.24 -0.14 -0.04 0.04 -0.14;F r -0.14 0.12 -0.02 0.20 0.01;F r -0.26 0.20 0.10 0.24 0.02;C r -0.01 0.03 0.51 0.43 0.14;F r 0.03 0.07 0.47 0.39 0.12;C x 0.15 0.23 0.09;C o 0.33 0.19 0.028;C o 0.40 0.26 0.028");
+        // Engrenage : disque, huit dents, trou central.
+        SHAPES.put("settings", "F o 0 0 0.32;F r -0.07 -0.46 0.07 0.46 0.03;F r -0.46 -0.07 0.46 0.07 0.03;F p 0.375 0.276 0.276 0.375 -0.375 -0.276 -0.276 -0.375;F p -0.375 0.276 -0.276 0.375 0.375 -0.276 0.276 -0.375;C o 0 0 0.13");
         SHAPES.put("arcade", "F p -0.30 -0.48 0.30 -0.48 0.30 -0.30 0.24 -0.26 0.24 0.02 0.36 0.14 0.36 0.22 0.26 0.22 0.26 0.48 -0.26 0.48 -0.26 0.22 -0.36 0.22 -0.36 0.14 -0.24 0.02 -0.24 -0.26 -0.30 -0.30;S l -0.24 -0.30 0.24 -0.30 0.02;C r -0.18 -0.22 0.18 -0.02 0.02;C o -0.14 0.15 0.03;S l -0.14 0.15 -0.14 0.07 0.014;C o 0.04 0.16 0.022;C o 0.12 0.16 0.022;C o 0.20 0.16 0.022;C r -0.06 0.30 0.06 0.40 0.01");
     }
 

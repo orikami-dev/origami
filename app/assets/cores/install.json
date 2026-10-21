@@ -74,20 +74,9 @@
    "balanced": {
     "armsx2_upscale": "2x",
     "armsx2_blending_accuracy": "Basic",
-    "armsx2_anisotropic_filtering": "4",
-    "armsx2_mipmapping": "enabled",
-    "armsx2_trilinear_filtering": "Automatic",
-    "armsx2_fxaa": "disabled",
-    "armsx2_texture_filtering": "Bilinear (PS2)",
-    "armsx2_dithering": "Scaled",
-    "armsx2_mtvu": "enabled"
-   },
-   "quality": {
-    "armsx2_upscale": "3x",
-    "armsx2_blending_accuracy": "Medium",
     "armsx2_anisotropic_filtering": "8",
     "armsx2_mipmapping": "enabled",
-    "armsx2_trilinear_filtering": "Trilinear (PS2)",
+    "armsx2_trilinear_filtering": "Automatic",
     "armsx2_fxaa": "enabled",
     "armsx2_texture_filtering": "Bilinear (PS2)",
     "armsx2_dithering": "Scaled",
@@ -106,20 +95,11 @@
    },
    "balanced": {
     "dolphin_efb_scale": "2",
-    "dolphin_max_anisotropy": "1",
+    "dolphin_max_anisotropy": "2",
     "dolphin_anti_aliasing": "0",
     "dolphin_force_texture_filtering_mode": "0",
     "dolphin_force_true_color": "enabled",
     "dolphin_fast_depth_calculation": "enabled",
-    "dolphin_shader_compilation_mode": "2"
-   },
-   "quality": {
-    "dolphin_efb_scale": "3",
-    "dolphin_max_anisotropy": "2",
-    "dolphin_anti_aliasing": "1",
-    "dolphin_force_texture_filtering_mode": "2",
-    "dolphin_force_true_color": "enabled",
-    "dolphin_fast_depth_calculation": "disabled",
     "dolphin_shader_compilation_mode": "2"
    }
   },
@@ -135,15 +115,8 @@
     "swanstation_GPU_ResolutionScale": "3",
     "swanstation_GPU_TrueColor": "true",
     "swanstation_GPU_PGXPEnable": "true",
-    "swanstation_GPU_TextureFilter": "Nearest",
-    "swanstation_GPU_MSAA": "1"
-   },
-   "quality": {
-    "swanstation_GPU_ResolutionScale": "5",
-    "swanstation_GPU_TrueColor": "true",
-    "swanstation_GPU_PGXPEnable": "true",
     "swanstation_GPU_TextureFilter": "Bilinear",
-    "swanstation_GPU_MSAA": "2"
+    "swanstation_GPU_MSAA": "1"
    }
   },
   "ppsspp": {
@@ -156,16 +129,9 @@
    },
    "balanced": {
     "ppsspp_internal_resolution": "960x544",
-    "ppsspp_texture_anisotropic_filtering": "4x",
-    "ppsspp_texture_filtering": "Auto",
-    "ppsspp_texture_scaling_level": "disabled",
-    "ppsspp_frameskip": "disabled"
-   },
-   "quality": {
-    "ppsspp_internal_resolution": "1440x816",
     "ppsspp_texture_anisotropic_filtering": "8x",
     "ppsspp_texture_filtering": "Auto max quality",
-    "ppsspp_texture_scaling_level": "2x",
+    "ppsspp_texture_scaling_level": "disabled",
     "ppsspp_frameskip": "disabled"
    }
   },
@@ -180,12 +146,6 @@
     "mupen64plus-43screensize": "960x720",
     "mupen64plus-MultiSampling": "0",
     "mupen64plus-BilinearMode": "3point",
-    "mupen64plus-txFilterMode": "None"
-   },
-   "quality": {
-    "mupen64plus-43screensize": "1280x960",
-    "mupen64plus-MultiSampling": "2",
-    "mupen64plus-BilinearMode": "3point",
     "mupen64plus-txFilterMode": "Smooth filtering 1"
    }
   },
@@ -199,16 +159,9 @@
    },
    "balanced": {
     "flycast_internal_resolution": "1280x960",
-    "flycast_anisotropic_filtering": "4",
+    "flycast_anisotropic_filtering": "8",
     "flycast_texupscale": "1",
     "flycast_alpha_sorting": "per-triangle",
-    "flycast_mipmapping": "enabled"
-   },
-   "quality": {
-    "flycast_internal_resolution": "1920x1440",
-    "flycast_anisotropic_filtering": "8",
-    "flycast_texupscale": "2",
-    "flycast_alpha_sorting": "per-pixel",
     "flycast_mipmapping": "enabled"
    }
   },
@@ -222,11 +175,6 @@
     "pcsx_rearmed_neon_enhancement_enable": "enabled",
     "pcsx_rearmed_neon_enhancement_no_main": "enabled",
     "pcsx_rearmed_neon_interlace_enable": "disabled"
-   },
-   "quality": {
-    "pcsx_rearmed_neon_enhancement_enable": "enabled",
-    "pcsx_rearmed_neon_enhancement_no_main": "disabled",
-    "pcsx_rearmed_neon_interlace_enable": "enabled"
    }
   },
   "melonds": {
@@ -238,11 +186,6 @@
    "balanced": {
     "melonds_opengl_renderer": "enabled",
     "melonds_opengl_resolution": "2x",
-    "melonds_opengl_filtering": "nearest"
-   },
-   "quality": {
-    "melonds_opengl_renderer": "enabled",
-    "melonds_opengl_resolution": "3x",
     "melonds_opengl_filtering": "linear"
    }
   }

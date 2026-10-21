@@ -19,17 +19,36 @@
 
 Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seule app, pensée pour le pli : à moitié plié, l'écran du haut devient la console et celui du bas la manette.
 
+<p align="center">
+  <img src="docs/images/captures-0.66.png" width="92%" alt="Bibliothèque et Demon's Souls sur PS3">
+</p>
+
 | | |
 |---|---|
 | 🎮 **Mode Tsuru** | Téléphone à moitié plié : accueil façon XMB, jeu en haut, manette tactile en bas. |
-| 📱 **Mode Washi** | Écran externe ou téléphone à plat : lanceur d'apps et bibliothèque. |
+| 📱 **Mode Washi** | Écran externe ou téléphone à plat : bibliothèque et lanceur d'apps. |
 | 🕹️ **Manette Flex** | Une manette par console, choisie au lancement, qui suit la rotation. |
+| 📁 **Dossier Origami** | À l'installation, Origami crée `Origami/GAMES` (avec `GAMES/DLC`) et `Origami/BIOS` à la racine du téléphone. |
 | 🌐 **10 langues** | Français, anglais, espagnol, allemand, italien, portugais, russe, japonais, coréen, chinois. |
 | 🔄 **Mises à jour intégrées** | Versions stables et préversions proposées directement dans l'app. |
 
+## 🎨 Huit thèmes
+
+Chaque thème a son fond animé, sa manette assortie, ses icônes, sa police, ses bruitages et sa musique.
+
+| Thème | En une phrase |
+|---|---|
+| 📡 **Vigie** | Un faisceau radar qui veille dans la nuit verte. |
+| ❄️ **Aurore** | Une nuit polaire sous les aurores. |
+| ⛩️ **Torii** | Une pagode et un torii vermillon sous la lune rouge. |
+| 🌸 **Hanami** | Un cerisier en fleurs au-dessus de la rivière et du pont de lune. |
+| 🏙️ **Mégapole** | Une ville japonaise la nuit, avec ses tours et ses projecteurs. |
+| 🌧️ **Averse** | Une ruelle de Tokyo sous la pluie et ses néons. |
+| 🎋 **Brume** | Un temple de montagne dans la brume, ses lanternes et ses lucioles. |
+| 🌕 **Clair de lune** | Une grue en origami sous la pleine lune. |
+
 <p align="center">
-  <img src="docs/images/xmb-jeux-mobiles-remote-0.60.5.png" width="45%" alt="Accueil XMB">
-  <img src="docs/images/flex-portrait-0.60.3.png" width="45%" alt="Manette Flex">
+  <img src="docs/images/themes-torii-hanami-0.66.png" width="92%" alt="Torii et Hanami : fonds et manettes">
 </p>
 
 ## 🧩 Consoles
@@ -46,27 +65,26 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 
 ## ✨ Points forts
 
-- 🎨 Cinq thèmes (Codec, Arctique, Écarlate, Sakura, Ambre) appliqués sans redémarrage, avec fonds, manettes et icônes assortis.
-- 🏮 Andon : lumière d'ambiance autour de l'écran du jeu, aux couleurs de l'image ou du thème.
+- 🧠 Répartition des cœurs (PS3 et Xbox 360) : le son, le rendu et le jeu sur les gros cœurs, les shaders sur les moyens ; mode Économie pour moins chauffer.
+- ⚡ Profils Performance, Équilibré et Personnalisé ; PS3 en 720p (Performance) ou 1080p (Équilibré).
+- 📸 Touches Capture d'écran et Vidéo sur toutes les manettes.
+- 🏮 Lumen : lumière d'ambiance autour de l'écran du jeu, aux couleurs de l'image ou du thème.
 - 📊 ATH façon RTSS sur toutes les consoles : images/s, vitesse, processeur, mémoire, batterie, chauffe.
-- ⚡ Profils Performance, Équilibré, Qualité et Personnalisé, réglages visibles en direct.
 - 📲 En portrait, écran du jeu et manette coupés pile sur la charnière ; en paysage, plein écran.
-- 🗂️ Lanceur d'apps avec tri et défilement rapide.
-- 🔔 Sons système propres à chaque thème : valider, retour, suivant, onglet, option activée ou désactivée, erreur, terminé.
-- 👇 Bibliothèque en mode Washi : tire vers le bas pour actualiser.
-- 🐞 « Copier le journal » en un clic (Réglages > Débogage) pour signaler un bug.
+- 🗂️ Lanceur d'apps avec tri, grille ou liste et défilement rapide.
 - 📡 Colonne Remote Play (PlayStation, Xbox, Steam Link) et colonne Jeux mobiles.
 - 💾 Import et export des sauvegardes, import des BIOS et du firmware PS3.
 - 📐 Tous les pliants et tous les formats d'écran, changements à chaud.
-
-<p align="center">
-  <img src="docs/images/fonds-haut-manette-0.60.4.png" width="90%" alt="Thèmes">
-</p>
 
 ## ⭐ Mises à jour majeures
 
 | Version | Ce qu'elle a apporté |
 |---|---|
+| [0.66.24](https://github.com/orikami-dev/origami/releases/tag/v0.66.24) | Répartition des cœurs, dossier Origami à la racine, fonds Torii et Hanami refaits. |
+| [0.66.21](https://github.com/orikami-dev/origami/releases/tag/v0.66.21) | Thèmes renommés, touches Capture et Vidéo. |
+| [0.66.19](https://github.com/orikami-dev/origami/releases/tag/v0.66.19) | Manettes animées pour tous les thèmes. |
+| [0.66.13](https://github.com/orikami-dev/origami/releases/tag/v0.66.13) | Nouveau logo : la grue en vol. |
+| [0.66.7](https://github.com/orikami-dev/origami/releases/tag/v0.66.7) | Trois nouveaux thèmes, huit musiques. |
 | [0.65.24](https://github.com/orikami-dev/origami/releases/tag/v0.65.24) | Sons système propres à chaque thème (suivant, onglet, activé, erreur, terminé). |
 | [0.65.18](https://github.com/orikami-dev/origami/releases/tag/v0.65.18) | Andon : lumière d'ambiance autour de l'écran du jeu. |
 | [0.65.11](https://github.com/orikami-dev/origami/releases/tag/v0.65.11) | Préversions dans l'app : les nouveaux builds apparaissent seuls. |
@@ -90,7 +108,7 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
 | `app/` | L'app Android (Java, sans Gradle) et `build.sh` |
 | `native/` | Pont libretro, pont PS3, scripts de compilation et correctifs des moteurs |
 | `prebuilt/` | Moteurs compilés (non versionnés, refaits par `native/build-*.sh`) |
-| `docs/` | Notes techniques, notes de chaque version, images |
+| `docs/` | Notes de chaque version (`docs/releases`), images |
 | `tools/` | Installation du SDK, publication des versions |
 
 Construire : `bash app/build.sh` (voir l'en-tête du script).

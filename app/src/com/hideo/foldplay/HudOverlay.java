@@ -23,6 +23,9 @@ final class HudOverlay {
         float frameMaxMs();
 
         boolean paused();
+
+        /** Résolution interne du jeu (« 1280×720 »), ou null si le moteur ne la donne pas. */
+        String renderRes();
     }
 
     private final Activity activity;
@@ -58,6 +61,13 @@ final class HudOverlay {
         return Math.round(v * activity.getResources().getDisplayMetrics().density);
     }
 
+    /** Hauteur de la bande « barre d'état » réservée en haut (portrait en jeu) : l'ATH s'y centre. */
+    private int strip;
+
+    void setStrip(int px) {
+        strip = px;
+    }
+
     /** Affiche ou cache l'ATH selon les réglages. */
     void apply() {
         boolean on = store.hud();
@@ -76,8 +86,18 @@ final class HudOverlay {
                 : "right".equals(pos) ? Gravity.END : Gravity.START);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, gravity);
         int m = line ? dp(6) : dp(20);
-        lp.setMargins(m, m, m, 0);
+        lp.setMargins(m, strip > 0 ? 0 : m, m, 0);
         hud.setLayoutParams(lp);
+        hud.setTranslationY(0);
+        if (strip > 0) {
+            // À la place de la barre d'état : centré dans la bande, rien sur l'image du jeu.
+            hud.post(new Runnable() {
+                public void run() {
+                    if (hud != null && strip > 0) hud.setTranslationY(Math.max(0, (strip - hud.getHeight()) / 2f));
+                }
+            });
+        }
+        Hud.avoidCutout(hud, m);
         hud.setTextSize(Hud.SIZES[Math.max(0, Math.min(2, store.hudSize()))]);
         hud.setSingleLine(line);
         hud.setMaxLines(line ? 1 : 20);
@@ -107,12 +127,14 @@ final class HudOverlay {
         timer.removeCallbacks(tick);
     }
 
+    private float recentPeak;
+
     private void update() {
         if (hud == null) return;
         long now = android.os.SystemClock.elapsedRealtime();
         long cpu = android.os.Process.getElapsedCpuTime();
         boolean block = "block".equals(store.hudStyle());
-        int label = Hud.labelColor(store.hudColor());
+        int label = Hud.labelColor(activity, store.hudColor());
         if (lastAt == 0) {
             lastAt = now;
             lastCpuMs = cpu;
@@ -131,16 +153,25 @@ final class HudOverlay {
         float max = source.frameMaxMs();
         h.frameMaxMs = max >= 0 ? max : h.frameMs;
         // Sans compteur d'images émulées, la vitesse se déduit des 60 images/s visées.
-        h.speed = h.fps >= 0 ? h.fps / 60f * 100 : -1;
+        // La cadence visée suit le jeu : 30 images/s si le meilleur score récent ne dépasse pas 45, sinon 60.
+        // Un jeu à 30 i/s qui tient ses 30 affiche donc 100 % (0.65), pas 50 %.
+        if (h.fps >= 0) recentPeak = Math.max(h.fps, recentPeak * 0.97f);
+        float target = recentPeak > 45f ? 60f : 30f;
+        h.speed = h.fps >= 0 ? Math.min(100f, h.fps / target * 100f) : -1;
+        h.renderRes = source.renderRes();
         h.cpu = (cpu - lastCpuMs) / 10f / sec;
         lastAt = now;
         lastCpuMs = cpu;
 
         java.util.Set<String> items = store.hudItems();
         if (items.contains("mhz")) h.mhz = Hud.cpuMhz();
-        Runtime rt = Runtime.getRuntime();
-        h.ramMb = (int) ((android.os.Debug.getNativeHeapAllocatedSize() >> 20)
-                + ((rt.totalMemory() - rt.freeMemory()) >> 20));
+        // Les moteurs réservent leur mémoire hors du tas mesuré : on lit la mémoire résidente du processus.
+        h.ramMb = Hud.residentMb();
+        if (h.ramMb <= 0) {
+            Runtime rt = Runtime.getRuntime();
+            h.ramMb = (int) ((android.os.Debug.getNativeHeapAllocatedSize() >> 20)
+                    + ((rt.totalMemory() - rt.freeMemory()) >> 20));
+        }
         Intent bat = activity.registerReceiver(null, new android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         if (bat != null) {
             int level = bat.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1);
@@ -148,6 +179,11 @@ final class HudOverlay {
             if (level >= 0) h.battery = level * 100 / Math.max(1, scale);
             h.charging = bat.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0;
             h.tempC = bat.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
+        }
+        h.fahrenheit = "f".equals(store.tempUnit());
+        if (items.contains("heat")) {
+            h.cpuC = Hud.cpuC();
+            h.gpuC = Hud.gpuC();
         }
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             android.os.PowerManager pm = (android.os.PowerManager) activity.getSystemService(Activity.POWER_SERVICE);
@@ -159,5 +195,6 @@ final class HudOverlay {
             h.height = screen.getHeight();
         }
         hud.setText(Hud.compose(h, items, block, label));
+        Hud.avoidCutout(hud, block ? dp(20) : dp(6));
     }
 }

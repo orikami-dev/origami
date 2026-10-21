@@ -75,7 +75,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Catégories d'applications du XMB (0.60.5) : jeux Android installés, clients Remote Play. */
     private final List<Game> mobile = new ArrayList<Game>();
     private final List<Game> remote = new ArrayList<Game>();
-    private final Game refreshItem = MobileApps.refreshItem();
     private String appsSig = "";
     private String filter = "all";
     private int selected;
@@ -107,6 +106,43 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     private LinearLayout cats;
     private LinearLayout carousel;
 
+    // ---- Niveau « Paramètres » du XMB (Tsuru), à la façon d'une PS3 : l'entrée choisie ouvre un niveau en dessous,
+    // dans le XMB même. lvSection est l'entrée ouverte (« sec:display », « theme », « pads »), null sur la liste.
+    private String lvSection;
+    private int lvSel;
+    private List<SettingsRows.Row> lvRows = new ArrayList<SettingsRows.Row>();
+    private final List<View> lvViews = new ArrayList<View>();
+    private final List<ThemeSwitch> lvSwitches = new ArrayList<ThemeSwitch>();
+    private final List<android.widget.SeekBar> lvSeeks = new ArrayList<android.widget.SeekBar>();
+    private final List<TextView> lvValues = new ArrayList<TextView>();
+    /** Vrai quand la colonne contient les lignes d'un niveau, faux quand ce sont des jeux. */
+    private boolean carouselLevel;
+    private LinearLayout lvHeader;
+    private SettingsMenus menus;
+    /** Entrée à rouvrir après le redémarrage dû à un changement de langue. */
+    private static String reopenSection;
+
+    /** Intention d'un jeu à relancer (« Redémarrer la console ») une fois son moteur arrêté. */
+    static final String EXTRA_RESTART = "origami.restart";
+
+    @Override
+    protected void onNewIntent(Intent in) {
+        super.onNewIntent(in);
+        setIntent(in);
+        final Intent again = in.getParcelableExtra(EXTRA_RESTART);
+        if (again == null) return;
+        in.removeExtra(EXTRA_RESTART);
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+            public void run() {
+                try {
+                    startActivity(again);
+                } catch (Exception ignored) {
+                    // Le jeu reste lançable depuis la bibliothèque.
+                }
+            }
+        }, 1200);
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -117,7 +153,19 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         Theme.orientation(this);
         DebugLog.sync(this);
         store = new Store(this);
+        menus = new SettingsMenus(levelHost);
+        if (reopenSection != null) {
+            // Langue changée dans un niveau de Paramètres : on y revient, en Tsuru.
+            lvSection = reopenSection;
+            reopenSection = null;
+            filter = "settings";
+            coverTsuru = true;
+            openTsuru = true;
+            List<Game> entries = settingsEntries();
+            for (int i = 0; i < entries.size(); i++) if (entries.get(i).uri.equals("action:set:" + lvSection)) selected = i;
+        }
         if (!store.setupDone()) startActivity(new Intent(this, SetupActivity.class));
+        Updater.cleanup(this);
         if (Libretro.available()) store.adoptBuiltinOnce();
         launcher = new Launcher(this, store);
         covers = new CoverLoader(getContentResolver(), getPackageManager());
@@ -146,7 +194,12 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     protected void onResume() {
         super.onResume();
         resumed = true;
+        // Mise à jour : recherche automatique (6 h au plus), fenêtre codec seulement sur l'accueil.
+        Updater.autoCheck(this, new Updater.Done() {
+            public void done(Updater.Release r) { updatePopup(r); }
+        });
         Theme.orientation(this);
+        UiSound.musicStart(this);
         // Couleurs de la manette changées dans l'éditeur : l'interface suit.
         if (Theme.sync(this) && root != null && posture != null) rebuild();
         // Manette changée dans l'éditeur : Mini et Flex font passer l'accueil en plein écran.
@@ -189,11 +242,11 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         new Thread(new Runnable() {
             public void run() {
                 final List<Game> m = MobileApps.games(ctx, custom);
-                final List<Game> r = MobileApps.remote(ctx, custom);
+                final List<Game> r = MobileApps.remote(ctx, store);
                 StringBuilder sig = new StringBuilder();
                 for (Game g : m) sig.append(g.uri).append('|');
                 sig.append('#');
-                for (Game g : r) sig.append(g.uri).append('|');
+                for (Game g : r) sig.append(g.uri).append(g.note).append('|');
                 final String now = sig.toString();
                 runOnUiThread(new Runnable() {
                     public void run() {
@@ -212,6 +265,61 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     /**
+     * Menu d'une plateforme de Remote Play (0.62) : l'app préférée en tête, les solutions officielles
+     * (ouvrir ou télécharger), les alternatives trouvées sur le téléphone, le choix manuel, puis le
+     * client libre qu'Origami intégrera (grisé tant qu'il n'est pas prêt).
+     */
+    private void remoteMenu(final String group) {
+        final Runnable self = new Runnable() { public void run() { remoteMenu(group); } };
+        String name = MobileApps.groupName(group);
+        CodecMenu m = new CodecMenu(this).title(name, "REMOTE PLAY");
+        int px = dp(32);
+        android.content.pm.PackageManager pm = getPackageManager();
+        final MobileApps.Client pref = MobileApps.preferred(this, store, group);
+        if (pref != null) {
+            m.item(appIcon(pm, pref.uri, px), "Lancer " + pref.label, "Ton app préférée pour " + name, new Runnable() {
+                public void run() { MobileApps.open(MainActivity.this, store, pref.game()); }
+            });
+        }
+        boolean anyAlt = false;
+        for (final MobileApps.Client c : MobileApps.clients(this, store, group)) {
+            if (!c.official) anyAlt = true;
+            String kind = c.official ? (c.installed ? "Officielle" : "Officielle · à télécharger sur le Play Store")
+                    : c.custom ? "Choisie par toi" : "Alternative détectée sur le téléphone";
+            boolean isPref = pref != null && pref.uri.equals(c.uri);
+            m.item(c.installed ? appIcon(pm, c.uri, px) : null, (isPref ? "★ " : "") + c.label, kind + " · " + c.note,
+                    new Runnable() {
+                public void run() {
+                    if (c.installed) {
+                        store.setRemotePreferred(group, c.uri);
+                        appsSig = "";
+                        loadApps();
+                    }
+                    MobileApps.open(MainActivity.this, store, c.game());
+                }
+            });
+        }
+        if (!anyAlt) m.item("Aucune alternative détectée", "Aucun client non officiel trouvé sur le téléphone", null);
+        m.sub("En choisir une manuellement…", "N'importe quelle app installée, par exemple PXPlay", new Runnable() {
+            public void run() { addClientMenu(group); }
+        });
+        m.soon(null, "Client intégré à Origami", "👷‍♂️🚧 " + MobileApps.builtinName(group)
+                + " sera intégré directement dans l'app, avec ta manette Origami");
+        m.show(menuHost());
+    }
+
+    private android.graphics.drawable.Drawable appIcon(android.content.pm.PackageManager pm, String uri, int px) {
+        try {
+            android.content.ComponentName cn = android.content.ComponentName.unflattenFromString(uri.substring(4));
+            android.graphics.drawable.Drawable d = pm.getActivityIcon(cn);
+            d.setBounds(0, 0, px, px);
+            return d;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * « Ajouter un client… » d'une section de Remote Play : n'importe quelle app installée, pour
      * utiliser un client non officiel (chiaki-ng, Greenlight, …) à la place de celui du constructeur.
      */
@@ -219,7 +327,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         CodecMenu m = new CodecMenu(this).title("Ajouter un client", "REMOTE PLAY · " + MobileApps.groupName(group).toUpperCase());
         int px = dp(32);
         java.util.Set<String> taken = new java.util.HashSet<String>();
-        for (Game g : remote) if (g.uri.startsWith("app:")) taken.add(g.uri);
+        for (MobileApps.Client c : MobileApps.clients(this, store, group)) if (c.installed) taken.add(c.uri);
         List<HomeApps.App> apps = HomeApps.apps(this);
         // Un client libre déjà installé (chiaki-ng…) passe en tête de liste.
         List<HomeApps.App> first = new ArrayList<HomeApps.App>(), rest = new ArrayList<HomeApps.App>();
@@ -236,7 +344,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             m.item(d, app.label, null, new Runnable() {
                 public void run() {
                     store.setRemoteClient(MobileApps.customKey(group, uri), true);
-                    toast(app.label + " ajouté à Remote Play.");
+                    store.setRemotePreferred(group, uri);
+                    toast(app.label + " : app préférée pour " + MobileApps.groupName(group) + ".");
                     appsSig = "";
                     loadApps();
                 }
@@ -246,22 +355,20 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     private boolean appFilter() {
-        return filter.equals("android") || filter.equals("remote");
+        return filter.equals("android") || filter.equals("remote") || filter.equals("settings");
     }
 
     /** Ⓐ sur une entrée : jeu (émulateur), application, client à installer ou action. */
     private void open(Game g) {
-        if (g.uri.equals("action:rescan")) {
-            if (store.treeUri() == null) {
-                pickFolder();
-                return;
-            }
-            if (scanning) return;
-            announceScan = true;
-            toast("Actualisation de la bibliothèque…");
-            scan(Uri.parse(store.treeUri()));
+        if (g.uri.startsWith("action:remote:")) {
+            // Client par défaut choisi : il s'ouvre directement ; Home permet d'en changer.
+            MobileApps.Client pref = MobileApps.preferred(this, store, g.group);
+            if (pref != null) MobileApps.open(this, store, pref.game());
+            else remoteMenu(g.group);
         } else if (g.uri.startsWith("action:addclient:")) {
             addClientMenu(g.group);
+        } else if (g.uri.startsWith("action:set:")) {
+            openSetting(g.uri.substring("action:set:".length()));
         } else if (g.isApp()) {
             MobileApps.open(this, store, g);
         } else {
@@ -269,10 +376,798 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         }
     }
 
+    /** Entrées de la catégorie « Paramètres » du XMB (Tsuru) : Thème, Manette et chaque section des réglages (pas d'entrée « Réglages » en double, BOSS). */
+    private List<Game> settingsEntries() {
+        List<Game> l = new ArrayList<Game>();
+        // Ordre choisi par BOSS : jeux et moteurs, apparence, manette, accessibilité, monitoring, maintenance.
+        String[][] e = {
+            {"sec:library", "Bibliothèque", "Dossiers de jeux par console, jaquettes et fiches, BIOS et sauvegardes."},
+            {"sec:emulators", "Émulateurs", "Cœurs intégrés et émulateurs externes : installation, version et réglages de chacun."},
+            {"theme", "Thème", "Choisis l'univers d'Origami : couleurs, fond d'écran, manette assortie, sons et musique."},
+            {"sec:display", "Affichage", "Langue, pastilles, mode Washi ou Tsuru au démarrage, fonds animés et effet cathodique."},
+            {"sec:sound", "Son", "Bruits de l'interface et musique d'accueil, avec leur volume."},
+            {"pads", "Manette", "Manette tactile et manettes branchées : disposition, éditeur, touches et vibrations."},
+            {"sec:a11y", "Accessibilité", "Textes plus grands et plus contrastés, animations réduites, gâchettes à bascule et vibrations renforcées."},
+            {"sec:monitoring", "Monitoring", "ATH en jeu façon RTSS : images par seconde, processeur, mémoire, température."},
+            {"sec:updates", "Version", "Version installée, vérification automatique, préversions, équipe KAMI-WORKS, licences et mode débogage."},
+        };
+        for (String[] r : e) {
+            Game g = new Game(r[1], SystemInfo.SETTINGS, "action:set:" + r[0]);
+            g.note = r[2];
+            l.add(g);
+        }
+        return l;
+    }
+
+    private void openSetting(String id) {
+        // Tsuru : le niveau s'ouvre dans le XMB, sans autre activité. Le reste ne sert qu'au cas où cet appel
+        // arriverait hors Tsuru (les entrées de Paramètres n'existent pas en Washi).
+        if (posture == Posture.FLEX) {
+            enterLevel(id);
+            return;
+        }
+        if (id.equals("theme")) themeMenu();
+        else if (id.equals("pads")) controllerOptions();
+        else if (id.startsWith("sec:")) {
+            startActivity(new Intent(this, SettingsActivity.class)
+                    .putExtra(SettingsActivity.EXTRA_SECTION, id.substring(4)));
+        } else startActivity(new Intent(this, SettingsActivity.class));
+    }
+
+    // ---------------------------------------------------------------- niveau de Paramètres (XMB, Tsuru)
+
+    /*
+     * Façon PS3 : choisir une entrée de « Paramètres » (Affichage, Son…) ouvre un niveau en dessous, dans le XMB
+     * même. Son icône et son nom prennent la place des catégories en haut à gauche, la colonne devient la liste
+     * des réglages (titre, description courte, valeur ou interrupteur à droite) et Ⓑ, ← ou Retour remontent.
+     * Les lignes viennent de SettingsRows, les mêmes que celles du menu classique (Washi) ; les écrans lourds
+     * (consoles, manettes branchées, couleurs) ouvrent leurs menus codec, jamais SettingsActivity.
+     */
+
+    /** L'hôte des lignes de réglages : ici, le niveau du XMB, redessiné sur place. */
+    private final SettingsRows.Host levelHost = new SettingsRows.Host() {
+        public Activity activity() { return MainActivity.this; }
+
+        public Store store() { return store; }
+
+        public SettingsMenus menus() { return menus; }
+
+        public void refresh() { levelRefresh(); }
+
+        public void restyle() {
+            // Textes, contraste, animations : tout l'écran se refait, le niveau ouvert est conservé.
+            Theme.sync(MainActivity.this);
+            if (splashDone) rebuild();
+        }
+
+        public void relayout() {
+            if (splashDone) rebuild();
+        }
+
+        public void toast(String msg) { MainActivity.this.toast(msg); }
+
+        public void pickFolder() { MainActivity.this.pickFolder(); }
+
+        public void rescan() {
+            String tree = store.treeUri();
+            if (tree == null) return;
+            keepFilterOnScan = true;
+            announceScan = true;
+            scan(Uri.parse(tree));
+        }
+
+        public void forgetFolder() {
+            store.setTreeUri(null);
+            library.clear();
+            if (splashDone) rebuild();
+        }
+
+        public void languageChanged(String sec) {
+            reopenSection = "sec:" + sec;
+            startActivity(new Intent(MainActivity.this, MainActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK));
+        }
+
+        public void checkUpdate() { MainActivity.this.checkUpdate(); }
+    };
+
+    /** Un niveau est ouvert : filtre « Paramètres » en Tsuru et entrée choisie. */
+    private boolean levelActive() {
+        return lvSection != null && posture == Posture.FLEX && "settings".equals(filter);
+    }
+
+    /** L'entrée de la liste « Paramètres » qui correspond au niveau ouvert (titre et description). */
+    private Game levelEntry() {
+        for (Game g : settingsEntries()) if (g.uri.equals("action:set:" + lvSection)) return g;
+        return null;
+    }
+
+    /** Nom de l'icône du niveau : celui de la section, « palette » pour Thème. */
+    private String levelIcon() {
+        if (lvSection == null) return "settings";
+        if (lvSection.equals("theme")) return "palette";
+        if (lvSection.equals("pads")) return "pads";
+        return lvSection.startsWith("sec:") ? lvSection.substring(4) : "settings";
+    }
+
+    private String up(String fr) {
+        return I18n.tr(fr).toUpperCase();
+    }
+
+    private void enterLevel(String id) {
+        lvSection = id;
+        lvRows = levelRows();
+        lvSel = Math.max(0, nextSelectable(-1, 1));
+        UiSound.play(this, UiSound.SELECT);
+        haptic();
+        applyLevelUi();
+        reflowCarousel(1);
+    }
+
+    /** Remonte d'un niveau : la liste des entrées de « Paramètres », sur l'entrée qu'on vient de quitter. */
+    private void levelBack() {
+        lvSection = null;
+        lvRows = new ArrayList<SettingsRows.Row>();
+        applyLevelUi();
+        reflowCarousel(-1);
+    }
+
+    /** Fait glisser la colonne : l'ancienne s'efface d'un côté, la nouvelle (jeux ou réglages) arrive de l'autre. */
+    private void reflowCarousel(final int dir) {
+        if (carousel == null) return;
+        final float s = flexScale();
+        final int shift = dp(28) * dir;
+        carousel.animate().cancel();
+        carousel.animate().alpha(0f).translationX(-shift).setDuration(90).withEndAction(new Runnable() {
+            public void run() {
+                if (carousel == null) return;
+                fillCarousel(s);
+                carouselScroll.scrollTo(0, 0);
+                carousel.setTranslationX(shift);
+                updateFlex(false);
+                carousel.animate().alpha(1f).translationX(0f).setDuration(180)
+                        .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+            }
+        }).start();
+    }
+
+    /**
+     * Met l'écran dans l'état du niveau ou de la liste : en-tête de l'entrée au lieu des catégories, et partage de la
+     * largeur (les réglages prennent plus de place ; sur écran étroit, toute la largeur et pas de bulle).
+     */
+    private void applyLevelUi() {
+        boolean on = levelActive();
+        if (catScroll != null) catScroll.setVisibility(on ? View.INVISIBLE : View.VISIBLE);
+        if (lvHeader != null) {
+            lvHeader.setVisibility(on ? View.VISIBLE : View.GONE);
+            if (on) bindLevelHeader();
+        }
+        if (homeInfo == null || homeArt == null) return;
+        if (!(homeInfo.getLayoutParams() instanceof LinearLayout.LayoutParams)
+                || !(homeArt.getLayoutParams() instanceof LinearLayout.LayoutParams)) return;
+        LinearLayout.LayoutParams ip = (LinearLayout.LayoutParams) homeInfo.getLayoutParams();
+        LinearLayout.LayoutParams ap = (LinearLayout.LayoutParams) homeArt.getLayoutParams();
+        if (on && flexScale() < 1f) {
+            ip.weight = 1f;
+            homeArt.setVisibility(View.GONE);
+        } else {
+            ip.weight = on ? 0.62f : 0.44f;
+            ap.weight = on ? 0.38f : 0.56f;
+            homeArt.setVisibility(View.VISIBLE);
+            homeArt.setLayoutParams(ap);
+        }
+        homeInfo.setLayoutParams(ip);
+    }
+
+    private LinearLayout levelHeader(float s) {
+        LinearLayout h = new LinearLayout(this);
+        h.setGravity(Gravity.CENTER_VERTICAL);
+        h.setPadding(dp(8 * s), dp(6), dp(16), 0);
+        h.setVisibility(View.GONE);
+        return h;
+    }
+
+    /** ← (retour), l'icône de l'entrée et son nom, en haut à gauche. */
+    private void bindLevelHeader() {
+        if (lvHeader == null) return;
+        float s = flexScale();
+        lvHeader.removeAllViews();
+        Game e = levelEntry();
+        TextView back = text("←", 24 * s, Theme.TEXT, false);
+        back.setGravity(Gravity.CENTER);
+        back.setMinWidth(dp(44));
+        back.setMinHeight(dp(44));
+        back.setContentDescription("Retour");
+        back.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
+        back.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                UiSound.play(MainActivity.this, UiSound.BACK);
+                haptic();
+                levelBack();
+            }
+        });
+        lvHeader.addView(back);
+        android.widget.ImageView icon = new android.widget.ImageView(this);
+        icon.setImageDrawable(Icons.of(this, levelIcon(), Theme.CODEC, 40 * s).mark(Theme.CODEC));
+        icon.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+        int size = Math.round(dp(50 * s));
+        lvHeader.addView(icon, new LinearLayout.LayoutParams(size, size));
+        LinearLayout col = vertical();
+        col.setPadding(dp(10), 0, 0, 0);
+        TextView sub = text(up("Réglages"), 10 * s, Theme.MUTED, false);
+        sub.setTypeface(Fonts.wide(this));
+        sub.setLetterSpacing(0.2f);
+        sub.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
+        col.addView(sub);
+        TextView title = text(e == null ? "" : e.title, 18 * s, Theme.CODEC, false);
+        title.setTypeface(Fonts.wide(this));
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
+        col.addView(title);
+        lvHeader.addView(col, new LinearLayout.LayoutParams(0, -2, 1f));
+    }
+
+    // ---- les lignes de chaque entrée
+
+    private List<SettingsRows.Row> levelRows() {
+        if (lvSection == null) return new ArrayList<SettingsRows.Row>();
+        if (lvSection.equals("theme")) return themeRows();
+        if (lvSection.equals("pads")) return padRows();
+        if (lvSection.startsWith("sec:")) return SettingsRows.build(levelHost, lvSection.substring(4));
+        return new ArrayList<SettingsRows.Row>();
+    }
+
+    /** Thème : un thème par ligne (● sur le courant), puis couleurs, Lumen et les chantiers. */
+    private List<SettingsRows.Row> themeRows() {
+        List<SettingsRows.Row> l = new ArrayList<SettingsRows.Row>();
+        boolean sync = store.syncUi();
+        String cur = store.theme();
+        for (int i = 0; i < Theme.THEMES.length; i++) {
+            final String id = Theme.THEMES[i];
+            SettingsRows.Row r = SettingsRows.action(l, Theme.THEME_NAMES[i], Theme.THEME_HELP[i], new Runnable() {
+                public void run() {
+                    store.setTheme(id);
+                    UiSound.refresh(MainActivity.this);
+                    store.setSyncUi(false);
+                    // L'icône du lanceur change seulement une fois l'app quittée : pas de redémarrage.
+                    Theme.queueIcon(MainActivity.this, id);
+                    if (Theme.sync(MainActivity.this)) rebuild();
+                    else levelRefresh();
+                }
+            });
+            if (!sync && id.equals(cur)) r.valueText = "●";
+        }
+        SettingsRows.action(l, "Couleurs du logo et de la manette",
+                store.logoColor() == 0 ? "Logo : suit le thème" : "Logo : couleur perso", new Runnable() {
+            public void run() {
+                CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));
+                if (open != null) open.dismiss();
+                ColorSheet.show(MainActivity.this, MainActivity.this, true, sheetHeight());
+            }
+        });
+        final Runnable again = new Runnable() {
+            public void run() { levelRefresh(); }
+        };
+        if (store.pills()) {
+            SettingsRows.action(l, "Lumen", EngineMenus.andonLabel(store) + " · lumière autour du jeu, en jeu", new Runnable() {
+                public void run() {
+                    EngineMenus.andon(MainActivity.this, CodecMenu.hostFor(MainActivity.this), store, again, again);
+                }
+            });
+        }
+        // Chantiers annoncés, pas encore ouverts (comme dans le menu codec du Thème).
+        final String soon = "👷‍♂️🚧 Arrive avec le store de thèmes.";
+        SettingsRows.action(l, "Pack d'icônes", soon, new Runnable() {
+            public void run() { toast(soon); }
+        });
+        final String share = "👷‍♂️🚧 Partager et récupérer des thèmes";
+        SettingsRows.action(l, "Thèmes de la communauté", share, new Runnable() {
+            public void run() { toast(share); }
+        });
+        return l;
+    }
+
+    /** Manette : la manette tactile, puis les manettes branchées (leurs réglages s'ouvrent en menu codec). */
+    private List<SettingsRows.Row> padRows() {
+        List<SettingsRows.Row> l = new ArrayList<SettingsRows.Row>();
+        if (pads == null) pads = new Pads(this);
+        SettingsRows.header(l, "Manette tactile");
+        SettingsRows.action(l, "Modifier la manette tactile", "Éditeur : touches, disposition, couleurs", new Runnable() {
+            public void run() { startActivity(new Intent(MainActivity.this, LayoutEditorActivity.class)); }
+        });
+        String[] labels = new String[OPACITIES.length];
+        int at = 2;
+        for (int i = 0; i < OPACITIES.length; i++) {
+            labels[i] = OPACITIES[i] + " %";
+            if (OPACITIES[i] == store.overlayOpacity()) at = i;
+        }
+        SettingsRows.choice(l, "Transparence en superposition", labels, at, new SettingsRows.Choice() {
+            public void set(int i) {
+                store.setOverlayOpacity(OPACITIES[i]);
+                if (homeCol != null) applyPadHome();
+            }
+        });
+        SettingsRows.toggle(l, "Gâchettes en arc", "Autour des joysticks, comme X et Y d'une GameCube, plus faciles "
+                + "à atteindre. Décoche pour les remettre en haut", store.ergoTriggers(), new SettingsRows.Toggle() {
+            public void set(boolean on) {
+                store.setErgoTriggers(on);
+                ConsolePad.ergo = on;
+                padChanged();
+            }
+        });
+        SettingsRows.toggle(l, "Vibrations", "Retour haptique sur les touches tactiles", store.haptics(),
+                new SettingsRows.Toggle() {
+                    public void set(boolean on) { store.setHaptics(on); }
+                });
+        SettingsRows.toggle(l, "Plein écran avec une manette", "La manette tactile disparaît quand une manette physique "
+                + "est branchée", store.padFullscreen(), new SettingsRows.Toggle() {
+            public void set(boolean on) {
+                store.setPadFullscreen(on);
+                padChanged();
+            }
+        });
+        SettingsRows.toggle(l, "Boutons rapides avec une manette", "Sauvegarde, chargement et ×2 restent visibles avec "
+                + "une manette physique", store.padQuickButtons(), new SettingsRows.Toggle() {
+            public void set(boolean on) { store.setPadQuickButtons(on); }
+        });
+
+        SettingsRows.header(l, "Manettes physiques");
+        List<android.view.InputDevice> now = pads.connected();
+        java.util.Set<String> seen = new java.util.HashSet<String>();
+        if (now.isEmpty()) {
+            SettingsRows.note(l, "Aucune manette. Associe-la en Bluetooth dans les réglages Android : "
+                    + "elle apparaîtra ici.");
+        }
+        for (final android.view.InputDevice d : now) {
+            final Pads.Profile p = pads.profile(d);
+            seen.add(p.id);
+            SettingsRows.action(l, p.name, PadView.familyLabel(PadView.family(d)) + " · joueur " + p.player
+                    + (p.nintendo ? " · disposition Nintendo" : "")
+                    + (p.remap.isEmpty() ? " · touches automatiques" : " · touches réattribuées")
+                    + " · toucher pour régler", new Runnable() {
+                public void run() { menus.padMenu(d, p); }
+            });
+        }
+        boolean forgotten = false;
+        for (final Pads.Profile p : pads.known()) {
+            if (seen.contains(p.id)) continue;
+            if (!forgotten) {
+                SettingsRows.header(l, "Déjà vues");
+                forgotten = true;
+            }
+            SettingsRows.action(l, p.name, "Joueur " + p.player + " · toucher pour oublier ses réglages", new Runnable() {
+                public void run() {
+                    pads.forget(p);
+                    levelRefresh();
+                }
+            });
+        }
+        return l;
+    }
+
+    // ---- affichage des lignes
+
+    /** Relit les lignes (une valeur a changé ailleurs) et les redessine, la sélection restant où elle est. */
+    private void levelRefresh() {
+        if (!levelActive() || carousel == null) return;
+        lvRows = levelRows();
+        fillLevel(flexScale());
+        updateLevel(false);
+    }
+
+    private void fillLevel(float s) {
+        carouselLevel = true;
+        carousel.removeAllViews();
+        lvViews.clear();
+        lvSwitches.clear();
+        lvSeeks.clear();
+        lvValues.clear();
+        if (lvSel >= lvRows.size()) lvSel = Math.max(0, lvRows.size() - 1);
+        for (int i = 0; i < lvRows.size(); i++) {
+            lvSwitches.add(null);
+            lvSeeks.add(null);
+            lvValues.add(null);
+            View v = levelRowView(lvRows.get(i), i, s);
+            lvViews.add(v);
+            carousel.addView(v, new LinearLayout.LayoutParams(-1, -2));
+        }
+    }
+
+    /** Une ligne : titre et description à gauche, valeur, interrupteur ou curseur à droite. */
+    private View levelRowView(final SettingsRows.Row r, final int i, float s) {
+        int shadow = 0xE6000000;
+        if (r.type == SettingsRows.Row.HEADER) {
+            LinearLayout h = new LinearLayout(this);
+            h.setGravity(Gravity.CENTER_VERTICAL);
+            h.setPadding(dp(10), dp(14), dp(8), dp(4));
+            View bar = new View(this);
+            bar.setBackgroundColor(Theme.CODEC);
+            h.addView(bar, new LinearLayout.LayoutParams(dp(3), dp(14 * s)));
+            TextView t = text(up(r.title), 10 * s, Theme.CODEC, false);
+            t.setTypeface(Fonts.wide(this));
+            t.setLetterSpacing(0.15f);
+            t.setPadding(dp(8), 0, 0, 0);
+            t.setShadowLayer(dp(4), 0, dp(1), shadow);
+            h.addView(t);
+            return h;
+        }
+        if (r.type == SettingsRows.Row.NOTE) {
+            TextView t = text(r.title, 11 * s, Theme.MUTED, false);
+            t.setLineSpacing(0, 1.1f);
+            t.setPadding(dp(10), dp(6), dp(10), dp(6));
+            t.setShadowLayer(dp(4), 0, dp(1), shadow);
+            return t;
+        }
+        if (r.type == SettingsRows.Row.LOGO) {
+            android.widget.ImageView mark = new android.widget.ImageView(this);
+            mark.setImageDrawable(new Crane.Logo());
+            FrameLayout box = new FrameLayout(this);
+            box.setPadding(0, dp(10), 0, dp(6));
+            box.addView(mark, new FrameLayout.LayoutParams(dp(96 * s), dp(96 * s), Gravity.CENTER_HORIZONTAL));
+            return box;
+        }
+        if (!r.selectable()) {
+            View none = new View(this);
+            none.setVisibility(View.GONE);
+            return none;
+        }
+        final LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(7), dp(8), dp(7));
+        row.setMinimumHeight(dp(54 * s));
+        LinearLayout texts = vertical();
+        TextView title = text(r.title, 14 * s, 0xFFE4E7EB, false);
+        title.setMaxLines(2);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.setShadowLayer(dp(4), 0, dp(1), shadow);
+        texts.addView(title);
+        if (r.desc != null && r.desc.length() > 0) {
+            TextView d = text(r.desc.replace("\n", " · "), 11 * s, Theme.MUTED, false);
+            d.setMaxLines(2);
+            d.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            d.setShadowLayer(dp(4), 0, dp(1), shadow);
+            texts.addView(d);
+        }
+        row.setFocusable(false);
+        row.setDefaultFocusHighlightEnabled(false);
+        if (r.type == SettingsRows.Row.SLIDER) {
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setGravity(Gravity.NO_GRAVITY);
+            row.addView(texts, new LinearLayout.LayoutParams(-1, -2));
+            LinearLayout line = new LinearLayout(this);
+            line.setGravity(Gravity.CENTER_VERTICAL);
+            final android.widget.SeekBar bar = new android.widget.SeekBar(this);
+            bar.setMax(5);
+            bar.setProgress(r.percent / 20);
+            bar.setFocusable(false); // pas de focus Android : la croix et les touches passent par levelKey
+            ColorStateList tint = ColorStateList.valueOf(Theme.CODEC);
+            bar.setProgressTintList(tint);
+            bar.setThumbTintList(tint);
+            bar.setProgressBackgroundTintList(ColorStateList.valueOf(Theme.alpha(Theme.CODEC, 0x44)));
+            bar.setTickMark(null);
+            final TextView v = text(r.valueLabel(), 13 * s, Theme.CODEC, false);
+            v.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+            v.setGravity(Gravity.END);
+            line.addView(bar, new LinearLayout.LayoutParams(0, dp(36 * s), 1f));
+            line.addView(v, new LinearLayout.LayoutParams(dp(54), -2));
+            row.addView(line, new LinearLayout.LayoutParams(-1, -2));
+            bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(android.widget.SeekBar sb, int p, boolean fromUser) {
+                    v.setText(p * 20 + " %");
+                    if (fromUser) {
+                        r.percent = p * 20;
+                        if (r.choice != null) r.choice.set(r.percent);
+                    }
+                }
+
+                public void onStartTrackingTouch(android.widget.SeekBar sb) {
+                    selectLevelRow(i);
+                }
+
+                public void onStopTrackingTouch(android.widget.SeekBar sb) {
+                }
+            });
+            lvSeeks.set(i, bar);
+            lvValues.set(i, v);
+        } else {
+            row.addView(texts, new LinearLayout.LayoutParams(0, -2, 1f));
+            if (r.type == SettingsRows.Row.TOGGLE) {
+                // Seul l'interrupteur est cliquable (règle BOSS) : toucher la ligne ne fait que la sélectionner.
+                final ThemeSwitch box = new ThemeSwitch(this, r.on);
+                box.setClickable(true);
+                box.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View v) {
+                        selectLevelRow(i);
+                        levelFlip(i, !r.on);
+                    }
+                });
+                int sw = Math.round(dp(48 * s));
+                LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(sw, sw);
+                bp.setMargins(dp(8), 0, 0, 0);
+                row.addView(box, bp);
+                lvSwitches.set(i, box);
+            } else {
+                String val = r.valueLabel();
+                TextView v = text(val == null ? "" : val, 13 * s, Theme.CODEC, false);
+                v.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+                v.setPadding(dp(12), 0, dp(4), 0);
+                v.setShadowLayer(dp(4), 0, dp(1), shadow);
+                row.addView(v);
+                lvValues.set(i, v);
+            }
+        }
+        final boolean tap = r.type == SettingsRows.Row.CHOICE || r.type == SettingsRows.Row.ACTION;
+        row.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                selectLevelRow(i);
+                if (tap) levelActivate(i);
+            }
+        });
+        return row;
+    }
+
+    private void selectLevelRow(int i) {
+        if (i == lvSel) return;
+        lvSel = i;
+        UiSound.play(this, UiSound.MOVE);
+        haptic();
+        updateLevel(true);
+    }
+
+    /** Cadre et couleurs de la ligne choisie ; les autres restent discrètes. */
+    private void styleLevelRow(int i, boolean on) {
+        SettingsRows.Row r = lvRows.get(i);
+        if (!r.selectable() || i >= lvViews.size()) return;
+        View v = lvViews.get(i);
+        GradientDrawable bg = null;
+        if (on) {
+            bg = new GradientDrawable();
+            bg.setCornerRadius(dp(14));
+            bg.setColor(Theme.alpha(Theme.CODEC, 0x2E));
+            bg.setStroke(Math.round(dp(1.5f)), Theme.CODEC);
+        }
+        v.setBackground(bg);
+        View texts = ((ViewGroup) v).getChildAt(0);
+        TextView t = (TextView) ((LinearLayout) texts).getChildAt(0);
+        t.setTextColor(on ? Theme.CODEC : 0xFFE4E7EB);
+        t.setTypeface(Typeface.create(Typeface.SANS_SERIF, on ? Typeface.BOLD : Typeface.NORMAL));
+    }
+
+    private void updateLevel(boolean animate) {
+        if (!carouselLevel || carousel == null || heroEmblem == null || lvViews.size() != lvRows.size()) return;
+        for (int i = 0; i < lvRows.size(); i++) styleLevelRow(i, i == lvSel);
+        Game e = levelEntry();
+        String name = e == null ? "" : e.title;
+        heroSystem.setText(up("Réglages") + " › " + up(name));
+        heroTitle.setVisibility(View.GONE);
+        heroMeta.setText(I18n.tr("◀ ▶ change la valeur · Ⓐ valide · Ⓑ retour"));
+        heroEmblem.setVisibility(View.INVISIBLE);
+        // Pas d'illustration de fond sous les réglages.
+        if (backdropView != null) {
+            backdropView.removeCallbacks(backdropIdle);
+            backdropView.animate().alpha(0f).setDuration(300).start();
+            backdropGame = null;
+        }
+        // Pas de bulle à droite dans les réglages (demande de BOSS, 0.66.23) : la ligne choisie suffit.
+        heroSheet.setVisibility(View.GONE);
+        if (lvSel < 0 || lvSel >= lvViews.size()) return;
+        // La ligne choisie reste à l'écran, avec son titre de groupe quand c'est la première du groupe.
+        final View child = lvViews.get(lvSel);
+        final View lead = lvSel > 0 && lvRows.get(lvSel - 1).type == SettingsRows.Row.HEADER ? lvViews.get(lvSel - 1) : child;
+        carouselScroll.post(new Runnable() {
+            public void run() {
+                int top = lead.getTop(), bottom = child.getBottom();
+                int sy = carouselScroll.getScrollY(), h = carouselScroll.getHeight();
+                int edge = dp(28);
+                if (top < sy + dp(4) || bottom > sy + h - edge) carouselScroll.smoothScrollTo(0, Math.max(0, top - h / 4));
+            }
+        });
+    }
+
+    // ---- touches
+
+    /** Ligne choisie suivante (dir 1) ou précédente (dir -1) qu'on peut régler, -1 s'il n'y en a plus. */
+    private int nextSelectable(int from, int dir) {
+        for (int j = from + dir; j >= 0 && j < lvRows.size(); j += dir) {
+            if (lvRows.get(j).selectable()) return j;
+        }
+        return -1;
+    }
+
+    private void levelKey(String key) {
+        if (key.equals("UP") || key.equals("DOWN")) {
+            int dir = key.equals("UP") ? -1 : 1;
+            int next = nextSelectable(lvSel, dir);
+            if (next < 0) {
+                // Au-dessus de la première ligne : la barre du haut, comme depuis le premier jeu.
+                if (dir < 0 && !barButtons.isEmpty()) {
+                    barFocus = barButtons.size() - 1;
+                    paintBarFocus();
+                    haptic();
+                    status("▲ · barre du haut");
+                }
+                return;
+            }
+            selectLevelRow(next);
+        } else if (key.equals("LEFT")) {
+            levelAdjust(-1);
+        } else if (key.equals("RIGHT")) {
+            levelAdjust(1);
+        } else if (key.equals("A") || key.equals("START")) {
+            levelActivate(lvSel);
+        } else if (key.equals("B")) {
+            UiSound.play(this, UiSound.BACK);
+            haptic();
+            levelBack();
+        } else if (key.equals("L")) {
+            cycleFilter(-1, "L");
+        } else if (key.equals("R")) {
+            cycleFilter(1, "R");
+        } else if (key.equals("L2") || key.equals("R2")) {
+            int dir = key.equals("L2") ? -1 : 1, at = lvSel;
+            for (int k = 0; k < 5; k++) {
+                int nx = nextSelectable(at, dir);
+                if (nx < 0) break;
+                at = nx;
+            }
+            if (at != lvSel) selectLevelRow(at);
+        } else if (key.equals("HOME")) {
+            homePressed();
+        } else if (key.equals("SELECT")) {
+            filter = filter.equals("fav") ? "all" : "fav";
+            selected = 0;
+            rebuild();
+            status("SELECT · " + filterLabel(filter));
+        }
+    }
+
+    /** ◀ ▶ sur la ligne choisie : interrupteur éteint/allumé, valeur précédente/suivante, curseur d'un cran. */
+    private void levelAdjust(int dir) {
+        if (lvSel < 0 || lvSel >= lvRows.size()) return;
+        SettingsRows.Row r = lvRows.get(lvSel);
+        if (r.type == SettingsRows.Row.TOGGLE) {
+            if (r.on != (dir > 0)) levelFlip(lvSel, dir > 0);
+        } else if (r.type == SettingsRows.Row.CHOICE) {
+            levelCycle(lvSel, dir);
+        } else if (r.type == SettingsRows.Row.SLIDER) {
+            levelSlide(lvSel, dir);
+        }
+    }
+
+    /** Ⓐ (ou un appui sur la ligne) : bascule l'interrupteur, passe au choix suivant, lance l'action. */
+    private void levelActivate(int i) {
+        if (i < 0 || i >= lvRows.size()) return;
+        SettingsRows.Row r = lvRows.get(i);
+        if (r.type == SettingsRows.Row.TOGGLE) {
+            levelFlip(i, !r.on);
+        } else if (r.type == SettingsRows.Row.CHOICE) {
+            levelCycle(i, 1);
+        } else if (r.type == SettingsRows.Row.ACTION && r.action != null) {
+            UiSound.play(this, UiSound.SELECT);
+            haptic();
+            r.action.run();
+        }
+    }
+
+    // La vue est mise à jour avant le rappel : il peut redessiner tout l'écran.
+    private void levelFlip(int i, boolean on) {
+        SettingsRows.Row r = lvRows.get(i);
+        r.on = on;
+        ThemeSwitch sw = i < lvSwitches.size() ? lvSwitches.get(i) : null;
+        if (sw != null) sw.setOn(on);
+        UiSound.play(this, on ? UiSound.ON : UiSound.OFF);
+        haptic();
+        if (lvSel == i && heroSheet != null && sheetMeta != null) updateLevel(false);
+        if (r.toggle != null) r.toggle.set(on);
+    }
+
+    private void levelCycle(int i, int dir) {
+        SettingsRows.Row r = lvRows.get(i);
+        int n = r.labels.length;
+        r.index = ((r.index + dir) % n + n) % n;
+        TextView v = i < lvValues.size() ? lvValues.get(i) : null;
+        if (v != null) v.setText(r.valueLabel());
+        UiSound.play(this, UiSound.MOVE);
+        haptic();
+        if (lvSel == i) updateLevel(false);
+        if (r.choice != null) r.choice.set(r.index);
+    }
+
+    private void levelSlide(int i, int dir) {
+        SettingsRows.Row r = lvRows.get(i);
+        int p = Math.max(0, Math.min(100, r.percent + dir * 20));
+        if (p == r.percent) return;
+        r.percent = p;
+        android.widget.SeekBar bar = i < lvSeeks.size() ? lvSeeks.get(i) : null;
+        if (bar != null) bar.setProgress(p / 20);
+        haptic();
+        if (lvSel == i) updateLevel(false);
+        if (r.choice != null) r.choice.set(p);
+    }
+
+    /** Retour Android (geste ou bouton) : remonte d'un niveau de Paramètres avant de quitter. */
+    @Override
+    public void onBackPressed() {
+        if (menuKey("B")) return;
+        ColorSheet sheet = ColorSheet.find(this);
+        if (sheet != null) {
+            sheet.close();
+            return;
+        }
+        if (levelActive()) {
+            UiSound.play(this, UiSound.BACK);
+            levelBack();
+            return;
+        }
+        super.onBackPressed();
+    }
+
+    /** Fenêtre codec « Mise à jour disponible » : Installer (téléchargement avec progression) ou plus tard (24 h). */
+    private void updatePopup(final Updater.Release r) {
+        if (!resumed || isFinishing() || isDestroyed() || Updater.popupShown) return;
+        if (CodecMenu.find(menuHost()) != null) return;
+        Updater.popupShown = true;
+        updateDialog(r);
+    }
+
+    /** « Rechercher une mise à jour » du niveau Paramètres : le résultat sort en toast ou en fenêtre codec. */
+    private void checkUpdate() {
+        toast("Recherche…");
+        Updater.check(this, new Updater.Done() {
+            public void done(Updater.Release r) {
+                if (isFinishing() || isDestroyed()) return;
+                if (r.error != null) toast(r.error);
+                else if (!r.newer) toast("Origami est à jour.");
+                else updateDialog(r);
+            }
+        });
+    }
+
+    private void updateDialog(final Updater.Release r) {
+        String msg = "Origami " + r.version + " " + I18n.tr("est prête à être téléchargée.");
+        if (r.summary != null && !r.summary.isEmpty()) msg += "\n\n" + r.summary;
+        final CodecMenu m = new CodecMenu(this).title("Mise à jour disponible", "Origami " + r.version).message(msg);
+        m.item("Installer", null, new Runnable() {
+            public void run() { updateDownload(r); }
+        });
+        m.item("Installer ultérieurement", null, new Runnable() {
+            public void run() { store.postponeUpdate(r.version); }
+        });
+        m.onBack(new Runnable() {
+            public void run() {
+                store.postponeUpdate(r.version);
+                m.dismiss();
+            }
+        });
+        m.show(menuHost());
+    }
+
+    /** Téléchargement de la mise à jour, avec le pourcentage dans la même fenêtre codec. */
+    private void updateDownload(final Updater.Release r) {
+        final CodecMenu m = new CodecMenu(this).title("Mise à jour", "Origami " + r.version)
+                .message(I18n.tr("Téléchargement…") + " 0 %").progress(0);
+        m.item("Fermer", null, new Runnable() {
+            public void run() { }
+        });
+        m.show(menuHost());
+        Updater.install(this, r, new Updater.Progress() {
+            public void progress(int pct) {
+                m.progress(pct).updateMessage(I18n.tr("Téléchargement…") + " " + pct + " %");
+            }
+
+            public void done(boolean ok) {
+                UiSound.play(MainActivity.this, ok ? UiSound.DONE : UiSound.ERROR);
+                m.updateMessage(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android" : "Échec du téléchargement"));
+            }
+        });
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
         resumed = false;
+        UiSound.musicPause();
         if (hinge != null) sensors.unregisterListener(this);
         if (pads != null) pads.input().unregisterInputDeviceListener(padListener);
     }
@@ -280,6 +1175,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     @Override
     public void onConfigurationChanged(Configuration c) {
         super.onConfigurationChanged(c);
+        Theme.fullscreen(this);
         Theme.orientation(this);
         boolean cover = c.smallestScreenWidthDp < 600;
         if (hinge != null && cover != wasCover) {
@@ -300,8 +1196,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         // Plié à moitié ou remis à plat en paysage : la manette quitte ou reprend la surimpression.
         if (homeCol != null) {
             Configuration cf = getResources().getConfiguration();
-            boolean half = hingeAngle >= FLEX_MIN_ANGLE && hingeAngle <= FLEX_MAX_ANGLE;
-            if ((cf.screenWidthDp > cf.screenHeightDp && !half) != homeOverlayLandscape) applyPadHome();
+            if ((cf.screenWidthDp > cf.screenHeightDp) != homeOverlayLandscape) applyPadHome();
         }
     }
 
@@ -365,6 +1260,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Vrai quand l'utilisateur a demandé l'actualisation : on lui dit combien de jeux on a trouvés. */
     private boolean announceScan;
 
+    private boolean keepFilterOnScan;
+
     private void scan(final Uri tree) {
         scanning = true;
         if (postureTag != null) postureTag.setText(postureText());
@@ -385,12 +1282,17 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         }
                         announceScan = false;
                         if (found.isEmpty()) {
-                            toast("Aucun jeu reconnu dans ce dossier. Range-les par console (snes/, gba/…) ou garde leurs extensions d'origine.");
+                            toast("Aucun jeu reconnu. Range-les par console (snes/, gba/…).");
                         }
                         library.clear();
                         library.addAll(found);
-                        filter = "all";
-                        selected = 0;
+                        // Relu depuis Paramètres : on y reste (sinon retour à « Tous »).
+                        if (keepFilterOnScan) {
+                            keepFilterOnScan = false;
+                        } else {
+                            filter = "all";
+                            selected = 0;
+                        }
                         if (splashDone) rebuild();
                         fetchCovers();
                     }
@@ -435,6 +1337,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             shown.addAll(mobile);
         } else if (filter.equals("remote")) {
             shown.addAll(remote);
+        } else if (filter.equals("settings")) {
+            shown.addAll(settingsEntries());
         } else {
             for (Game g : library) {
                 if (filter.equals("all")
@@ -447,14 +1351,14 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 for (Game g : mobile) if (store.isFavorite(g)) shown.add(g);
                 for (Game g : remote) if (store.isFavorite(g)) shown.add(g);
             }
-            // « Tous » se termine par l'entrée qui relit le dossier (ex-bouton de la barre du haut).
-            if (filter.equals("all") && !library.isEmpty()) shown.add(refreshItem);
         }
         if (selected >= shown.size()) selected = Math.max(0, shown.size() - 1);
     }
 
     private List<String> filterKeys() {
         List<String> keys = new ArrayList<String>();
+        // Façon XMB PS3 : « Paramètres » tout à gauche, la sélection de départ reste sur « Tous ».
+        if (posture == Posture.FLEX) keys.add(SystemInfo.SETTINGS.id);
         keys.add("all");
         keys.add("fav");
         keys.add("recent");
@@ -483,6 +1387,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     private void cycleFilter(int dir) {
         List<String> keys = filterKeys();
         int i = keys.indexOf(filter);
+        UiSound.play(this, UiSound.TAB);
         switchFilter(keys.get(((i < 0 ? 0 : i) + dir + keys.size()) % keys.size()), dir);
     }
 
@@ -493,6 +1398,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
      * de l'app et l'équipe. Un appui passe l'animation.
      */
     private void showSplash() {
+        Theme.barsBackground(this, true);
         FrameLayout splash = new FrameLayout(this);
         splash.setBackgroundColor(Theme.BG);
         final OrigamiSplash crane = new OrigamiSplash(this);
@@ -523,6 +1429,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             public void run() {
                 if (splashDone) return;
                 splashDone = true;
+                Theme.barsBackground(MainActivity.this, false);
                 rebuild();
                 root.setAlpha(0f);
                 root.animate().alpha(1f).setDuration(260).start();
@@ -539,11 +1446,132 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         });
     }
 
+    private LinearLayout homeStageCol;
+
+    /**
+     * Apparition de la bulle du synopsis selon le thème (20/10) : Codec, signal qui s'allume en
+     * balayage ; Arctique, givre qui descend ; Écarlate, éventail qui s'ouvre ; Sakura, pétale qui éclot ;
+     * Ambre, lampe qui scintille ; Néon, enseigne qui grésille ; Jade, brume qui se lève ; Argent, grue qui
+     * se pose. Animations réduites : simple fondu.
+     */
+    private void sheetEffect(final View v) {
+        v.animate().cancel();
+        v.setTranslationX(0);
+        v.setTranslationY(0);
+        v.setScaleX(1);
+        v.setScaleY(1);
+        v.setRotation(0);
+        if (store.reduceMotion()) {
+            v.setAlpha(0.4f);
+            v.animate().alpha(1f).setDuration(160).start();
+            return;
+        }
+        android.view.animation.Interpolator ease = new android.view.animation.DecelerateInterpolator(2f);
+        switch (Theme.THEME_ID) {
+            case "codec":
+                v.setPivotY(0);
+                v.setScaleY(0.04f);
+                v.setAlpha(0.6f);
+                v.animate().scaleY(1f).alpha(1f).setDuration(220).setInterpolator(ease).start();
+                break;
+            case "arctique":
+                v.setAlpha(0f);
+                v.setTranslationY(-dp(14));
+                v.animate().alpha(1f).translationY(0).setDuration(260).setInterpolator(ease).start();
+                break;
+            case "ecarlate":
+                v.setPivotX(v.getWidth());
+                v.setPivotY(v.getHeight());
+                v.setRotation(6f);
+                v.setAlpha(0.3f);
+                v.animate().rotation(0).alpha(1f).setDuration(240).setInterpolator(ease).start();
+                break;
+            case "sakura":
+                v.setPivotX(v.getWidth() / 2f);
+                v.setPivotY(v.getHeight() / 2f);
+                v.setScaleX(0.92f);
+                v.setScaleY(0.92f);
+                v.setAlpha(0f);
+                v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(280)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.6f)).start();
+                break;
+            case "ambre": {
+                android.animation.ObjectAnimator f = android.animation.ObjectAnimator.ofFloat(v, "alpha",
+                        0.2f, 0.9f, 0.5f, 1f, 0.75f, 1f);
+                f.setDuration(320);
+                f.start();
+                break;
+            }
+            case "neon": {
+                // Enseigne qui s'allume : grésillement, petit décalage latéral, puis plein éclat.
+                android.animation.PropertyValuesHolder al = android.animation.PropertyValuesHolder.ofFloat("alpha",
+                        0f, 0.85f, 0.1f, 0.6f, 0.25f, 1f);
+                android.animation.PropertyValuesHolder tx = android.animation.PropertyValuesHolder.ofFloat("translationX",
+                        dp(6), -dp(3), dp(2), 0f, 0f, 0f);
+                android.animation.ObjectAnimator f = android.animation.ObjectAnimator.ofPropertyValuesHolder(v, al, tx);
+                f.setDuration(360);
+                f.start();
+                break;
+            }
+            case "jade":
+                // La brume se lève : la bulle monte doucement du bas en se dévoilant.
+                v.setAlpha(0f);
+                v.setTranslationY(dp(16));
+                v.animate().alpha(1f).translationY(0).setDuration(420)
+                        .setInterpolator(new android.view.animation.DecelerateInterpolator(1.4f)).start();
+                break;
+            case "argent":
+                // Vol de grue : la bulle plane en biais et se pose.
+                v.setPivotX(0);
+                v.setPivotY(v.getHeight());
+                v.setAlpha(0f);
+                v.setTranslationX(-dp(14));
+                v.setTranslationY(dp(8));
+                v.setRotation(-2.5f);
+                v.animate().alpha(1f).translationX(0).translationY(0).rotation(0).setDuration(380).setInterpolator(ease).start();
+                break;
+            default:
+                v.setAlpha(0.4f);
+                v.animate().alpha(1f).setDuration(160).start();
+        }
+    }
+
+    /** Tsuru : l'écran du haut passe sous la barre d'état et la manette sous la barre de navigation. */
+    private void applyBleed() {
+        int t = Theme.bleed ? Theme.INSETS[1] : 0, b = Theme.bleed ? Theme.INSETS[3] : 0;
+        // Portrait : la pastille du haut garde ses coins ronds et commence sous la barre d'état (BOSS, 20/10).
+        if (homeStageCol != null) homeStageCol.setPadding(0, 0, 0, 0);
+        if (homeDeckView != null) homeDeckView.setBottomInset(b);
+        if (homeCol != null && homeDeck != null && homeDeck.getVisibility() == View.VISIBLE) {
+            homeCol.setPadding(homeCol.getPaddingLeft(), t, homeCol.getPaddingRight(), 0);
+        }
+        if (homeStage != null && homeDeck != null && homeDeck.getVisibility() == View.VISIBLE) {
+            homeStage.setBackground(Theme.backdrop(Theme.pillR(this, dp(28))));
+        }
+    }
+
     private void rebuild() {
+        Posture before = posture;
         posture = computePosture();
+        // « Paramètres » n'existe qu'en Tsuru : en Washi, retour à « Tous ».
+        if (posture != Posture.FLEX && filter.equals("settings")) filter = "all";
+        if (!filter.equals("settings")) lvSection = null;
         refilter();
-        root.removeAllViews();
-        root.setBackground(Theme.backdrop(0));
+        View outgoing = (before != null && before != posture && splashDone && root.getChildCount() == 1)
+                ? root.getChildAt(0) : null;
+        if (outgoing == null) root.removeAllViews();
+        // Deux pastilles (Tsuru) : entre elles et sous les barres, la couleur de séparation du thème,
+        // pas un morceau du fond d'écran.
+        root.setBackground(posture == Posture.FLEX ? Theme.gap() : Theme.backdrop(0));
+        boolean flush = posture == Posture.FLEX && !store.appFullscreen();
+        if (Theme.bleed != flush) {
+            Theme.bleed = flush;
+            View content = findViewById(android.R.id.content);
+            if (content != null) content.requestApplyInsets();
+        }
+        Theme.insetsHook = new Runnable() {
+            public void run() { applyBleed(); }
+        };
         homeCol = null;
         homeDeck = null;
         homeDeckView = null;
@@ -562,6 +1590,57 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         else if (posture == Posture.OPEN) v = buildOpen();
         else v = buildCover();
         root.addView(v, new FrameLayout.LayoutParams(-1, -1));
+        if (outgoing != null) transition(outgoing, v, posture == Posture.FLEX);
+    }
+
+    /** Passage Washi / Tsuru : l'ancien écran s'efface, le nouveau arrive, au rythme du thème. */
+    private void transition(final View out, View in, boolean toTsuru) {
+        float w = root.getWidth(), h = root.getHeight();
+        float dir = toTsuru ? 1f : -1f;
+        long ms = 420;
+        float inX = 0, inY = 0, inScale = 1f, outX = 0, outY = 0, outScale = 1f;
+        android.animation.TimeInterpolator ip = new android.view.animation.DecelerateInterpolator(1.6f);
+        String t = Theme.THEME_ID;
+        if ("arctique".equals(t)) {          // banquise : glissement vertical, glacé
+            inY = h * 0.08f * dir; outY = -h * 0.08f * dir; ms = 480;
+        } else if ("ecarlate".equals(t)) {   // éventail : le nouvel écran s'ouvre depuis le centre
+            inScale = toTsuru ? 0.88f : 1.12f; outScale = toTsuru ? 1.12f : 0.88f; ms = 460;
+            ip = new android.view.animation.OvershootInterpolator(0.8f);
+        } else if ("sakura".equals(t)) {     // pétales : dérive latérale douce
+            inX = w * 0.10f * dir; outX = -w * 0.10f * dir; ms = 520;
+            ip = new android.view.animation.AccelerateDecelerateInterpolator();
+        } else if ("ambre".equals(t)) {      // oscilloscope : bref scintillement
+            ms = 300; ip = new android.view.animation.CycleInterpolator(2.5f);
+        } else if ("neon".equals(t)) {      // enseigne : glissement sec qui dépasse, comme un néon qui s'allume
+            inX = w * 0.04f * dir; outX = -w * 0.03f * dir; ms = 300;
+            ip = new android.view.animation.OvershootInterpolator(2.2f);
+        } else if ("jade".equals(t)) {       // brume : fondu lent, léger recul
+            inScale = 0.97f; outScale = 1.03f; ms = 620;
+            ip = new android.view.animation.AccelerateDecelerateInterpolator();
+        } else if ("argent".equals(t)) {     // grue : vol plané en diagonale
+            inX = w * 0.06f * dir; inY = -h * 0.04f * dir; outX = -w * 0.06f * dir; outY = h * 0.04f * dir; ms = 520;
+            ip = new android.view.animation.DecelerateInterpolator(2f);
+        } else {                             // codec : balayage radio, léger zoom
+            inScale = 1.04f; ms = 380;
+        }
+        in.setAlpha(0f);
+        in.setTranslationX(inX);
+        in.setTranslationY(inY);
+        in.setScaleX(inScale);
+        in.setScaleY(inScale);
+        if ("ambre".equals(t)) {
+            in.setTranslationX(0); in.setScaleX(1f); in.setScaleY(1f);
+            in.animate().alpha(1f).setDuration(ms + 120).setInterpolator(new android.view.animation.LinearInterpolator()).start();
+            out.animate().alpha(0f).setDuration(ms).withEndAction(new Runnable() {
+                public void run() { root.removeView(out); }
+            }).start();
+            return;
+        }
+        in.animate().alpha(1f).translationX(0).translationY(0).scaleX(1f).scaleY(1f)
+                .setDuration(ms).setInterpolator(ip).start();
+        out.animate().alpha(0f).translationX(outX).translationY(outY).scaleX(outScale).scaleY(outScale)
+                .setDuration(ms * 3 / 4).setInterpolator(new android.view.animation.AccelerateInterpolator())
+                .withEndAction(new Runnable() { public void run() { root.removeView(out); } }).start();
     }
 
     private View buildCover() {
@@ -580,8 +1659,19 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         list.setAdapter(adapter);
         wireClicks(list, adapter);
         list.setSelection(selected);
-        col.addView(list, new LinearLayout.LayoutParams(-1, 0, 1f));
+        col.addView(new PullRefresh(this, list, pullScan()), new LinearLayout.LayoutParams(-1, 0, 1f));
         return col;
+    }
+
+    /** Geste « tirer pour actualiser » : relit le dossier de jeux et annonce le résultat. */
+    private Runnable pullScan() {
+        return new Runnable() {
+            public void run() {
+                if (scanning || store.treeUri() == null) return;
+                announceScan = true;
+                scan(Uri.parse(store.treeUri()));
+            }
+        };
     }
 
     private View buildOpen() {
@@ -604,12 +1694,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             grid.setAdapter(adapter);
             wireClicks(grid, adapter);
             grid.setSelection(selected);
-            row.addView(grid, new LinearLayout.LayoutParams(0, -1, 1f));
+            row.addView(new PullRefresh(this, grid, pullScan()), new LinearLayout.LayoutParams(0, -1, 1f));
         }
         col.addView(row, new LinearLayout.LayoutParams(-1, 0, 1f));
-        TextView tip = text("Astuce : plie l'écran à moitié en paysage, ou touche l'icône en haut, pour passer en mode Tsuru.", 12, Theme.MUTED, false);
-        tip.setPadding(dp(16), dp(6), dp(16), dp(10));
-        col.addView(tip);
         return col;
     }
 
@@ -630,15 +1717,27 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         View scrim = new View(this);
         scrim.setBackground(new android.graphics.drawable.GradientDrawable(
                 android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[] {0xB3000000 & 0xFF000000 | (Theme.BG & 0xFFFFFF), 0x66000000 | (Theme.BG & 0xFFFFFF),
-                        0xE6000000 | (Theme.BG & 0xFFFFFF)}));
+                // « Assombrir le fond » (BOSS) : éteint par défaut, le fond d'écran se voit en pleine lumière ;
+                // le voile ne garde alors qu'un léger dégradé sous la barre et sous la liste.
+                store.dimBackdrop()
+                        ? new int[] {0xB3000000 & 0xFF000000 | (Theme.BG & 0xFFFFFF), 0x66000000 | (Theme.BG & 0xFFFFFF),
+                                0xE6000000 | (Theme.BG & 0xFFFFFF)}
+                        : new int[] {0x4D000000 | (Theme.BG & 0xFFFFFF), 0x00000000 | (Theme.BG & 0xFFFFFF),
+                                0x66000000 | (Theme.BG & 0xFFFFFF)}));
         stage.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
         backdropGame = null;
         LinearLayout stageCol = vertical();
+        homeStageCol = stageCol;
         stageCol.addView(topBar());
         // Façon XMB : les catégories (Tous, Favoris, Récents, consoles) en ligne, ◀ ▶ pour en
         // changer ; les jeux en colonne sous la catégorie choisie, ▲ ▼ ; la fiche du jeu à droite.
-        stageCol.addView(categoryRow(s), new LinearLayout.LayoutParams(-1, dp(92 * s)));
+        // Paramètres (Tsuru) : quand une entrée est ouverte, son icône et son nom prennent la place des catégories.
+        FrameLayout catBox = new FrameLayout(this);
+        catBox.addView(categoryRow(s), new FrameLayout.LayoutParams(-1, -1));
+        lvHeader = levelHeader(s);
+        catBox.addView(lvHeader, new FrameLayout.LayoutParams(-1, -1));
+        if (levelActive()) lvRows = levelRows();
+        stageCol.addView(catBox, new LinearLayout.LayoutParams(-1, dp(92 * s)));
         LinearLayout body = new LinearLayout(this);
         body.setPadding(dp(16 * s), 0, dp(20 * s), dp(12));
         LinearLayout info = vertical();
@@ -684,21 +1783,26 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         heroSheet.addView(sheetMeta);
         sheetSummary = text("", 13 * s, Theme.MUTED, false);
         sheetSummary.setLineSpacing(0, 1.15f);
-        sheetSummary.setMaxLines(14);
-        sheetSummary.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        heroSheet.addView(sheetSummary, new LinearLayout.LayoutParams(-1, 0, 1f));
+        // Bulle dynamique (20/10) : elle prend la hauteur du texte, sans dépasser la zone ; au-delà,
+        // le synopsis défile dans la bulle.
+        ScrollView summaryScroll = new ScrollView(this);
+        summaryScroll.setVerticalScrollBarEnabled(false);
+        summaryScroll.setVerticalFadingEdgeEnabled(true);
+        summaryScroll.setFadingEdgeLength(dp(18));
+        summaryScroll.addView(sheetSummary);
+        heroSheet.addView(summaryScroll, new LinearLayout.LayoutParams(-1, -2, 1f));
         sheetSource = text("", 10 * s, Theme.MUTED, false);
         sheetSource.setAlpha(0.7f);
         sheetSource.setPadding(0, dp(4), 0, 0);
         heroSheet.addView(sheetSource);
         // Lisible sur n'importe quelle illustration : panneau sombre translucide et texte ombré.
-        heroSheet.setBackground(Theme.pill(0xC80B0D10, dp(18)));
+        heroSheet.setBackground(Theme.pill(Theme.alpha(Theme.PANEL_HI, 0xA6), dp(18))); // moins sombre (BOSS 0.66.7)
         heroSheet.setPadding(dp(14), dp(12), dp(14), dp(12));
         sheetSummary.setTextColor(0xFFD6DAE0);
         for (TextView t : new TextView[] {sheetTitle, sheetMeta, sheetSummary, sheetSource, heroSystem, heroTitle, heroMeta}) {
             t.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
         }
-        art.addView(heroSheet, new FrameLayout.LayoutParams(-1, -1));
+        art.addView(heroSheet, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(0, -1, 0.56f);
         ap.setMargins(dp(16 * s), 0, 0, 0);
         body.addView(art, ap);
@@ -708,15 +1812,14 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         homeInfo = info;
         stageCol.addView(body, new LinearLayout.LayoutParams(-1, 0, 1f));
         stage.addView(stageCol, new FrameLayout.LayoutParams(-1, -1));
-        if (store.scanlines()) stage.addView(new Scanlines(), new FrameLayout.LayoutParams(-1, -1));
         // Deux « pilules » aux coins arrondis, séparées par un mince filet au niveau de la charnière.
-        col.setBackgroundColor(Theme.GAP);
-        col.setPadding(dp(4), dp(4), dp(4), dp(4));
-        stage.setBackground(Theme.backdrop(dp(28)));
+        col.setBackground(Theme.gap());
+        col.setPadding(Theme.pillGap(this, dp(4)), 0, Theme.pillGap(this, dp(4)), 0);
+        stage.setBackground(Theme.backdrop(Theme.pillR(this, dp(28))));
         stage.setClipToOutline(true);
         col.addView(stage, new LinearLayout.LayoutParams(-1, 0, 1f));
         View gap = new View(this);
-        col.addView(gap, new LinearLayout.LayoutParams(-1, dp(4)));
+        col.addView(gap, new LinearLayout.LayoutParams(-1, Theme.pillGap(this, dp(4))));
 
         // Moitié basse : la manette, selon la disposition active (modifiable avec l'icône manette).
         FrameLayout deckBox = new FrameLayout(this);
@@ -753,7 +1856,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         homeWrap = wrap;
         homeLayoutName = store.activeLayout();
         applyPadHome();
+        applyBleed();
 
+        applyLevelUi();
         updateFlex(false);
         return wrap;
     }
@@ -786,6 +1891,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
+        // Réattribution des touches d'une manette (niveau Manette) : la touche pressée est retenue.
+        if (menus != null && menus.wizardKey(e)) return true;
         android.view.InputDevice d = e.getDevice();
         if (!splashDone || !Pads.isPad(d)) return super.dispatchKeyEvent(e);
         if (pads == null) pads = new Pads(this);
@@ -864,10 +1971,19 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 r.show(CodecMenu.hostFor(MainActivity.this));
             }
         });
+        m.check("Gâchettes en arc", "Autour des joysticks, comme X et Y d'une GameCube, plus faciles "
+                + "à atteindre. Décoche pour les remettre en haut", store.ergoTriggers(), new Runnable() {
+            public void run() {
+                store.setErgoTriggers(!store.ergoTriggers());
+                ConsolePad.ergo = store.ergoTriggers();
+                padChanged();
+                self.run();
+            }
+        });
         m.check("Vibrations", "Retour haptique sur les touches tactiles", store.haptics(), new Runnable() {
             public void run() { store.setHaptics(!store.haptics()); self.run(); }
         });
-        m.check("Plein écran avec une manette", "La manette tactile s'efface dès qu'une manette est branchée",
+        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette physique est branchée",
                 store.padFullscreen(), new Runnable() {
                     public void run() {
                         store.setPadFullscreen(!store.padFullscreen());
@@ -875,7 +1991,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         self.run();
                     }
                 });
-        m.check("Boutons rapides avec une manette", "SAVE, LOAD et ×2 restent à l'écran en jeu",
+        m.check("Boutons rapides avec une manette", "Sauvegarde, chargement et ×2 restent visibles avec une manette physique",
                 store.padQuickButtons(), new Runnable() {
                     public void run() { store.setPadQuickButtons(!store.padQuickButtons()); self.run(); }
                 });
@@ -927,17 +2043,19 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         // Paysage (écran interne à plat ou externe, pas à moitié plié) : comme en jeu, la manette
         // se superpose à l'accueil en plein écran, seulement ses touches, transparentes.
         Configuration cf = getResources().getConfiguration();
-        boolean halfOpen = hinge != null && hingeAngle >= FLEX_MIN_ANGLE && hingeAngle <= FLEX_MAX_ANGLE;
-        boolean landscape = cf.screenWidthDp > cf.screenHeightDp && !halfOpen;
+        // BOSS : même à moitié plié, si l'écran est en paysage la manette reste transparente en surimpression.
+        boolean landscape = cf.screenWidthDp > cf.screenHeightDp;
         homeOverlayLandscape = landscape;
         boolean flex = !padOnly && act != null && !mini && (act.overlaid() || landscape);
         boolean pad = padOnly || mini || flex;
         placeHomeDeck(mini, flex);
         homeDeck.setVisibility(pad ? View.GONE : View.VISIBLE);
         homeGap.setVisibility(pad ? View.GONE : View.VISIBLE);
-        int p = pad ? 0 : dp(4);
-        homeCol.setPadding(p, p, p, p);
-        homeStage.setBackground(Theme.backdrop(pad ? 0 : dp(28)));
+        int p = pad ? 0 : Theme.pillGap(this, dp(4));
+        // Paysage / plein écran : aucune pastille ; portrait : pastille ronde sous la barre d'état.
+        homeCol.setPadding(p, pad || !Theme.bleed ? 0 : Theme.INSETS[1], p, 0);
+        if (homeStageCol != null) homeStageCol.setPadding(0, pad && Theme.bleed ? Theme.INSETS[1] : 0, 0, 0);
+        homeStage.setBackground(pad ? Theme.backdrop(0) : Theme.backdrop(Theme.pillR(this, dp(28))));
         // Plein écran : la fiche du jeu en haut sur l'illustration, le carrousel en bas comme un dock.
         if (homeHero != null) {
             homeHero.setOrientation(pad ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
@@ -1050,6 +2168,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                     Pads.Profile p = pads.profile(d);
                     PadBanner.show(root, "MANETTE CONNECTÉE", p.name + " · joueur " + p.player, true);
                     padChanged();
+                    if (levelActive() && "pads".equals(lvSection)) levelRefresh();
                 }
 
                 public void onInputDeviceRemoved(int id) {
@@ -1057,6 +2176,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                     PadBanner.show(root, "MANETTE DÉCONNECTÉE",
                             pads.any() || !store.padFullscreen() ? null : "Manette tactile de retour", false);
                     padChanged();
+                    if (levelActive() && "pads".equals(lvSection)) levelRefresh();
                 }
 
                 public void onInputDeviceChanged(int id) {
@@ -1093,6 +2213,11 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         // Barre du haut : on y monte avec ▲ depuis le premier jeu (ou une liste vide).
         if (barFocus >= 0) {
             barKey(key);
+            return;
+        }
+        // Niveau d'une entrée de Paramètres : ▲ ▼ parcourent les réglages, ◀ ▶ les changent, Ⓐ valide, Ⓑ revient.
+        if (levelActive()) {
+            levelKey(key);
             return;
         }
         if (key.equals("UP") && (shown.isEmpty() || selected == 0) && !barButtons.isEmpty()) {
@@ -1144,6 +2269,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             int next = Math.max(0, Math.min(barButtons.size() - 1, barFocus + (key.equals("LEFT") ? -1 : 1)));
             if (next != barFocus) {
                 barFocus = next;
+                UiSound.play(this, UiSound.MOVE);
                 haptic();
                 paintBarFocus();
             }
@@ -1202,7 +2328,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     private void select(int i) {
         if (shown.isEmpty()) return;
+        int before = selected;
         selected = Math.max(0, Math.min(shown.size() - 1, i));
+        if (selected != before) UiSound.play(this, UiSound.MOVE);
         haptic();
         updateFlex(true);
     }
@@ -1214,6 +2342,11 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     /** B : retour à « Tous » depuis un filtre. */
     private void back() {
+        UiSound.play(this, UiSound.BACK);
+        if (levelActive()) {
+            levelBack();
+            return;
+        }
         if (!filter.equals("all")) {
             switchFilter("all", -1);
             status("B · retour à Tous");
@@ -1247,7 +2380,13 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     private void showEmulationOptions() {
+        if (levelActive()) return; // les réglages ne sont pas un jeu : pas d'options d'émulation
         final Game g = shown.isEmpty() ? null : shown.get(selected);
+        // Remote Play (BOSS, 0.66.5) : Home sur une plateforme ouvre le choix du client.
+        if (g != null && g.uri.startsWith("action:remote:")) {
+            remoteMenu(g.group);
+            return;
+        }
         CodecMenu m = new CodecMenu(this).title("Options", g == null ? "BIBLIOTHÈQUE" : g.system.shortName + " · " + g.title);
         if (g != null) {
             String emu = launcher.emulatorLabel(g);
@@ -1257,31 +2396,69 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
             });
         }
-        final boolean auto = store.autoCovers();
-        m.check("Jaquettes automatiques", "Téléchargées depuis la base libretro", auto, new Runnable() {
-            public void run() {
-                store.setAutoCovers(!auto);
-                if (!auto) fetchCovers();
-                showEmulationOptions();
+        // Menu Home réduit aux réglages par jeu / par émulateur (demande de BOSS) : jaquettes automatiques,
+        // dossier de jeux et rescan restent dans Réglages et Bibliothèque, la manette dans l'icône manette.
+        if (g != null) {
+            final String sys = g.system.id;
+            final boolean engine = sys.equals(EngineSettings.PS3) || sys.equals(EngineSettings.X360);
+            if (engine || (g.system.core != null && CoreProfiles.matters(this, g.system.core))) {
+                String cur = engine ? EngineSettings.profileName(this, sys)
+                        : CoreProfiles.name(store.gameProfile(Store.gameId(g.uri, g.path), sys));
+                m.sub("Profil et réglages", cur, new Runnable() {
+                    public void run() { gameProfileMenu(g, engine); }
+                });
             }
-        });
-        m.item("Choisir le dossier de jeux", null, new Runnable() { public void run() { pickFolder(); } });
-        if (store.treeUri() != null) {
-            m.item("Rescanner le dossier", null, new Runnable() { public void run() { scan(Uri.parse(store.treeUri())); } });
         }
-        m.item("Personnaliser la manette", "Disposition, teintes, opacité", new Runnable() {
-            public void run() {
-                startActivity(new Intent(MainActivity.this, LayoutEditorActivity.class));
-            }
-        });
-        m.item("Passer en vue grille", null, new Runnable() {
-            public void run() {
-                store.setFlexView(false);
-                rebuild();
-            }
-        });
+        // 0.66.5 (BOSS) : seulement l'émulateur et le profil du jeu ; la vue se change dans Réglages.
         m.show(menuHost());
         status("⌂ · options");
+    }
+
+    /** Profil et réglages d'un jeu : moteur PS3 / 360 (réglages complets) ou profil par jeu d'un cœur libretro. */
+    private void gameProfileMenu(final Game g, boolean engine) {
+        final Runnable back = new Runnable() {
+            public void run() { showEmulationOptions(); }
+        };
+        if (engine) {
+            EngineSettings.menu(this, menuHost(), g.system.id, g.system.name.toUpperCase(), back);
+            return;
+        }
+        final String id = Store.gameId(g.uri, g.path);
+        String cur = store.gameProfile(id, g.system.id);
+        CodecMenu pm = new CodecMenu(this).title("Profil et réglages", g.system.shortName + " · " + g.title)
+                .message("Le profil de ce jeu s'applique à son prochain lancement.").onBack(back);
+        for (int i = 0; i < CoreProfiles.IDS.length; i++) {
+            final String pid = CoreProfiles.IDS[i];
+            pm.radio(CoreProfiles.NAMES[i], CoreProfiles.HELP[i], pid.equals(cur), new Runnable() {
+                public void run() {
+                    store.setGameProfile(id, pid);
+                    gameProfileMenu(g, false);
+                }
+            });
+        }
+        if (g.system.core != null) {
+            final String core = g.system.core;
+            pm.sub("Réglages avancés", "Toutes les options du cœur", new Runnable() {
+                public void run() {
+                    if (posture == Posture.FLEX) {
+                        // Tsuru : le même menu codec, sans passer par le menu classique.
+                        String[] specs = store.coreSpecs(core);
+                        if (specs.length == 0) {
+                            toast("Lance un jeu de cette console pour voir ses réglages.");
+                        } else {
+                            menus.coreOptions(core, specs, new Runnable() {
+                                public void run() { gameProfileMenu(g, false); }
+                            }, id);
+                        }
+                        return;
+                    }
+                    startActivity(new Intent(MainActivity.this, SettingsActivity.class)
+                            .putExtra(SettingsActivity.EXTRA_CORE_OPTIONS, core)
+                            .putExtra(SettingsActivity.EXTRA_GAME_ID, id));
+                }
+            });
+        }
+        pm.show(menuHost());
     }
 
     /** Le menu s'affiche dans la moitié haute en vue Flex, sur tout l'écran sinon. */
@@ -1303,11 +2480,17 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     private void updateFlex(boolean animate) {
         if (heroEmblem == null) return;
+        if (levelActive()) {
+            updateLevel(animate);
+            return;
+        }
+        // La colonne porte encore les lignes d'un niveau (retour en cours) : elle se remplit dans un instant.
+        if (carouselLevel) return;
         if (library.isEmpty() && !appFilter()) {
             heroSystem.setText("BIBLIOTHÈQUE");
             heroTitle.setVisibility(View.VISIBLE);
             heroTitle.setText(scanning ? "Lecture du dossier…" : "Choisis ton dossier de jeux");
-            heroMeta.setText("Appuie sur Ⓐ ou sur l'icône dossier. Origami range tes jeux par console et les lance dans ton émulateur.");
+            heroMeta.setText("Appuie sur Ⓐ ou l'icône dossier : Origami range tes jeux par console.");
             heroEmblem.setVisibility(View.INVISIBLE);
             heroSheet.setVisibility(View.GONE);
             return;
@@ -1316,7 +2499,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             heroSystem.setText(filterLabel(filter).toUpperCase());
             heroTitle.setVisibility(View.VISIBLE);
             heroTitle.setText("Rien ici pour l'instant");
-            heroMeta.setText("Change de catégorie avec ◀ ▶, ou ajoute des favoris avec Ⓨ.");
+            heroMeta.setText("◀ ▶ change de catégorie, Ⓨ ajoute un favori.");
             SystemInfo fs = SystemInfo.byId(filter);
             heroEmblem.setSystem(fs);
             heroEmblem.setVisibility(fs != null ? View.VISIBLE : View.INVISIBLE);
@@ -1348,10 +2531,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         String meta = (fav ? "★ Favori · " : "") + (selected + 1) + "/" + shown.size();
         if (emu != null) meta += " · " + emu;
         heroMeta.setText(meta);
-        if (animate) {
-            heroSheet.setAlpha(0.4f);
-            heroSheet.animate().alpha(1f).setDuration(160).start();
-        }
+        if (animate) sheetEffect(heroSheet);
         for (int i = 0; i < carousel.getChildCount(); i++) {
             LinearLayout card = (LinearLayout) carousel.getChildAt(i);
             CartridgeView cv = (CartridgeView) card.getChildAt(0);
@@ -1388,6 +2568,11 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     /** Colonne des jeux de la catégorie choisie (vue Tsuru). */
     private void fillCarousel(float s) {
+        if (levelActive()) {
+            fillLevel(s);
+            return;
+        }
+        carouselLevel = false;
         carousel.removeAllViews();
         for (int i = 0; i < shown.size(); i++) {
             final int index = i;
@@ -1436,6 +2621,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         if (key.equals(filter)) return;
         filter = key;
         selected = 0;
+        lvSection = null;
+        applyLevelUi();
         haptic();
         if (posture != Posture.FLEX || cats == null || carousel == null) {
             rebuild();
@@ -1476,7 +2663,18 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             }
             long d = animate ? 200 : 0;
             icon.animate().scaleX(k).scaleY(k).setDuration(d).start();
-            label.animate().alpha(on ? 1f : 0f).setDuration(d).start();
+            label.animate().cancel();
+            boolean shown = on && !"muet".equals(label.getTag());
+            if (shown) label.setVisibility(View.VISIBLE);
+            if (shown || !animate) {
+                label.animate().alpha(shown ? 1f : 0f).setDuration(d).start();
+                if (!shown) label.setVisibility(View.INVISIBLE);
+            } else {
+                final View lb = label;
+                label.animate().alpha(0f).setDuration(d).withEndAction(new Runnable() {
+                    public void run() { lb.setVisibility(View.INVISIBLE); }
+                }).start();
+            }
             cell.animate().alpha(on ? 1f : 0.55f).setDuration(d).start();
             if (on) chosen = cell;
         }
@@ -1484,12 +2682,18 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             final View c = chosen;
             catScroll.post(new Runnable() {
                 public void run() {
-                    int x = Math.max(0, c.getLeft() - dp(16));
+                    int x = catScrollX(c);
                     if (animate) catScroll.smoothScrollTo(x, 0);
                     else catScroll.scrollTo(x, 0);
                 }
             });
         }
+    }
+
+    /** Défilement de la rangée : la choisie à gauche, sauf juste après « Paramètres » qui reste visible. */
+    private int catScrollX(View c) {
+        if (cats.indexOfChild(c) == 1 && SystemInfo.SETTINGS.id.equals(cats.getChildAt(0).getTag())) return 0;
+        return Math.max(0, c.getLeft() - dp(16));
     }
 
     private float flexScale() {
@@ -1502,6 +2706,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         catScroll.setHorizontalScrollBarEnabled(false);
         cats = new LinearLayout(this);
         cats.setPadding(dp(16 * s), dp(6), dp(400), 0);
+        cats.setClipChildren(false);
+        catScroll.setClipChildren(false);
         final List<String> keys = filterKeys();
         View chosen = null;
         for (final String key : keys) {
@@ -1530,11 +2736,26 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             TextView label = text(filterLabel(key).replace("★ ", ""), 11 * s, on ? Theme.CODEC : Theme.TEXT, false);
             label.setTypeface(Fonts.wide(this));
             label.setLetterSpacing(0.12f);
-            Theme.marquee(label);
+            // Pas de défilement (marquee) : pendant l'ouverture/fermeture, une mesure intermédiaire
+            // trop étroite faisait défiler/couper « Tous » et « Favoris » sur une 2e ligne (BOSS).
+            label.setSingleLine(true);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            label.setGravity(Gravity.CENTER_HORIZONTAL);
             label.setPadding(0, dp(4), 0, 0);
             label.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
-            label.setAlpha(on ? 1f : 0f);
-            cell.addView(label);
+            // Les consoles portent déjà leur sigle dans l'icône : pas d'étiquette flottante (BOSS).
+            // 0.66.11 (BOSS) : plus de texte sous l'icône Réglages.
+            boolean named = sys == null || sys == SystemInfo.ANDROID || sys == SystemInfo.ACTION;
+            if (!named) label.setTag("muet");
+            label.setAlpha(on && named ? 1f : 0f);
+            // Les étiquettes des icônes non choisies sont carrément absentes de l'affichage.
+            label.setVisibility(on && named ? View.VISIBLE : View.INVISIBLE);
+            // L'étiquette déborde de la cellule sans l'élargir : « Paramètres » en entier, voisines à leur place.
+            int lw = Math.round(dp(150 * s));
+            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(lw, -2);
+            llp.leftMargin = llp.rightMargin = -(lw - size) / 2;
+            cell.setClipChildren(false);
+            cell.addView(label, llp);
             cell.setAlpha(on ? 1f : 0.55f);
             cell.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -1550,7 +2771,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         final View c = chosen;
         if (c != null) {
             catScroll.post(new Runnable() {
-                public void run() { catScroll.scrollTo(Math.max(0, c.getLeft() - dp(16)), 0); }
+                public void run() { catScroll.scrollTo(catScrollX(c), 0); }
             });
         }
         return catScroll;
@@ -1638,8 +2859,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             return;
         }
         final String id = Store.gameId(g.uri, g.path);
-        final String prof = store.gameProfile(id);
-        final boolean isDefault = prof.equals(store.defaultProfile());
+        final String prof = store.gameProfile(id, g.system.id);
+        final boolean isDefault = prof.equals(store.defaultProfile(g.system.id));
         new CodecMenu(this).title(g.title, "OPTIONS DE LANCEMENT")
                 .item("Lancer", g.system.name + " · profil " + CoreProfiles.name(prof), new Runnable() {
                     public void run() { launcher.launch(g); }
@@ -1655,7 +2876,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                         }
                     }
                 })
-                .choice("Profil", new String[] {"performance", "balanced", "quality"}, CoreProfiles.NAMES,
+                .choice("Profil", CoreProfiles.IDS, CoreProfiles.NAMES,
                         CoreProfiles.HELP, CoreProfiles.index(prof), new CodecMenu.Pick() {
                             public void picked(int i) {
                                 store.setGameProfile(id, CoreProfiles.IDS[i]);
@@ -1663,7 +2884,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                             }
                         })
                 .check("Profil par défaut", isDefault ? "Les autres jeux démarrent aussi en " + CoreProfiles.name(prof)
-                        : "Par défaut : " + CoreProfiles.name(store.defaultProfile()) + " · cocher pour prendre "
+                        : "Par défaut : " + CoreProfiles.name(store.defaultProfile(g.system.id)) + " · cocher pour prendre "
                         + CoreProfiles.name(prof), isDefault, new Runnable() {
                     public void run() {
                         if (!isDefault) store.setDefaultProfile(prof);
@@ -1716,6 +2937,12 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 break;
         }
         if (posture != Posture.FLEX) return super.onKeyDown(keyCode, event);
+        // Niveau de Paramètres : mêmes touches qu'à la manette (croix, Ⓐ, Ⓑ ou Retour).
+        String lk = mk != null ? mk : keyCode == KeyEvent.KEYCODE_BUTTON_START ? "START" : null;
+        if (levelActive() && lk != null) {
+            padKey(lk);
+            return true;
+        }
         switch (keyCode) {
             case KeyEvent.KEYCODE_DPAD_LEFT:
                 step(-1, "◀");
@@ -1785,30 +3012,22 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         logo.setTypeface(Fonts.logo(this));
         postureTag = text(postureText(), 11, Theme.MUTED, true);
         android.widget.ImageView mark = new android.widget.ImageView(this);
-        mark.setImageDrawable(new Crane.Logo());
+        Crane.Logo crane = new Crane.Logo();
+        mark.setImageDrawable(crane);
+        // Le logo est un bouton (applications) : un reflet le traverse régulièrement (0.62).
+        crane.animate(mark, 5000);
         LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(40), dp(40));
         mlp.rightMargin = dp(10);
-        // Le logo ouvre les applications du téléphone (0.60.4, à la place du bouton « Applications »).
-        mark.setContentDescription("Applications");
-        mark.setBackground(Theme.pill(0x00000000, dp(20)));
-        mark.setFocusable(true);
-        mark.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                appsMenu();
-            }
-        });
-        bar.addView(mark, mlp);
-        barButtons.add(mark);
-        titles.addView(logo);
-        titles.addView(postureTag);
-        bar.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        // L'icône montre la vue vers laquelle on bascule.
+        // BOSS : l'origami est le bouton Tsuru ⇄ Washi ; les applications ont leur propre icône.
         final boolean flexOn = posture == Posture.FLEX;
         final boolean onCover = hinge != null && getResources().getConfiguration().smallestScreenWidthDp < 600;
-        bar.addView(iconButton(flexOn ? "grid" : "flex",
-                flexOn ? "Passer en mode Washi" : "Passer en mode Tsuru", new View.OnClickListener() {
+        mark.setContentDescription(flexOn ? "Passer en mode Washi" : "Passer en mode Tsuru");
+        android.content.res.TypedArray ra = obtainStyledAttributes(
+                new int[] {android.R.attr.selectableItemBackgroundBorderless});
+        mark.setBackground(ra.getDrawable(0));
+        ra.recycle();
+        mark.setFocusable(true);
+        mark.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 // Sur l'écran externe, choix du moment ; sur l'écran interne, le réglage par défaut.
@@ -1820,7 +3039,31 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
                 rebuild();
             }
+        });
+        bar.addView(mark, mlp);
+        barButtons.add(mark);
+        titles.addView(logo);
+        titles.addView(postureTag);
+        bar.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        // Lanceur d'applications du téléphone, en Tsuru comme en Washi.
+        bar.addView(iconButton("apps", "Applications", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                appsMenu();
+            }
         }));
+        // Tsuru : Thème, Manette et Réglages sont dans la catégorie « Paramètres » du XMB.
+        if (!flexOn) addBarSettings(bar);
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View child = bar.getChildAt(i);
+            if (child instanceof android.widget.ImageView && child.isClickable()) barButtons.add(child);
+        }
+        paintBarFocus();
+        return bar;
+    }
+
+    private void addBarSettings(LinearLayout bar) {
         bar.addView(iconButton("palette", "Thème", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -1839,15 +3082,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 startActivity(new Intent(MainActivity.this, SettingsActivity.class));
             }
         }));
-        for (int i = 0; i < bar.getChildCount(); i++) {
-            View child = bar.getChildAt(i);
-            if (child instanceof android.widget.ImageView && child.isClickable()) barButtons.add(child);
-        }
-        paintBarFocus();
-        return bar;
     }
 
-    /** Les cinq thèmes, et l'interface aux couleurs de la manette en dernier choix. */
+    /** Les thèmes, puis les couleurs du logo et de la manette (un seul panneau, 0.61). */
     private void themeMenu() {
         CodecMenu m = new CodecMenu(this).title("Thème", "COULEURS DE L'INTERFACE");
         final boolean sync = store.syncUi();
@@ -1857,6 +3094,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             m.radio(Theme.THEME_NAMES[i], Theme.THEME_HELP[i], !sync && id.equals(cur), new Runnable() {
                 public void run() {
                     store.setTheme(id);
+                    UiSound.refresh(MainActivity.this);
                     store.setSyncUi(false);
                     // L'icône du lanceur change seulement une fois l'app quittée : pas de redémarrage.
                     Theme.queueIcon(MainActivity.this, id);
@@ -1864,16 +3102,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
             });
         }
-        m.radio("Couleurs de la manette", "Menus, titres, logo et emblèmes reprennent les couleurs de la manette active ; "
-                + "elles se règlent en direct", sync, new Runnable() {
-                    public void run() {
-                        store.setSyncUi(true);
-                        CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));
-                        if (open != null) open.dismiss();
-                        if (Theme.sync(MainActivity.this)) rebuild();
-                        ColorSheet.show(MainActivity.this, MainActivity.this, false, sheetHeight());
-                    }
-                });
         m.sub("Couleurs du logo et de la manette", store.logoColor() == 0 ? "Logo : suit le thème" : "Logo : couleur perso", new Runnable() {
             public void run() {
                 CodecMenu open = CodecMenu.find(CodecMenu.hostFor(MainActivity.this));
@@ -1883,25 +3111,41 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         });
         // Choix du pack à part : rouvert avec le store de thèmes communautaires (décision BOSS,
         // 0.60.6). D'ici là, les icônes suivent le thème (iconPackMenu reste prêt).
-        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "En chantier : arrive avec le store de thèmes. Les icônes suivent le thème.");
+        m.soon(Icons.of(this, "palette", Theme.MUTED, 24), "Pack d'icônes", "👷‍♂️🚧 Arrive avec le store de thèmes.");
         // Partage de thèmes entre joueurs : annoncé, pas encore ouvert.
-        m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "En chantier : partager et récupérer des thèmes");
+        m.subIf(store.pills(), "Lumen", EngineMenus.andonLabel(store) + " · lumière autour du jeu, en jeu", new Runnable() {
+            public void run() {
+                EngineMenus.andon(MainActivity.this, CodecMenu.hostFor(MainActivity.this), store, new Runnable() {
+                    public void run() { themeMenu(); }
+                }, new Runnable() {
+                    public void run() { }
+                });
+            }
+        });
+        m.soon(Icons.of(this, "share", Theme.MUTED, 24), "Thèmes de la communauté", "👷‍♂️🚧 Partager et récupérer des thèmes");
         m.show(CodecMenu.hostFor(this));
     }
 
     /** Toutes les applications du téléphone, en menu codec (en attendant le lanceur Washi complet). */
     private void appsMenu() {
         final boolean grid = store.appsGrid();
-        CodecMenu m = new CodecMenu(this).title("Applications", "LANCEUR DU TÉLÉPHONE").grid(grid)
+        CodecMenu m = new CodecMenu(this).title("Applications", "TRI · " + HomeApps.SORTS[store.appsSort()].toUpperCase()).grid(grid).opaque()
                 .headButton(Icons.of(this, grid ? "menu" : "grid", Theme.CODEC, 22),
                         grid ? "Afficher en liste" : "Afficher en grille", new Runnable() {
                     public void run() {
                         store.setAppsGrid(!grid);
                         appsMenu();
                     }
+                }).slider(true)
+                .headButton2(Icons.of(this, "sort", Theme.CODEC, 22), "Trier les applications", new Runnable() {
+                    public void run() {
+                        store.setAppsSort((store.appsSort() + 1) % HomeApps.SORTS.length);
+                        toast(HomeApps.SORTS[store.appsSort()]);
+                        appsMenu();
+                    }
                 });
         int px = dp(grid ? 48 : 32);
-        for (final HomeApps.App app : HomeApps.apps(this)) {
+        for (final HomeApps.App app : HomeApps.apps(this, store.appsSort())) {
             android.graphics.drawable.Drawable d = app.icon(this);
             if (d != null) d.setBounds(0, 0, px, px);
             m.item(d, app.label, null, new Runnable() {
@@ -1991,10 +3235,10 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 public void run() { scan(Uri.parse(store.treeUri())); }
             });
         }
-        m.item("Oublier les émulateurs choisis", "Le prochain lancement redemandera, console par console", new Runnable() {
+        m.item("Oublier les émulateurs choisis", "L'émulateur à utiliser sera redemandé au prochain jeu", new Runnable() {
             public void run() {
                 store.clearEmulators();
-                toast("Le prochain lancement te redemandera l'émulateur, console par console.");
+                toast("L'émulateur sera redemandé au prochain lancement.");
             }
         });
         if (store.treeUri() != null) {
@@ -2015,13 +3259,14 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         try {
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
         } catch (ActivityNotFoundException e) {
-            toast("Impossible d'ouvrir le sélecteur de dossiers sur cet appareil.");
+            toast("Sélecteur de dossiers indisponible.");
         }
     }
 
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+        if (menus != null && menus.onResult(request, result, data)) return;
         if (request == REQ_COVER) {
             if (result == RESULT_OK && data != null && data.getData() != null && coverFor != null) setCover(coverFor, data.getData());
             coverFor = null;
@@ -2130,7 +3375,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             return box;
         }
         TextView t = text(filter.equals("fav")
-                ? "Pas encore de favoris. Appui long sur un jeu pour l'ajouter."
+                ? "Pas de favoris. Appui long sur un jeu pour en ajouter."
                 : filter.equals("recent") ? "Aucune partie lancée pour l'instant." : "Rien ici pour l'instant.",
                 15, Theme.MUTED, false);
         t.setGravity(Gravity.CENTER);
@@ -2224,21 +3469,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     // ---------------------------------------------------------------- petits outils
 
     /** Lignes de balayage façon écran cathodique, par-dessus la scène du mode Flex. */
-    private final class Scanlines extends View {
-        private final Paint p = new Paint();
-
-        Scanlines() {
-            super(MainActivity.this);
-            p.setColor(0x10000000);
-        }
-
-        @Override
-        protected void onDraw(Canvas c) {
-            int step = dp(3);
-            for (int y = 0; y < getHeight(); y += step) c.drawRect(0, y, getWidth(), y + dp(1), p);
-        }
-    }
-
     private LinearLayout vertical() {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.VERTICAL);

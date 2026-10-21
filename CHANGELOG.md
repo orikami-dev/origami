@@ -2,6 +2,156 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.24 ⭐
+
+- Fond Torii refait : la pagode vermillon allumée sur son mont, un petit torii et ses lanternes, la lune rouge en facettes, des feuilles d'érable qui tombent.
+- Hanami : un grand cerisier en fleurs au premier plan du fond d'écran.
+- Manette Hanami refaite : le pont de lune et son reflet, des branches de cerisier, de l'eau qui ondule et des pétales.
+- Réglages du XMB : la grande bulle de droite qui répétait le réglage choisi est retirée.
+- Lanceur d'applications : la liste n'est plus coupée en bas.
+- Dossier Origami créé à la racine du téléphone (Origami/GAMES pour les jeux avec GAMES/DLC, Origami/BIOS pour les BIOS), proposé par l'assistant de démarrage avec l'accès aux fichiers.
+- PS3 et Xbox 360 : nouveau réglage « Répartition des cœurs » (Performance par défaut) : son, rendu et jeu sur les gros cœurs, compilation des shaders sur les cœurs moyens ; mode Économie pour moins chauffer.
+- Alerte quand le téléphone surchauffe en jeu.
+
+## 0.66.22
+
+- Manette Torii refaite : grand portique vermillon, lanternes et braises qui montent.
+- Hanami : nouvelle eau du fond d'écran, douce, avec reflets de lune et pétales qui dérivent.
+- Descriptions des thèmes réécrites, une phrase pour chacun.
+- PS3 : définition par défaut en 720p en Performance et 1080p en Équilibré (Demon's Souls compris).
+- Toucher le vide ne fait plus de bruit, quel que soit le thème.
+
+## 0.66.21 ⭐
+
+- Thèmes renommés : Vigie, Aurore, Torii, Hanami, Mégapole, Averse, Brume et Clair de lune, avec des descriptions à jour.
+- Manettes : radar à un seul faisceau avec échos rouges qui clignotent, Mégapole refaite (tour, tours de verre, projecteurs), gouttes qui font des ronds sur Averse, temple de Brume plus détaillé.
+- Hanami : l'eau du fond d'écran refaite (facettes, éclats de lune, rides).
+- Nouvelles touches Capture d'écran et Vidéo sur toutes les manettes.
+- Sauvegarde et chargement rapides retirés des menus (les touches de la manette suffisent).
+- Xbox 360 : le menu Home ne fige plus le jeu, shaders en arrière-plan rétablis.
+
+## 0.66.20
+
+- Mises à jour : le détail (version installée, stable, préversion) s'affiche sous « Origami est à jour ».
+
+## 0.66.19 ⭐
+
+- Manettes animées pour tous les thèmes : ondes sur l'eau (Argent), neige, braises, pétales, phares, pluie, lucioles, balayage radar.
+
+## 0.66.18
+
+- Titres des menus dans la police du thème.
+- Menus de l'accueil sur fond plein, sans la liste des jeux en transparence.
+
+## 0.66.17
+
+- Nouvel écran de démarrage : les plis de la grue se dessinent, puis elle se colore au centre.
+- Thème Argent : plus de grues sur le fond ni sur la manette ; étoiles filantes et brume devant la lune.
+
+## 0.66.16
+
+- XMB : plus de texte dans les icônes, sauf les consoles et Remote Play.
+
+## 0.66.15
+
+- Nouvelle grue partout : fonds animés, manette, joystick, écran de démarrage.
+- Interrupteurs des Réglages plus coupés.
+- Liste des applications sur fond plein.
+- PS3 : cache de shaders sur disque toujours actif (shaders recompilés au chargement).
+
+## 0.66.14
+
+- Une police par thème : Exo 2, Cinzel, Quicksand, Marcellus, Orbitron, Josefin Sans, Jura.
+- PS3 : moins de compilations de shaders en parallèle pour éviter un plantage du pilote au démarrage.
+
+## 0.66.13 ⭐
+
+- Nouveau logo : la grue en vol, angles arrondis, contours, ombres et lumières.
+- Nouvelles icônes du lanceur, une par thème.
+- Bec de la grue en jaune.
+
+## 0.66.12
+
+- « Mises à jour et À propos » devient « Version ».
+
+## 0.66.11
+
+- Plus de texte sous l'icône Réglages du XMB.
+
+## 0.66.10
+
+- Son de Demon's Souls : tampon plus long, sans étirement du temps (moins de distorsion).
+
+## 0.66.9
+
+- Son du premier appui : plus de lecture avant chargement.
+- Grues du thème Argent : ailes qui pivotent à la racine.
+
+## 0.66.8
+
+- XMB en mode Tsuru : la catégorie « Paramètres » devient « Réglages », son nom ne se coupe plus.
+- Argent : les grues du fond battent des ailes plus doucement, ailes toujours du bon côté, le corps monte quand elles redescendent.
+
+## 0.66.7
+
+- Trois nouveaux thèmes complets : Néon (ruelle de Tokyo sous la pluie), Jade (temple de montagne dans la brume) et Argent (grues en origami sous la pleine lune), avec leurs fonds, manettes, icônes d'appli, bruitages et musiques.
+- Le thème Codec devient Radar ; sa tour a une antenne qui tourne, un feu clignotant et des fenêtres qui s'allument.
+- Ambre : nouveau fond, une métropole japonaise de nuit avec la tour de Tokyo.
+- Écarlate : colline agrandie, pagode posée sur son socle, forêt de conifères au fond. Sakura : pont posé sur ses berges. Jade : vrai vert jade, temple et escalier posés sur le relief.
+- Nouvelles musiques de thème, composées ou réarrangées pour chacun des huit thèmes.
+- XMB en mode Tsuru : les entrées de « Paramètres » s'ouvrent dans le XMB, façon PS3, avec une icône propre à chaque thème ; le menu classique reste celui du mode Washi.
+- Paramètres réordonnés et redécrits ; « Mises à jour » et « À propos » ne forment plus qu'une page.
+- « Assombrir le fond » remplace l'effet cathodique, éteint par défaut.
+- Bulle de description et cartes des menus moins sombres.
+
+## 0.66.6
+
+- Nouveaux fonds d'écran pour Codec (base radar), Arctique (nuit polaire), Écarlate (Japon sous la lune rouge) et Sakura (rivière et pont).
+- Nouveaux fonds de manette assortis pour ces quatre thèmes.
+- XMB en mode Tsuru : nouvelle catégorie « Paramètres », à gauche de « Tous », qui regroupe Thème, Manette et Réglages.
+- Le logo Origami fait passer de Tsuru à Washi ; nouvelle icône « Applications » pour le lanceur d'apps.
+- Profils : bouton « Réglages avancés » accessible depuis l'accueil, hors jeu.
+- Pliage : plus d'étiquettes déformées, et la manette reste transparente en paysage.
+
+## 0.66.5
+
+- Andon devient Lumen.
+- Menu en jeu : nouveau sous-menu « Affichage » qui regroupe l'ATH, le format d'image et Lumen.
+- « Redémarrer le jeu » relance la partie sur place, sans repasser par l'accueil.
+- Profils : Qualité est retiré, il reste Performance, Équilibré et Personnalisé, refaits pour chaque système. Performance par défaut à partir de la PS3.
+- Bouton Home sur un jeu : seulement l'émulateur, le profil et les réglages du jeu.
+- Remote Play : le client choisi par défaut s'ouvre directement, Home permet d'en changer ; icônes sans lettre.
+- Ambre : nouveau fond d'écran, une ville Art déco de nuit avec projecteurs.
+- Les skins des manettes restent visibles, Lumen allumé ou non.
+
+## 0.66.4
+
+- Mises à jour : vérification automatique toutes les 6 heures, avec une fenêtre codec « Installer » ou « Installer ultérieurement » (redemande après 24 heures) et une barre de téléchargement aux couleurs du thème.
+- Bouton Home agrandi sur toutes les manettes.
+- Andon éteint : plus de fond coloré derrière les manettes, seules les touches restent.
+- Réglages : l'option devient « Mode Washi par défaut », et l'accueil s'ouvre en Washi par défaut.
+
+## 0.66.3
+
+- Assistant de démarrage : plus de fond visible derrière la barre de notifications et la barre de navigation.
+
+## 0.66.2
+
+- Menus et Réglages : seul l'interrupteur réagit au toucher, plus la ligne entière, pour éviter les appuis involontaires. À la manette, la ligne sélectionnée bascule toujours.
+
+## 0.66.1
+
+- PS3 : moteur mis à jour (ARMSX3 1.3.1), avec les derniers correctifs des SPU (boîtes aux lettres, réveil des fils) et du rendu Vulkan.
+
+## 0.66.0
+
+- Interrupteurs redessinés aux couleurs de chaque thème, dans les Réglages comme dans les menus codec.
+- Andon : la lumière est enfermée dans un contour propre à chaque thème (Codec, Arctique, Écarlate, Sakura, Ambre).
+- Nouvelle option Réglages > Affichage > « Pastilles » : coins arrondis ou écran bord à bord. Sans pastilles, Andon est désactivé et grisé.
+- Manette de l'accueil : L et R retirés.
+- PS3 : boucles d'attente SPU détectées pour libérer le processeur, caches de code forcés, envoi GPU rapide, tampon son de 200 ms contre les coupures pendant les ralentis.
+- Mode débogage : charge de chaque fil du moteur relevée toutes les 2 s et jointe à « Copier le journal ».
+
 ## 0.65.30
 - Assistant de démarrage : les coins ne laissent plus voir le fond derrière.
 

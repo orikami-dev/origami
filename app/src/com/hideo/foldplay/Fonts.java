@@ -7,6 +7,7 @@ import android.graphics.Typeface;
 final class Fonts {
     private static Typeface logo;
     private static Typeface wide;
+    private static String wideTheme;
 
     private Fonts() {
     }
@@ -16,8 +17,27 @@ final class Fonts {
         return logo;
     }
 
+    /** Titres des menus : le pochoir sur Radar, la police du thème en gras ailleurs (0.66.17). */
+    static Typeface title(Context ctx) {
+        if ("codec".equals(new Store(ctx).theme())) return logo(ctx);
+        return Typeface.create(wide(ctx), Typeface.BOLD);
+    }
+
+    /** Police des textes du thème en cours (0.66.14) : Michroma pour Radar, une autre par thème. */
     static Typeface wide(Context ctx) {
-        if (wide == null) wide = load(ctx, "fonts/Michroma-Regular.ttf", Typeface.MONOSPACE);
+        String theme = new Store(ctx).theme();
+        if (wide == null || !theme.equals(wideTheme)) {
+            String file = "Michroma-Regular";
+            if ("arctique".equals(theme)) file = "Exo2";
+            else if ("ecarlate".equals(theme)) file = "Cinzel";
+            else if ("sakura".equals(theme)) file = "Quicksand";
+            else if ("ambre".equals(theme)) file = "Marcellus";
+            else if ("neon".equals(theme)) file = "Orbitron";
+            else if ("jade".equals(theme)) file = "JosefinSans";
+            else if ("argent".equals(theme)) file = "Jura";
+            wide = load(ctx, "fonts/" + file + ".ttf", Typeface.MONOSPACE);
+            wideTheme = theme;
+        }
         return wide;
     }
 

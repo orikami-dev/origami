@@ -143,6 +143,35 @@ final class CoverFetcher {
                             // Stockage plein : on tente le réseau.
                         }
                     }
+                    // Xbox 360 : la base libretro n'a qu'une dizaine de jaquettes. On lit l'identifiant
+                    // du titre dans le jeu et on prend la jaquette du catalogue Xbox, sinon la
+                    // vignette du conteneur (jeux « Games on Demand »).
+                    X360Icon.Info x = g.system.id.equals("x360") ? X360Icon.read(cr, g) : null;
+                    if (g.system.id.equals("x360") && (x == null || x.titleId == null)) {
+                        try {
+                            if (x360Index == null) x360Index = new org.json.JSONArray(new String(get(X360Icon.DB + "games.json"), "UTF-8"));
+                            String id = X360Icon.idByName(x360Index, g.title);
+                            if (id == null) id = X360Icon.idByName(x360Index, g.fileBase);
+                            if (id != null) {
+                                if (x == null) x = new X360Icon.Info();
+                                x.titleId = id;
+                            }
+                        } catch (Exception ignored) {
+                            // Index injoignable : bases suivantes.
+                        }
+                    }
+                    android.util.Log.i("Origami", "jaquette 360 " + g.title + " : titre " + (x == null ? "illisible" : x.titleId));
+                    if (x != null && x.titleId != null) {
+                        for (String url : X360Icon.boxartUrls(x.titleId)) {
+                            if (got) break;
+                            try {
+                                byte[] img = get(url);
+                                if (isImage(img)) got = save(g, img);
+                            } catch (Exception ignored) {
+                                // Pas de réseau ou titre absent du catalogue.
+                            }
+                        }
+                    }
                     for (String key : playlists(g.system.id)) {
                         if (got) break;
                         try {
@@ -162,6 +191,13 @@ final class CoverFetcher {
                             if (name != null && download(g, key, name)) got = true;
                         } catch (Exception ignored) {
                             // Pas de réseau ou serveur indisponible : base suivante, puis ScreenScraper.
+                        }
+                    }
+                    if (!got && x != null && x.thumb != null) {
+                        try {
+                            got = save(g, x.thumb);
+                        } catch (java.io.IOException ignored) {
+                            // Stockage plein.
                         }
                     }
                     if (!got && screenScraperReady()) {
@@ -272,6 +308,14 @@ final class CoverFetcher {
         }
         if (png.length < 8 || png[1] != 'P' || png[2] != 'N' || png[3] != 'G') return false;
         return save(g, png);
+    }
+
+    /** Vrai PNG ou JPEG (et pas une page d'erreur). */
+    private static boolean isImage(byte[] b) {
+        if (b == null || b.length < 1024) return false;
+        boolean png = b[1] == 'P' && b[2] == 'N' && b[3] == 'G';
+        boolean jpg = (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8;
+        return png || jpg;
     }
 
     private boolean save(Game g, byte[] png) throws java.io.IOException {
@@ -412,6 +456,9 @@ final class CoverFetcher {
     private static String encodePath(String s) throws Exception {
         return URLEncoder.encode(s, "UTF-8").replace("+", "%20");
     }
+
+    /** Index des jeux Xbox 360 (x360db), chargé une fois par lancement si un jeu ne se lit pas. */
+    private org.json.JSONArray x360Index;
 
     private static byte[] get(String url) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();

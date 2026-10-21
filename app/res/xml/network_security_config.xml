@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jaquettes Xbox 360 : le catalogue de Microsoft ne sert ses images qu'en HTTP. Rien d'autre en clair. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">download.xbox.com</domain>
+    </domain-config>
+</network-security-config>

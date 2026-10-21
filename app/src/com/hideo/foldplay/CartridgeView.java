@@ -201,13 +201,23 @@ final class CartridgeView extends View implements CoverLoader.Target {
             lr.set(cx - side / 2f, cy - side / 2f, cx + side / 2f, cy + side / 2f);
             src.set(0, 0, cover.getWidth(), cover.getHeight());
             c.drawBitmap(cover, src, lr, null);
+        } else if (RemoteEmblem.handles(game.uri)) {
+            RemoteEmblem.draw(c, game.uri, cx, cy, side * 1.2f);
         } else {
-            // Action : flèches d'actualisation ; client pas encore installé : pictogramme d'apps, en retrait.
-            String name = !action ? "apps" : game.uri.startsWith("action:addclient") ? "plus" : "refresh";
+            // Action : flèches d'actualisation ; entrée de Paramètres : son pictogramme dans l'écrin du thème
+            // (Icons.frame, 0.66) ; client pas encore installé : pictogramme d'apps, en retrait.
+            boolean setting = game.uri.startsWith("action:set:");
+            String name = !action ? "apps" : game.uri.startsWith("action:addclient") ? "plus"
+                    : setting ? Icons.forSetting(game.uri.substring("action:set:".length())) : "refresh";
             int color = action ? Theme.CODEC : Theme.lighten(game.system.color, 0.5f);
-            if (glyph == null || !name.equals(glyphName)) {
+            String key = name + ":" + Icons.pack() + ":" + color;
+            if (glyph == null || !key.equals(glyphName)) {
                 glyph = Icons.of(getContext(), name, color, 24);
-                glyphName = name;
+                glyphName = key;
+            }
+            if (setting) {
+                Icons.frame(c, Icons.pack(), cx, cy, side * 1.12f, color);
+                side *= 0.72f;
             }
             glyph.setBounds(Math.round(cx - side / 2f), Math.round(cy - side / 2f),
                     Math.round(cx + side / 2f), Math.round(cy + side / 2f));

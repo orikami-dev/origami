@@ -118,7 +118,7 @@ public class GameActivity extends Activity {
         hideBars();
 
         if (!Libretro.available()) {
-            fail("Le moteur intégré ne tourne que sur les appareils 64 bits (arm64).");
+            fail("Demande un appareil 64 bits (arm64).");
             return;
         }
         running = true;
@@ -133,13 +133,13 @@ public class GameActivity extends Activity {
 
     private void build() {
         FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(Theme.GAP);
+        frame.setBackground(Theme.gap());
         rootFrame = frame;
         LinearLayout root = new LinearLayout(this);
         column = root;
         root.setOrientation(LinearLayout.VERTICAL);
         // Même allure que la vue Flex : deux pilules séparées par un mince filet.
-        root.setPadding(dp(4), dp(4), dp(4), dp(4));
+        root.setPadding(pg(4), pg(4), pg(4), pg(4));
         frame.addView(root, new FrameLayout.LayoutParams(-1, -1));
 
         stage = new FrameLayout(this);
@@ -152,10 +152,10 @@ public class GameActivity extends Activity {
                 deckUnderMenu();
             }
         });
-        stage.setBackground(Theme.pill(Color.BLACK, dp(28)));
+        stage.setBackground(stageBg(dp(28)));
         stage.setClipToOutline(true);
         // L'image du jeu reste à l'écart des coins arrondis.
-        stage.setPadding(dp(10), dp(10), dp(10), dp(10));
+        stage.setPadding(pg(10), pg(10), pg(10), pg(10));
         screen = new SurfaceView(this);
         screen.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
@@ -177,6 +177,7 @@ public class GameActivity extends Activity {
             }
         });
         stage.addView(screen, new FrameLayout.LayoutParams(-1, -1, Gravity.CENTER));
+        andon = Andon.attach(rootFrame, screen, store);
         stage.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override
             public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
@@ -193,10 +194,11 @@ public class GameActivity extends Activity {
         root.addView(stage, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         gap = new View(this);
-        root.addView(gap, new LinearLayout.LayoutParams(-1, dp(4)));
+        root.addView(gap, new LinearLayout.LayoutParams(-1, pg(4)));
 
         deck = new ControlDeckView(this);
         deck.setSystem(system);
+        formatKey();
         deck.setSource(store);
         deck.setKeyListener(new ControlView.Listener() {
             @Override
@@ -274,6 +276,8 @@ public class GameActivity extends Activity {
         int m = line ? dp(6) : dp(20);
         lp.setMargins(m, m, m, 0);
         hud.setLayoutParams(lp);
+        hud.setTranslationY(0);
+        Hud.avoidCutout(hud, m);
         hud.setTextSize(Hud.SIZES[Math.max(0, Math.min(2, store.hudSize()))]);
         hud.setSingleLine(line);
         hud.setMaxLines(line ? 1 : 20);
@@ -301,7 +305,7 @@ public class GameActivity extends Activity {
         int run = framesRun;
         int shown = framesShown;
         boolean block = "block".equals(store.hudStyle());
-        int label = Hud.labelColor(store.hudColor());
+        int label = Hud.labelColor(this, store.hudColor());
         if (lastHudAt == 0) {
             lastHudAt = now;
             lastCpuMs = cpu;
@@ -348,6 +352,11 @@ public class GameActivity extends Activity {
             h.charging = bat.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0;
             h.tempC = bat.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) / 10f;
         }
+        h.fahrenheit = "f".equals(store.tempUnit());
+        if (items.contains("heat")) {
+            h.cpuC = Hud.cpuC();
+            h.gpuC = Hud.gpuC();
+        }
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
             h.heat = pm.getCurrentThermalStatus();
@@ -356,6 +365,7 @@ public class GameActivity extends Activity {
         h.width = frameW;
         h.height = frameH;
         hud.setText(Hud.compose(h, items, block, label));
+        Hud.avoidCutout(hud, block ? dp(20) : dp(6));
     }
     private LinearLayout column;
     private View gap;
@@ -420,10 +430,11 @@ public class GameActivity extends Activity {
         overlayMode = want == 1;
         if (deck.getParent() != null) ((android.view.ViewGroup) deck.getParent()).removeView(deck);
         if (miniBox != null && miniBox.getParent() != null) ((android.view.ViewGroup) miniBox.getParent()).removeView(miniBox);
+        column.setOrientation(LinearLayout.VERTICAL);
         if (want != 0) {
             gap.setVisibility(View.GONE);
             column.setPadding(0, 0, 0, 0);
-            stage.setBackground(new android.graphics.drawable.ColorDrawable(Color.BLACK));
+            stage.setBackground(stageBg(0));
             stage.setPadding(0, 0, 0, 0);
             if (want == 1) rootFrame.addView(deck, safeArea());
             if (want == 3) {
@@ -434,9 +445,9 @@ public class GameActivity extends Activity {
             }
         } else {
             gap.setVisibility(View.VISIBLE);
-            column.setPadding(dp(4), dp(4), dp(4), dp(4));
-            stage.setBackground(Theme.pill(Color.BLACK, dp(28)));
-            stage.setPadding(dp(10), dp(10), dp(10), dp(10));
+            column.setPadding(pg(4), pg(4), pg(4), pg(4));
+            stage.setBackground(stageBg(dp(28)));
+            stage.setPadding(pg(10), pg(10), pg(10), pg(10));
             column.addView(deck, new LinearLayout.LayoutParams(-1, 0, 1f));
         }
         deck.setOverlay(want == 1, store.overlayOpacity());
@@ -861,6 +872,21 @@ public class GameActivity extends Activity {
 
     // ------------------------------------------------------------------ touches
 
+    private ScreenFormat.Key formatKey;
+
+    private ScreenFormat.Key formatKey() {
+        if (formatKey == null) {
+            formatKey = new ScreenFormat.Key(store, system, DISPLAY_KEYS, new ScreenFormat.Host() {
+                public void applyFormat() { applyDisplay(); }
+
+                public void say(String text) { toastUi(text); }
+
+                public void refreshKeys() { if (deck != null) deck.refreshKeys(); }
+            });
+        }
+        return formatKey;
+    }
+
     private void press(String key, boolean down) {
         CodecMenu open = CodecMenu.find(stage);
         if (open != null) {
@@ -870,6 +896,17 @@ public class GameActivity extends Activity {
         }
         if (key.equals("HOME")) {
             if (down) homePressed();
+            return;
+        }
+        if (key.equals("ASPECT")) {
+            formatKey().press(down);
+            return;
+        }
+        if (key.equals("SHOT") || key.equals("REC")) {
+            if (down) {
+                if (key.equals("SHOT")) ScreenCapture.shot(this, screen, title);
+                else ScreenCapture.video(this, title);
+            }
             return;
         }
         if (key.equals("FAST")) {
@@ -1074,6 +1111,18 @@ public class GameActivity extends Activity {
     }
 
     /** Un menu codec dans la moitié haute : le jeu est en pause tant qu'il est ouvert. */
+    private Andon andon;
+
+    /** Fond de la pastille du jeu : noir, ou transparent pour laisser passer Andon. */
+    /** Marge de pastille : 0 quand le réglage Pastilles est coupé. */
+    private int pg(int dps) {
+        return Theme.pillGap(this, dp(dps));
+    }
+
+    private android.graphics.drawable.Drawable stageBg(int radius) {
+        return Theme.pill("off".equals(store.glowMode()) || !store.pills() ? Color.BLACK : 0x00000000, Theme.pillR(this, radius));
+    }
+
     private CodecMenu codec(String t, String sub) {
         dialogOpen = true;
         paused = true;
@@ -1092,20 +1141,17 @@ public class GameActivity extends Activity {
         CodecMenu pause = codec(title, "PAUSE · " + core.toUpperCase())
                 .item("Reprendre", null, null);
         if (CoreProfiles.matters(this, core)) {
-            pause.choice("Profil", new String[] {"performance", "balanced", "quality"}, CoreProfiles.NAMES,
+            pause.choice("Profil", CoreProfiles.IDS, CoreProfiles.NAMES,
                     CoreProfiles.HELP, CoreProfiles.index(store.gameProfile(Store.gameId(uri, path))), new CodecMenu.Pick() {
                         public void picked(int i) { applyProfile(CoreProfiles.IDS[i]); }
                     });
         }
         pause
-                .item("Sauvegarde rapide", "Remplace l'état sauvegardé de ce jeu", new Runnable() {
-                    public void run() { jobs.add(new Runnable() { public void run() { saveState(); } }); }
-                })
-                .item("Chargement rapide", "Revient au dernier état sauvegardé", new Runnable() {
-                    public void run() { jobs.add(new Runnable() { public void run() { loadState(); } }); }
-                })
                 .sub("Réglages de l'émulateur", CoreCatalog.name(core) + " · affichage, image, performances, son…",
                         new Runnable() { public void run() { showCoreOptions(); } })
+                .sub("Affichage", "ATH, format d'image, Lumen", new Runnable() {
+                    public void run() { showAffichage(); }
+                })
                 .sub("Options contrôleur", "Manette tactile et manettes physiques", new Runnable() {
                     public void run() { showControllerOptions(); }
                 })
@@ -1113,18 +1159,10 @@ public class GameActivity extends Activity {
                     public void run() { showSaves(); }
                 })
                 .sub("Codes de triche", null, new Runnable() { public void run() { showCheats(); } })
-                .check("ATH de monitoring", "RTSS, à régler dans Réglages > Affichage", store.hud(),
-                        new Runnable() {
-                            public void run() {
-                                store.setHud(!store.hud());
-                                applyHud();
-                                showOptions2();
-                            }
-                        })
-                .item("Redémarrer le jeu", null, new Runnable() {
+                .item("Redémarrer le jeu", "Relance le jeu depuis le début", new Runnable() {
                     public void run() { jobs.add(new Runnable() { public void run() { Libretro.nativeReset(); } }); }
                 })
-                .item("Quitter", "Retour à l'accueil, la sauvegarde de la cartouche est écrite", new Runnable() {
+                .item("Quitter", "Revient à l'accueil ; la sauvegarde du jeu est enregistrée", new Runnable() {
                     public void run() { finish(); }
                 })
                 .show(stage);
@@ -1142,9 +1180,9 @@ public class GameActivity extends Activity {
                 CodecMenu p = codec("Manette", null).onBack(back);
                 String cur = store.activeLayout();
                 for (final ControlLayout l : store.layouts()) {
-                    // Mini : en chantier, visible mais pas sélectionnable (0.60.3).
+                    // Mini : en construction, visible mais pas sélectionnable (0.60.3).
                     if (l.floating()) {
-                        p.soon(null, l.name, "En chantier");
+                        p.soon(null, l.name, "👷‍♂️🚧");
                         continue;
                     }
                     p.radio(l.name, l.kind.equals("flex") && !l.split ? "La manette de la console du jeu" : null, l.name.equals(cur), new Runnable() {
@@ -1159,14 +1197,14 @@ public class GameActivity extends Activity {
             }
         });
         if (screenMode != 2) {
-            m.item("Modifier la manette ici", "Directement sur le jeu, à la bonne échelle, pour cet écran", new Runnable() {
+            m.item("Modifier la manette ici", "Déplace les touches directement sur cet écran", new Runnable() {
                 public void run() {
                     deck.post(new Runnable() { public void run() { startDeckEdit(); } });
                 }
             });
         }
         if (store.screenLayout(store.activeLayout(), deck.columns(), deck.rows()) != null) {
-            m.item("Revenir à la disposition commune", "Oublie les retouches faites sur cet écran", new Runnable() {
+            m.item("Revenir à la disposition commune", "Annule les retouches faites pour cet écran", new Runnable() {
                 public void run() {
                     store.setScreenLayout(deck.columns(), deck.rows(), null);
                     deck.reloadFromSource();
@@ -1193,11 +1231,11 @@ public class GameActivity extends Activity {
                 r.show(stage);
             }
         });
-        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette est branchée",
+        m.check("Plein écran avec une manette", "La manette tactile disparaît quand une manette physique est branchée",
                 store.padFullscreen(), new Runnable() {
                     public void run() { store.setPadFullscreen(!store.padFullscreen()); updateOverlay(); showControllerOptions(); }
                 });
-        m.check("Boutons rapides avec une manette", "SAVE, LOAD et ×2 restent à l'écran", store.padQuickButtons(),
+        m.check("Boutons rapides avec une manette", "Sauvegarde, chargement et ×2 restent visibles avec une manette physique", store.padQuickButtons(),
                 new Runnable() {
                     public void run() { store.setPadQuickButtons(!store.padQuickButtons()); updateOverlay(); showControllerOptions(); }
                 });
@@ -1230,7 +1268,7 @@ public class GameActivity extends Activity {
         m.check("Disposition Nintendo", "A à droite, B en bas", p.nintendo, new Runnable() {
             public void run() { p.nintendo = !p.nintendo; pads.save(p); showPadOptions(d, p); }
         });
-        m.item("Voir la manette et réattribuer les touches", "Ouvre Réglages > Manettes (le jeu reste en pause)",
+        m.item("Voir la manette et réattribuer les touches", "Ouvre Réglages > Manettes (jeu en pause)",
                 new Runnable() {
                     public void run() {
                         startActivity(new Intent(GameActivity.this, SettingsActivity.class)
@@ -1253,11 +1291,50 @@ public class GameActivity extends Activity {
         return key;
     }
 
-    private void showDisplay() {
-        String mode = store.displayMode(system);
-        CodecMenu m = codec("Format d'affichage", system.toUpperCase()).onBack(new Runnable() {
-            public void run() { showCoreOptions(); }
+    /** Sous-menu Affichage : ATH, format d'image et Lumen (BOSS : un seul endroit pour tout ce qui touche à l'image). */
+    private void showAffichage() {
+        CodecMenu m = codec("Affichage", title).onBack(new Runnable() { public void run() { showOptions2(); } });
+        m.check("ATH", "Images/s, processeur, batterie…", store.hud(), new Runnable() {
+            public void run() {
+                store.setHud(!store.hud());
+                applyHud();
+                showAffichage2();
+            }
         });
+        m.sub("Format d'image", displayLabel(store.displayMode(system)) + (smooth ? " · lissé" : " · pixels nets"),
+                new Runnable() {
+                    public void run() {
+                        showDisplay(new Runnable() { public void run() { showAffichage2(); } });
+                    }
+                });
+        m.subIf(store.pills(), "Lumen", EngineMenus.andonLabel(store) + " · lumière autour du jeu", new Runnable() {
+            public void run() {
+                EngineMenus.andon(GameActivity.this, stage, store, new Runnable() {
+                    public void run() { showAffichage2(); }
+                }, new Runnable() {
+                    public void run() {
+                        if (andon != null) andon.refresh();
+                        stage.setBackground(stageBg(screenMode == 0 ? dp(28) : 0));
+                    }
+                });
+            }
+        });
+        m.show(stage);
+    }
+
+    private void showAffichage2() {
+        CodecMenu cur = CodecMenu.find(stage);
+        if (cur != null) stage.removeView(cur);
+        showAffichage();
+    }
+
+    private void showDisplay() {
+        showDisplay(new Runnable() { public void run() { showCoreOptions(); } });
+    }
+
+    private void showDisplay(final Runnable back) {
+        String mode = store.displayMode(system);
+        CodecMenu m = codec("Format d'affichage", system.toUpperCase()).onBack(back);
         for (int i = 0; i < DISPLAY_KEYS.length; i++) {
             final String key = DISPLAY_KEYS[i];
             m.radio(DISPLAY_LABELS[i], DISPLAY_DETAILS[i], key.equals(mode), new Runnable() {
@@ -1267,15 +1344,29 @@ public class GameActivity extends Activity {
                 }
             });
         }
-        m.check("Image lissée", "Décoché : pixels nets", smooth, new Runnable() {
+        m.check("Image lissée", "Adoucit les pixels ; décoché, image nette et pixelisée", smooth, new Runnable() {
             public void run() {
                 smooth = !smooth;
                 store.setSmooth(system, smooth);
                 applyDisplay();
-                showDisplay();
+                showDisplay(back);
             }
         });
         m.show(stage);
+    }
+
+    /** Fige les valeurs du profil en cours dans les options du cœur, puis passe en Personnalisé. */
+    private void toCustom() {
+        String gid = Store.gameId(uri, path);
+        String cur = store.gameProfile(gid);
+        if (CoreProfiles.CUSTOM.equals(cur)) return;
+        java.util.Map<String, String> vals = new java.util.HashMap<String, String>();
+        if (!cur.equals("performance")) vals.putAll(store.coreProfile(core));
+        vals.putAll(CoreProfiles.resolve(this, core, cur, store.coreSpecs(core)));
+        for (java.util.Map.Entry<String, String> o : vals.entrySet()) {
+            if (CoreProfiles.keys(this, core).contains(o.getKey())) store.setCoreOption(core, o.getKey(), o.getValue());
+        }
+        store.setGameProfile(gid, CoreProfiles.CUSTOM);
     }
 
     /**
@@ -1284,6 +1375,10 @@ public class GameActivity extends Activity {
      * redémarrage du jeu.
      */
     private void applyProfile(final String id) {
+        if (CoreProfiles.CUSTOM.equals(id)) {
+            toCustom();
+            return;
+        }
         store.setGameProfile(Store.gameId(uri, path), id);
         store.clearCoreOptions(core, CoreProfiles.keys(this, core));
         final java.util.Map<String, String> vals = CoreProfiles.resolve(this, core, id, store.coreSpecs(core));
@@ -1344,10 +1439,10 @@ public class GameActivity extends Activity {
                 public void run() { optionGroupMenu(vars, g.getKey(), g.getValue()); }
             });
         }
-        m.item("Tout remettre par défaut", "Au prochain lancement du jeu", new Runnable() {
+        m.item("Tout remettre par défaut", "Réglages d'origine, appliqués au prochain lancement du jeu", new Runnable() {
             public void run() {
                 store.clearCoreOptions(core);
-                toastUi("Réglages effacés : valeurs par défaut au prochain lancement.");
+                toastUi("Réglages effacés.");
             }
         });
         m.show(stage);
@@ -1376,6 +1471,7 @@ public class GameActivity extends Activity {
         for (final String v : values) {
             m.radio(v, null, v.equals(vars[i * 3 + 2]), new Runnable() {
                 public void run() {
+                    toCustom();
                     store.setCoreOption(core, key, v);
                     vars[i * 3 + 2] = v;
                     jobs.add(new Runnable() {
@@ -1383,7 +1479,7 @@ public class GameActivity extends Activity {
                             Libretro.nativeSetVariable(key, v);
                         }
                     });
-                    toastUi("Appliqué. Certains réglages ne prennent effet qu'au redémarrage du jeu.");
+                    toastUi("Appliqué. Effet au redémarrage du jeu.");
                     optionGroupMenu(vars, group, idx);
                 }
             });
@@ -1538,7 +1634,7 @@ public class GameActivity extends Activity {
         try {
             if ("armsx2".equals(core) && !cores.hasPs2Bios()) {
                 fail("ARMSX2 a besoin du BIOS de ta PS2. Importe-le dans Réglages > Émulateurs > "
-                        + "Importer un BIOS (fichier .bin de 4 Mo tiré de ta propre console).");
+                        + "Importer un BIOS (.bin de 4 Mo).");
                 return;
             }
             if (cores.installed(core) && cores.needsSystemFiles(core)) {
@@ -1973,8 +2069,8 @@ public class GameActivity extends Activity {
                     public void run() { finish(); }
                 };
                 new CodecMenu(GameActivity.this).title("Accès aux fichiers", title)
-                        .message("Ce jeu est en plusieurs fichiers (ou très gros) : " + core
-                                + " doit les lire directement. Autorise Origami à accéder à tous les fichiers, "
+                        .message("Jeu multi-fichiers ou très gros : " + core
+                                + " doit les lire directement. Autorise l'accès à tous les fichiers, "
                                 + "puis relance le jeu.")
                         .item("Autoriser", null, new Runnable() {
                             public void run() {
@@ -2030,7 +2126,7 @@ public class GameActivity extends Activity {
 
     private void pickSave() {
         if (java.util.Arrays.asList(SaveImport.SYSTEMS).indexOf(system) < 0) {
-            toastUi("Import de sauvegardes pas encore géré pour cette console.");
+            toastUi("Import non géré pour cette console.");
             return;
         }
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
@@ -2161,6 +2257,7 @@ public class GameActivity extends Activity {
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
         if (SaveTransfer.onResult(this, request, result, data)) return;
+        if (ScreenCapture.onResult(this, request, result, data)) return;
         if (request != REQ_SAVE || result != RESULT_OK || data == null || data.getData() == null) return;
         importSave(data.getData());
     }
@@ -2201,6 +2298,7 @@ public class GameActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        ScreenCapture.gameClosed(this);
         Theme.inGame = false;
         super.onDestroy();
         running = false;
@@ -2254,7 +2352,7 @@ public class GameActivity extends Activity {
     private void toastUi(final String msg) {
         runOnUiThread(new Runnable() {
             public void run() {
-                I18n.toast(GameActivity.this, msg, android.widget.Toast.LENGTH_SHORT).show();
+                I18n.say(GameActivity.this, msg);
             }
         });
     }

@@ -90,6 +90,12 @@ final class DebugLog {
                 boolean ps3 = p.endsWith(":ps3"), x360 = p.endsWith(":x360");
                 if (!ps3 && !x360) continue;
                 int r = e.getReason();
+                File clean = new File(dir(ctx), "clean-" + e.getPid());
+                if (clean.exists()) {
+                    // Arrêt voulu par l'app (Quitter, relance) : rien à signaler.
+                    clean.delete();
+                    continue;
+                }
                 if (r != android.app.ApplicationExitInfo.REASON_CRASH && r != android.app.ApplicationExitInfo.REASON_CRASH_NATIVE
                         && r != android.app.ApplicationExitInfo.REASON_ANR && r != android.app.ApplicationExitInfo.REASON_LOW_MEMORY
                         && r != android.app.ApplicationExitInfo.REASON_SIGNALED) continue;
@@ -118,6 +124,122 @@ final class DebugLog {
             // Pas d'accès à l'historique : rien à signaler.
         }
         return crashed;
+    }
+
+    /** Note au journal (étiquette Origami) : jalon d'un écran ou d'un moteur. */
+    static void event(String msg) {
+        android.util.Log.i("Origami", msg);
+    }
+
+    static void event(String msg, Throwable where) {
+        android.util.Log.i("Origami", msg + "\n" + android.util.Log.getStackTraceString(where));
+    }
+
+    /**
+     * État de l'appareil à un instant donné : mémoire, batterie, chaleur, écran, stockage, droits.
+     * Une ligne par thème, pour qu'un journal dise dans quelles conditions un jeu a tourné ou échoué.
+     */
+    static void snapshot(Context ctx, String why) {
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) ctx.getSystemService(Context.ACTIVITY_SERVICE);
+            android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+            am.getMemoryInfo(mi);
+            Runtime rt = Runtime.getRuntime();
+            event("[état " + why + "] mémoire libre " + (mi.availMem >> 20) + " Mo sur " + (mi.totalMem >> 20)
+                    + " Mo, seuil bas " + (mi.threshold >> 20) + " Mo, manque=" + mi.lowMemory
+                    + ", tas Java " + ((rt.totalMemory() - rt.freeMemory()) >> 20) + "/" + (rt.maxMemory() >> 20) + " Mo");
+            android.content.Intent b = ctx.registerReceiver(null, new android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED));
+            if (b != null) {
+                event("[état " + why + "] batterie " + b.getIntExtra("level", -1) + " %, "
+                        + (b.getIntExtra("temperature", 0) / 10f) + " °C, branchée=" + b.getIntExtra("plugged", 0)
+                        + ", tension " + b.getIntExtra("voltage", 0) + " mV");
+            }
+            if (Build.VERSION.SDK_INT >= 29) {
+                android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                event("[état " + why + "] chaleur Android " + pm.getCurrentThermalStatus() + " (0 aucune … 6 arrêt), économie d'énergie=" + pm.isPowerSaveMode());
+            }
+            android.util.DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
+            android.content.res.Configuration c = ctx.getResources().getConfiguration();
+            event("[état " + why + "] écran " + dm.widthPixels + "×" + dm.heightPixels + " px, " + dm.densityDpi + " dpi, "
+                    + c.screenWidthDp + "×" + c.screenHeightDp + " dp, orientation " + c.orientation);
+            File f = ctx.getExternalFilesDir(null);
+            if (f != null) event("[état " + why + "] stockage libre " + (f.getUsableSpace() >> 20) + " Mo");
+            event("[état " + why + "] tous les fichiers=" + (Build.VERSION.SDK_INT >= 30 && android.os.Environment.isExternalStorageManager())
+                    + ", processus " + (Build.VERSION.SDK_INT >= 28 ? android.app.Application.getProcessName() : "?")
+                    + " pid " + android.os.Process.myPid() + ", fils " + Thread.getAllStackTraces().size());
+        } catch (Throwable t) {
+            event("[état " + why + "] illisible : " + t);
+        }
+    }
+
+    private static android.os.Handler perfHandler;
+    private static Runnable perfTick;
+    private static long perfLastCpu, perfLastAt;
+
+    /**
+     * Mesures de performance toutes les 2 s dans le journal (débogage seulement) : charge du processus,
+     * mémoire, fréquence de chaque cœur et du GPU, températures, chaleur Android. Sert à comprendre
+     * pourquoi un jeu rame (cœur saturé, GPU au plafond, chaleur qui bride…).
+     */
+    static void perfStart(final Context ctx, final String tag) {
+        if (!new Store(ctx).debug() || perfTick != null) return;
+        perfHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        perfLastCpu = android.os.Process.getElapsedCpuTime();
+        perfLastAt = android.os.SystemClock.elapsedRealtime();
+        perfTick = new Runnable() {
+            public void run() {
+                try {
+                    long cpu = android.os.Process.getElapsedCpuTime(), now = android.os.SystemClock.elapsedRealtime();
+                    float load = (cpu - perfLastCpu) * 100f / Math.max(1, now - perfLastAt);
+                    perfLastCpu = cpu;
+                    perfLastAt = now;
+                    StringBuilder f = new StringBuilder();
+                    for (int i = 0; i < 12; i++) {
+                        String v = Hud.readLine("/sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");
+                        if (v == null) break;
+                        try {
+                            f.append(i == 0 ? "" : " ").append(Integer.parseInt(v.trim()) / 1000);
+                        } catch (NumberFormatException e) {
+                            f.append(" ?");
+                        }
+                    }
+                    String gpu = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpuclk");
+                    String busy = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpubusy");
+                    event("[perf " + tag + "] charge processus " + Math.round(load) + " % (100 = un cœur), mémoire "
+                            + Hud.residentMb() + " Mo, cœurs MHz [" + f + "], GPU " + (gpu == null ? "?" : Long.parseLong(gpu.trim()) / 1000000L)
+                            + " MHz, occupation GPU " + (busy == null ? "?" : busy.trim()) + ", CPU " + Math.round(Hud.cpuC())
+                            + " °C, GPU " + Math.round(Hud.gpuC()) + " °C, fils " + Thread.getAllStackTraces().size());
+                    // 0.66 : qui consomme, fil par fil (SPU, PPU, compilateurs, rendu, son).
+                    String th = ThreadLoad.top(6);
+                    if (th != null) event("[perf " + tag + "] fils : " + th);
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                        if (pm.getCurrentThermalStatus() > 0) event("[perf " + tag + "] chaleur Android " + pm.getCurrentThermalStatus());
+                    }
+                } catch (Throwable t) {
+                    event("[perf " + tag + "] mesure impossible : " + t);
+                }
+                perfHandler.postDelayed(this, 2000);
+            }
+        };
+        ThreadLoad.top(0);
+        perfHandler.postDelayed(perfTick, 2000);
+    }
+
+    static void perfStop() {
+        if (perfHandler != null && perfTick != null) perfHandler.removeCallbacks(perfTick);
+        perfTick = null;
+    }
+
+    /** À appeler juste avant de tuer volontairement un processus moteur : sa sortie n'est pas un plantage. */
+    static void markClean(Context ctx) {
+        try {
+            File d = dir(ctx);
+            d.mkdirs();
+            new FileOutputStream(new File(d, "clean-" + android.os.Process.myPid())).close();
+        } catch (Throwable ignored) {
+            // Pire cas : la sortie sera signalée comme un plantage.
+        }
     }
 
     static synchronized void stop() {
@@ -173,18 +295,94 @@ final class DebugLog {
     }
 
     /** Partage les journaux et les rapports de plantage, précédés d'une fiche de l'appareil. */
+    /** Part la plus récente d'un journal gardée dans l'envoi (assez pour un retour de bug). */
+    private static final int KEEP = 1536 * 1024;
+
+    /**
+     * Un seul fichier texte (text/plain) : fiche de l'appareil, puis chaque journal et rapport à la
+     * suite. En texte, l'envoi est accepté par toutes les apps, Claude compris (0.62) ; les
+     * rapports binaires (.pb) restent sur le téléphone.
+     */
     static void share(Activity a) {
         List<SaveImport.Out> outs = new ArrayList<SaveImport.Out>();
         try {
-            outs.add(new SaveImport.Out("origami-appareil.txt", info(a).getBytes("UTF-8")));
+            StringBuilder all = new StringBuilder(info(a)).append('\n');
             File[] fs = dir(a).listFiles();
-            if (fs != null) for (File f : fs) outs.add(new SaveImport.Out("origami-" + f.getName(), read(f)));
+            if (fs != null) {
+                java.util.Arrays.sort(fs);
+                for (File f : fs) {
+                    // Rapports de plantage natifs au format binaire : illisibles dans un envoi texte.
+                    if (f.getName().endsWith(".pb")) continue;
+                    byte[] b = read(f);
+                    int from = Math.max(0, b.length - KEEP);
+                    all.append("\n===== ").append(f.getName());
+                    if (from > 0) all.append(" (fin du fichier, ").append(KEEP / 1024).append(" Ko)");
+                    all.append(" =====\n").append(new String(b, from, b.length - from, "UTF-8")).append('\n');
+                }
+            }
+            outs.add(0, new SaveImport.Out("origami-journal-" + stamp() + ".txt", all.toString().getBytes("UTF-8")));
         } catch (IOException e) {
             I18n.toast(a, "Lecture du journal impossible : " + e.getMessage(),
                     android.widget.Toast.LENGTH_LONG).show();
             return;
         }
-        SaveTransfer.share(a, outs, "Envoyer le journal");
+        SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain");
+    }
+
+    /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */
+    private static final int CLIP = 60 * 1024;
+    private static final java.util.regex.Pattern NOISE = java.util.regex.Pattern.compile(
+            "AudioTrack: setVolume|VRI\\[|InsetsController|InsetsSource|ImeTracker|InputTransport|ScrollView|perf_hint"
+            + "|BLASTBufferQueue|SurfaceComposerClient|HWUI|InputMethodManager|ImeFocusController|ViewRootImpl"
+            + "|WindowOnBackDispatcher|DecorView|NativeCustomFrequencyManager|BufferQueueProducer| Surface :");
+
+    /**
+     * Un clic : la fiche de l'appareil et la fin du journal le plus récent partent dans le presse-papiers,
+     * prêtes à coller dans le chat (Claude ne reçoit pas les envois d'Android).
+     */
+    static void copy(Activity a) {
+        try {
+            StringBuilder all = new StringBuilder(info(a)).append('\n');
+            File[] fs = dir(a).listFiles();
+            File last = null;
+            if (fs != null) {
+                for (File f : fs) {
+                    if (f.getName().endsWith(".pb")) continue;
+                    if (last == null || f.lastModified() > last.lastModified()) last = f;
+                }
+            }
+            if (last != null) {
+                // Bruit d'Android (fenêtres, pistes audio, insets…) retiré : il noie les lignes utiles.
+                StringBuilder kept = new StringBuilder();
+                for (String line : new String(read(last), "UTF-8").split("\n")) {
+                    if (!NOISE.matcher(line).find()) kept.append(line).append('\n');
+                }
+                int from = Math.max(0, kept.length() - CLIP);
+                all.append("\n===== ").append(last.getName()).append(" (fin, ").append(CLIP / 1024)
+                        .append(" Ko, sans le bruit système) =====\n").append(kept.substring(from));
+            }
+            // 0.66 : mesures des moteurs (charge par fil, fréquences, chaleur) de toutes les sessions de la
+            // dernière heure, y compris celles du processus PS3/360 que la fin du journal ne montre pas.
+            if (fs != null) {
+                StringBuilder perf = new StringBuilder();
+                long since = System.currentTimeMillis() - 3600 * 1000L;
+                for (File f : fs) {
+                    if (f.getName().endsWith(".pb") || f.lastModified() < since || f == last) continue;
+                    for (String line : new String(read(f), "UTF-8").split("\n")) {
+                        if (line.contains("[perf ") || line.contains("PS3 refuse")) perf.append(line).append('\n');
+                    }
+                }
+                if (perf.length() > 0) {
+                    int from = Math.max(0, perf.length() - 24 * 1024);
+                    all.append("\n===== mesures des moteurs (dernière heure) =====\n").append(perf.substring(from));
+                }
+            }
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) a.getSystemService(Context.CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("journal Origami", all.toString()));
+            I18n.toast(a, "Journal copié : colle-le dans le chat", android.widget.Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            I18n.toast(a, "Copie du journal impossible : " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     private static byte[] read(File f) throws IOException {

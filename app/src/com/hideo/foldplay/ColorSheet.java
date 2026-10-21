@@ -117,7 +117,7 @@ final class ColorSheet extends FrameLayout {
         bar.setBackgroundColor(Theme.CODEC);
         head.addView(bar, new LinearLayout.LayoutParams(px(4), px(24)));
         TextView t = label("Couleurs", 18, Theme.CODEC);
-        t.setTypeface(Fonts.logo(act));
+        t.setTypeface(Fonts.title(act));
         t.setPadding(px(12), 0, 0, 0);
         Theme.marquee(t);
         head.addView(t, new LinearLayout.LayoutParams(0, -2, 1f));

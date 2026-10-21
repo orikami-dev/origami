@@ -358,6 +358,7 @@ final class Launcher {
 
     private void start(Candidate c, Game g) {
         store.addRecent(g);
+        UiSound.play(activity, UiSound.LAUNCH);
         try {
             activity.startActivity(c.intent);
         } catch (ActivityNotFoundException | SecurityException e) {

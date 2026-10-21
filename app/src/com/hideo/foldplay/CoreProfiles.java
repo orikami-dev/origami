@@ -12,19 +12,26 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Trois profils d'émulation par cœur, choisis par jeu ou par défaut : Performance (définition
- * native, effets coupés), Équilibré et Qualité (rendu poussé, sans aller jusqu'à faire chauffer la
- * puce). Les valeurs viennent de assets/cores/install.json, section « profiles ».
+ * Deux profils d'émulation par cœur, choisis par jeu ou par défaut : Performance (le plus rapide,
+ * effets coupés) et Équilibré (le plus beau qui reste fluide), plus Personnalisé. Le mode Qualité a
+ * été retiré à la demande de BOSS ; un ancien « quality » enregistré est lu comme « balanced »
+ * (voir normalize). Les valeurs viennent de assets/cores/install.json, section « profiles ».
  */
 final class CoreProfiles {
-    static final String[] IDS = {"performance", "balanced", "quality"};
-    static final String[] NAMES = {"Performance", "Équilibré", "Qualité"};
+    static final String[] IDS = {"performance", "balanced", "custom"};
+    static final String[] NAMES = {"Performance", "Équilibré", "Personnalisé"};
+    static final String CUSTOM = "custom";
     static final String[] HELP = {
-        "Définition native et effets coûteux coupés : la fluidité et l'autonomie d'abord.",
-        "Le bon compromis : définition relevée et filtrage léger, le jeu reste fluide.",
-        "Rendu poussé (définition, filtrage, couleurs) mais plafonné pour ne pas faire chauffer "
-                + "le téléphone sur les jeux 3D gourmands.",
+        "Le plus rapide : définition native, effets coupés.",
+        "Le plus beau qui reste fluide : filtres et mise à l'échelle, définition modérée.",
+        "Tes réglages : toute modification à la main passe ici.",
     };
+
+    /** Point central de migration : tout identifiant lu dans les préférences passe par ici. */
+    static String normalize(String id) {
+        if (id == null || "quality".equals(id)) return "balanced";
+        return id;
+    }
 
     private static JSONObject all;
 
@@ -32,8 +39,15 @@ final class CoreProfiles {
     }
 
     static int index(String id) {
+        id = normalize(id);
         for (int i = 0; i < IDS.length; i++) if (IDS[i].equals(id)) return i;
         return 1;
+    }
+
+    /** Profil de référence pour les valeurs : Personnalisé repart de l'Équilibré. */
+    static int base(String id) {
+        int i = index(id);
+        return i > 1 ? 1 : i;
     }
 
     static String name(String id) {

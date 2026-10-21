@@ -59,7 +59,7 @@ final class LibraryScanner {
                     String id = c.getString(0);
                     String name = c.getString(1);
                     String mime = c.getString(2);
-                    if (name == null || name.startsWith(".")) continue;
+                    if (name == null || name.startsWith(".") || name.equalsIgnoreCase("DLC")) continue; // GAMES/DLC : dépôt temporaire, pas des jeux
                     if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mime)) {
                         // Jeu PS3 en dossier : le dossier parent de PS3_GAME est le jeu lui-même.
                         if (name.equalsIgnoreCase("PS3_GAME")) {
