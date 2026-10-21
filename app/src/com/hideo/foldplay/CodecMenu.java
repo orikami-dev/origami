@@ -360,7 +360,7 @@ final class CodecMenu extends FrameLayout {
         card.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
         // Carte translucide : on devine le jeu en pause derrière.
-        bg.setColor(Theme.alpha(Theme.PANEL_HI, opaque ? 0xFF : 0xCC)); // moins sombre (BOSS 0.66.7)
+        bg.setColor(Theme.alpha(Theme.PANEL_HI, opaque || getContext() instanceof MainActivity ? 0xFF : 0xCC)); // moins sombre (BOSS 0.66.7)
         bg.setCornerRadius(22 * dp);
         bg.setStroke(Math.round(1.5f * dp), Theme.alpha(Theme.CODEC, 0x66));
         card.setBackground(bg);
@@ -405,7 +405,7 @@ final class CodecMenu extends FrameLayout {
         titles.setPadding(px(12), 0, 0, 0);
         TextView t = new TextView(getContext());
         t.setText(title.toUpperCase());
-        t.setTypeface(Fonts.logo(getContext()));
+        t.setTypeface(Fonts.title(getContext()));
         t.setTextSize(compact ? 16 : 18);
         t.setTextColor(Theme.CODEC);
         Theme.marquee(t);

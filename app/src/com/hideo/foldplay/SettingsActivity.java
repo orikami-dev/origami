@@ -218,7 +218,7 @@ public class SettingsActivity extends Activity {
                 bar.addView(back);
             }
             TextView title = text(sectionTitle(section).toUpperCase(), 20, Theme.CODEC);
-            title.setTypeface(Fonts.logo(this));
+            title.setTypeface(Fonts.title(this));
             title.setPadding(dp(6), 0, dp(6), 0);
             if (Theme.RIGHT_HANDED) {
                 // Droitier : flèche et titre se lisent depuis le bord droit, sous le pouce (0.65).
@@ -271,7 +271,7 @@ public class SettingsActivity extends Activity {
             public void onClick(View v) { finish(); }
         });
         TextView title = text("RÉGLAGES", 20, Theme.CODEC);
-        title.setTypeface(Fonts.logo(this));
+        title.setTypeface(Fonts.title(this));
         title.setPadding(dp(6), 0, dp(6), 0);
         if (Theme.RIGHT_HANDED) {
             // Droitier : flèche et titre depuis le bord droit (0.65).

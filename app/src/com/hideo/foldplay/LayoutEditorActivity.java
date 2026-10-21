@@ -80,7 +80,7 @@ public class LayoutEditorActivity extends Activity {
             }
         });
         TextView title = text("MANETTE", 20, Theme.CODEC);
-        title.setTypeface(Fonts.logo(this));
+        title.setTypeface(Fonts.title(this));
         title.setPadding(dp(6), 0, dp(6), 0);
         if (Theme.RIGHT_HANDED) {
             // Droitier : flèche et titre depuis le bord droit, sous le pouce (0.65).

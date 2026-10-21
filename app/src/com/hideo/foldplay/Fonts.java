@@ -17,6 +17,12 @@ final class Fonts {
         return logo;
     }
 
+    /** Titres des menus : le pochoir sur Radar, la police du thème en gras ailleurs (0.66.17). */
+    static Typeface title(Context ctx) {
+        if ("codec".equals(new Store(ctx).theme())) return logo(ctx);
+        return Typeface.create(wide(ctx), Typeface.BOLD);
+    }
+
     /** Police des textes du thème en cours (0.66.14) : Michroma pour Radar, une autre par thème. */
     static Typeface wide(Context ctx) {
         String theme = new Store(ctx).theme();
