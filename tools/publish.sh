@@ -29,6 +29,7 @@ git -C "$REPO_DIR" add -A
 git -C "$REPO_DIR" diff --cached --quiet || git -C "$REPO_DIR" commit -q -m "${MSG:-$V}"
 push -C "$REPO_DIR" push -u origin "$BR"
 
+[ -f "$SRC/docs/releases/$V.md" ] || { echo "ERREUR : docs/releases/$V.md manque : sans lui, la mise à jour sans fil n'affiche aucune note."; exit 1; }
 SUMMARY="$(grep -E '^[-*] ' "$SRC/docs/releases/$V.md" 2>/dev/null | head -6 | sed 's/^[-*] //; s/\*\*//g' | tr '\n' '|' | sed 's/|$//; s/|/\\n• /g; s/^/• /' || true)"
 
 publish_orphan() { # $1 = branche, $2 = nom du fichier apk, $3 = nom du json
