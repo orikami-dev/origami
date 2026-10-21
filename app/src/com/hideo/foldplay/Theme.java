@@ -452,14 +452,14 @@ final class Theme {
     static final String[] THEMES = {"codec", "arctique", "ecarlate", "sakura", "ambre", "neon", "jade", "argent"};
     static final String[] THEME_NAMES = {"Vigie", "Aurore", "Torii", "Hanami", "Mégapole", "Averse", "Brume", "Clair de lune"};
     static final String[] THEME_HELP = {
-        "Le vert de transmission sur fond nuit : un radar qui balaie et des échos rouges qui s'allument.",
-        "Bleu glacier sous l'aurore boréale, avec les étoiles qui tournent autour de la Polaire.",
-        "Rouge d'alerte sous la lune rouge, un torii, des flammes et des nuages dorés.",
-        "Rose de cerisier au bord de la rivière : le pont de lune, l'eau et les pétales.",
-        "Or chaud sur la ville la nuit : la tour rouge et blanche, les tours de verre et leurs enseignes.",
-        "Magenta et cyan dans la ruelle sous la pluie : enseignes, flaques et gouttes qui font des ronds.",
-        "Vert jade dans la brume : le temple de montagne, son escalier, ses lanternes et les bambous.",
-        "Argent et blanc sous la pleine lune, presque monochrome.",
+        "Dans la nuit verte, un faisceau veille et chaque écho s'allume comme un cœur qui bat.",
+        "Sous le voile de l'aurore, les étoiles tournent lentement autour de la Polaire.",
+        "La lune rouge se lève derrière le torii, et les braises montent vers elle.",
+        "Au fil de l'eau, la lune tremble et les pétales de cerisier s'en vont sans bruit.",
+        "La ville ne dort jamais : tours de verre, feux rouges dans le ciel, et la grande tour qui veille.",
+        "Dans la ruelle, la pluie écrit des ronds sur le bitume, sous la lumière des néons.",
+        "Là-haut, dans la brume, un temple garde ses lanternes allumées pour qui monte les marches.",
+        "Tout devient argent sous la pleine lune, et le silence se plie comme du papier.",
     };
     private static final int[][] PALETTES = {
         {BG0, PANEL0, PANEL_HI0, CODEC0, STEEL0},

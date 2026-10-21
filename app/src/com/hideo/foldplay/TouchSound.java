@@ -36,6 +36,16 @@ final class TouchSound {
         return v.isClickable() ? v : null;
     }
 
+    /**
+     * Toucher « dans le vide » (0.66.22, demande BOSS) : pas de son. Une vue cliquable sans action (posée là pour
+     * avaler le toucher) ou un grand fond qui couvre l'écran (voile d'un menu, scène) n'est pas un bouton.
+     */
+    private static boolean isButton(View v, View root) {
+        if (!v.hasOnClickListeners()) return false;
+        float area = (float) v.getWidth() * v.getHeight(), full = (float) root.getWidth() * root.getHeight();
+        return full <= 0 || area < full * 0.4f;
+    }
+
     private static final class Wrap extends WindowCallbackProxy {
         private final Activity activity;
         private View down;
@@ -52,6 +62,7 @@ final class TouchSound {
                 View root = activity.getWindow().getDecorView();
                 down = target(root, e.getX(), e.getY());
                 if (down != null) down.setSoundEffectsEnabled(false);
+                if (down != null && !isButton(down, root)) down = null;
             }
             boolean r = super.dispatchTouchEvent(e);
             if (act == MotionEvent.ACTION_UP && down != null) {

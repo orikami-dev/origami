@@ -61,15 +61,7 @@ final class PadMotion {
                 c.drawCircle(x, y, (0.8f + (i % 3) * 0.5f) * dp, P);
             }
         } else if (id.equals("ecarlate")) {
-            // Braises qui montent et s'éteignent.
-            float t = phase(now, 10000);
-            for (int i = 0; i < 18; i++) {
-                float p = fract(rnd(i, 1) + t * (1 + i % 2));
-                float x = b.left + rnd(i, 2) * w + 10 * dp * (float) Math.sin(TAU * (p + rnd(i, 3)));
-                float y = b.bottom - p * h;
-                P.setColor(a(i % 3 == 0 ? 0xFFFFC46B : accent, Math.round(0xB0 * (1f - p))));
-                c.drawCircle(x, y, (1f + (i % 3) * 0.6f) * dp, P);
-            }
+            torii(c, b, w, h, m, accent, now, dp);
         } else if (id.equals("sakura")) {
             // Pétales qui glissent en diagonale en tournant.
             float t = phase(now, 14000);
@@ -275,5 +267,67 @@ final class PadMotion {
         P.setShader(null);
         P.setColor(a(0xFFFFD0D0, Math.round(0xF0 * on)));
         c.drawCircle(x, y, 1.4f * dp, P);
+    }
+
+    /**
+     * Torii (0.66.21) : deux lanternes de papier sous le nuki qui se balancent et respirent, braises qui montent,
+     * feuilles d'érable qui tombent en tournant.
+     */
+    private static void torii(Canvas c, RectF b, float w, float h, float m, int accent, long now, float dp) {
+        float[] T = Facets.toriiPadPts(w, h);
+        float s = now / 1000f, nyb = T[4];
+        int gold = 0xFFFFB347;
+        c.save();
+        c.clipRect(b);
+        c.translate(b.left, b.top);
+        for (int i = 0; i < 2; i++) {
+            float x = w * (i == 0 ? 0.42f : 0.58f), y = nyb + m * 0.11f, r = m * 0.042f;
+            float sw = (float) Math.sin(s * 1.1f + i * 1.7f) * 0.06f, lx = x + (float) Math.sin(sw) * (y - nyb);
+            float br = 0.6f + 0.4f * (float) Math.sin(s * 1.7f + i);
+            P.setStyle(Paint.Style.STROKE);
+            P.setStrokeWidth(1.2f * dp);
+            P.setColor(0xE60A0505);
+            c.drawLine(x, nyb, lx, y - r, P);
+            P.setStyle(Paint.Style.FILL);
+            P.setShader(new RadialGradient(lx, y, r * 4.5f, a(gold, Math.round(0x60 * br)), a(gold, 0), Shader.TileMode.CLAMP));
+            c.drawCircle(lx, y, r * 4.5f, P);
+            P.setShader(null);
+            P.setColor(a(0xFFE0452B, 0xD0));
+            c.drawOval(lx - r * 0.75f, y - r, lx + r * 0.75f, y + r, P);
+            P.setColor(a(Theme.lighten(gold, 0.5f), Math.round(0x90 * br)));
+            c.drawOval(lx - r * 0.32f, y - r * 0.6f, lx + r * 0.32f, y + r * 0.6f, P);
+            P.setColor(0xF20A0505);
+            c.drawRect(lx - r * 0.45f, y - r * 1.12f, lx + r * 0.45f, y - r * 0.88f, P);
+            c.drawRect(lx - r * 0.45f, y + r * 0.88f, lx + r * 0.45f, y + r * 1.12f, P);
+        }
+        float t = phase(now, 10000);
+        for (int i = 0; i < 18; i++) {
+            float p = fract(rnd(i, 1) + t * (1 + i % 2));
+            float x = rnd(i, 2) * w + 10 * dp * (float) Math.sin(TAU * (p + rnd(i, 3))), y = h - p * h;
+            P.setColor(a(i % 3 == 0 ? 0xFFFFC46B : accent, Math.round(0xB0 * (1f - p))));
+            c.drawCircle(x, y, (1f + (i % 3) * 0.6f) * dp, P);
+        }
+        float t2 = phase(now, 14000), s2 = m * 0.014f;
+        android.graphics.Path leaf = new android.graphics.Path();
+        for (int i = 0; i < 7; i++) {
+            float p = fract(rnd(i, 5) + t2 * (1 + i % 2));
+            float x = w * fract(rnd(i, 6) + 0.15f * (float) Math.sin(TAU * (p * 2 + rnd(i, 7)))), y = p * h;
+            c.save();
+            c.translate(x, y);
+            c.rotate(360f * (rnd(i, 8) + p * 3));
+            leaf.reset();
+            for (int k = 0; k < 5; k++) {
+                double ang = -Math.PI / 2 + (k - 2) * 0.55;
+                leaf.moveTo(0, 0);
+                leaf.lineTo((float) Math.cos(ang - 0.25) * s2, (float) Math.sin(ang - 0.25) * s2);
+                leaf.lineTo((float) Math.cos(ang) * s2 * 2, (float) Math.sin(ang) * s2 * 2);
+                leaf.lineTo((float) Math.cos(ang + 0.25) * s2, (float) Math.sin(ang + 0.25) * s2);
+                leaf.close();
+            }
+            P.setColor(a(i % 2 == 1 ? accent : gold, 0x90));
+            c.drawPath(leaf, P);
+            c.restore();
+        }
+        c.restore();
     }
 }

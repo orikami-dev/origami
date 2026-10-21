@@ -96,15 +96,14 @@ final class EngineSettings {
             new Opt("Video@@Strict Rendering Mode", "Rendu strict", "Plus fidèle, plus lent.", "bool", BOOL, YESNO),
     };
 
-    // Définition : le moteur accepte 25 à 800 %. Sur le Fold 8 les jeux lourds sont limités par le
-    // processeur, monter la définition chauffe sans gagner d'images : 75 % (≈ 540p, agrandi par SGSR)
-    // en Performance, 100 % avec FSR et anisotrope ×8 en Équilibré (Qualité supprimée par BOSS).
+    // Définition (BOSS, 21/10) : 100 % = 720p en Performance, 150 % = 1080p en Équilibré (avec FSR et
+    // anisotrope ×8). Le moteur accepte 25 à 800 % ; Qualité supprimée par BOSS.
     private static final String[][][] PS3_PROFILES = {
-            {{"Video@@Resolution Scale", "75"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
+            {{"Video@@Resolution Scale", "100"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "0"}, {"Video@@Output Scaling Mode", "Snapdragon Game Super Resolution"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
-            {{"Video@@Resolution Scale", "100"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
+            {{"Video@@Resolution Scale", "150"}, {"Video@@Shader Mode", "Async Recompiler (multi-threaded)"},
                     {"Video@@Anisotropic Filter Override", "8"}, {"Video@@Output Scaling Mode", "FidelityFX Super Resolution"},
                     {"Video@@Frame limit", "Auto"}, {"Video@@Multithreaded RSX", "true"},
                     {"Video@@Write Color Buffers", "false"}, {"Video@@Strict Rendering Mode", "false"}},
@@ -204,9 +203,7 @@ final class EngineSettings {
                 // et tourne à 30 images/s : calé dessus, il ne saute plus entre 30, 40 et 60 (0.62.3).
                 if (demons && !mine && o.key.equals("Video@@Write Color Buffers")) v = "true";
                 if (demons && !mine && o.key.equals("Video@@Frame limit")) v = "30";
-                // Limité par le processeur (journal du 20/10 : CPU 239 %) : monter la définition ne
-                // rend rien de plus fluide et chauffe pour rien, donc 100 % sauf choix de BOSS.
-                if (demons && !mine && o.key.equals("Video@@Resolution Scale") && Integer.parseInt(v) > 100) v = "100";
+                // Définition : celle du profil pour Demon's Souls aussi (720p en Performance, 1080p en Équilibré, BOSS 21/10).
                 // Ancienne valeur de la 0.65 refusée par le moteur (« ... Resolution 1 ») : on la corrige.
                 if (v.equals("FidelityFX Super Resolution 1")) v = "FidelityFX Super Resolution";
                 set3(o.key, v);

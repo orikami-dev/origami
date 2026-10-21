@@ -412,20 +412,67 @@ final class BackdropMotion {
         }
     }
 
-    /** Rivière de printemps : pétales qui tombent et rides qui s'élargissent sur l'eau. */
+    /**
+     * Rivière de printemps (0.66.21) : fines ondulations qui glissent et s'espacent vers le spectateur, plus claires
+     * et scintillantes dans la colonne de la lune ; pétales qui tombent, d'autres qui flottent avec un rond autour.
+     * Les îlots du pont restent nets (pas d'ondulation par-dessus).
+     */
     static void riviere(Canvas c, float w, float h, float u, int accent, float t) {
         petals(c, w, h, u, accent, t);
-        float bank = h * 0.64f, q = Math.min(w, h * 1.2f) * 0.06f;
+        float H0 = Math.min(h, w * 0.9f), q = Math.min(w, h * 1.2f) * 0.06f, bank = h * 0.64f, lw = Math.max(1f, u / 1100f);
+        float mx = w * 0.7f, mr = H0 * 0.09f;
+        // Îlots du pont (mêmes repères que Facets.riviere).
+        float bx = w * 0.78f, sp = Math.min(w * 0.17f, H0 * 0.3f), ix0 = bx - sp - q * 2.8f, ix1 = bx + sp + q * 3.4f, iy = bank + q * 1.7f;
+        int light = Theme.lighten(accent, 0.35f), pale = Theme.lighten(accent, 0.62f);
         P.setStyle(Paint.Style.STROKE);
-        P.setStrokeWidth(Math.max(1f, u / 1000f));
-        for (int i = 0; i < 9; i++) {
-            float ph = fract(t * (1 + i % 2) + rnd(i, 1));
-            float x = w * (0.3f + 0.7f * rnd(i, 2)), y = bank + (h - bank) * (0.15f + 0.8f * rnd(i, 3));
-            float depth = (y - bank) / (h - bank);
-            float r = q * (0.3f + 2.2f * ph) * (0.6f + depth);
-            P.setColor(a(Theme.lighten(accent, 0.4f), Math.round(0x40 * (1f - ph))));
-            R.set(x - r, y - r * 0.28f, x + r, y + r * 0.28f);
+        P.setStrokeCap(Paint.Cap.ROUND);
+        int rows = 26;
+        for (int i = 0; i < rows; i++) {
+            float d = (i + 0.5f) / rows, y = bank + (h - bank) * (float) Math.pow(d, 1.6) + q * 0.15f;
+            float amp = q * (0.04f + 0.16f * d), wl = q * (1.6f + 5f * d);
+            // Déphasage en tours entiers sur la boucle : l'animation reprend sans à-coup.
+            double ph = TAU * t * (2 + (i % 3)) + i * 1.7;
+            P.setStrokeWidth(lw * (0.8f + 1.2f * d));
+            float seg = wl * 1.4f;
+            float x0 = -seg + fract(rnd(i, 1) + t * (1 + i % 2)) * seg;
+            int n = 0;
+            while (x0 < w + seg && n < 200) {
+                int k = (int) Math.floor(x0 / seg) + 64;
+                float len = seg * (0.45f + 0.4f * rnd(i, k + 9)), cx = x0 + len / 2;
+                if (!(y < iy && cx > ix0 && cx < ix1)) {
+                    float near = Math.max(0f, 1f - Math.abs(cx - mx) / (mr * (1.2f + 3.2f * d)));
+                    int col = near > 0.2f ? pale : (i % 3 == 0 ? light : accent);
+                    float tw = 0.6f + 0.4f * (float) Math.sin(TAU * t * 12 + i * 2.3f + x0);
+                    P.setColor(a(col, Math.round(0x10 + 0x18 * d + 0x70 * near * near * tw)));
+                    PATH.reset();
+                    for (int s = 0; s <= 10; s++) {
+                        float x = x0 + len * s / 10f, yy = y + (float) Math.sin(x / wl * TAU + ph) * amp;
+                        if (s == 0) PATH.moveTo(x, yy);
+                        else PATH.lineTo(x, yy);
+                    }
+                    c.drawPath(PATH, P);
+                }
+                x0 += seg * (1.15f + 0.5f * rnd(i, k + 50));
+                n++;
+            }
+        }
+        // Pétales posés sur l'eau, qui dérivent, avec un rond qui s'élargit.
+        for (int i = 0; i < 14; i++) {
+            float d = rnd(i, 2), y = bank + (h - bank) * (0.08f + 0.9f * d), x = w * fract(rnd(i, 3) + t * (1 + i % 2) * 0.15f);
+            float s2 = q * (0.12f + 0.12f * d) * (0.8f + 0.4f * rnd(i, 4)), rp = fract(t * 6 + rnd(i, 6));
+            P.setStyle(Paint.Style.STROKE);
+            P.setStrokeWidth(lw);
+            P.setColor(a(light, Math.round(0x40 * (1f - rp))));
+            float rr = s2 * (1.2f + 2.5f * rp);
+            R.set(x - rr, y - rr * 0.3f, x + rr, y + rr * 0.3f);
             c.drawOval(R, P);
+            P.setStyle(Paint.Style.FILL);
+            P.setColor(a(i % 2 == 1 ? light : 0xFFFFF0F7, 0x9A));
+            c.save();
+            c.rotate((float) Math.toDegrees(rnd(i, 5) * TAU + 0.3 * Math.sin(TAU * t * 3 + i)), x, y);
+            R.set(x - s2, y - s2 * 0.55f, x + s2, y + s2 * 0.55f);
+            c.drawOval(R, P);
+            c.restore();
         }
         P.setStyle(Paint.Style.FILL);
     }
