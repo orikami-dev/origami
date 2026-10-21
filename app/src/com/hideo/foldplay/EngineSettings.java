@@ -219,8 +219,9 @@ final class EngineSettings {
                 {"Savestate@@Compatible Savestate Mode", "true"},
                 {"Audio@@Enable Buffering", "true"},
                 // 0.66 : 200 ms (le moteur accepte 4 à 250) pour que le son tienne pendant les ralentis.
-                {"Audio@@Desired Audio Buffer Duration", "200"},
-                {"Audio@@Enable Time Stretching", "true"},
+                {"Audio@@Desired Audio Buffer Duration", "250"},
+                // 0.66.10 (test, son distordu signalé par BOSS) : sans étirement, un ralentissement coupe au lieu de déformer.
+                {"Audio@@Enable Time Stretching", "false"},
                 {"Audio@@Time Stretching Threshold", "75"},
                 {"Audio@@Master Volume", "80"},
         };
