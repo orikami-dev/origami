@@ -50,7 +50,8 @@ final class ConsoleEmblemView extends View {
 
         // Le pictogramme occupe les deux tiers du haut, le sigle le tiers du bas.
         // Paramètres : pas de sigle, son nom est déjà écrit dessous ; le pictogramme prend toute la place.
-        boolean bare = system == SystemInfo.SETTINGS;
+        // 0.66.16 (BOSS) : seules les consoles et Remote Play gardent un sigle ; les autres ont leur nom écrit dessous.
+        boolean bare = system == SystemInfo.SETTINGS || system == SystemInfo.ANDROID || system == SystemInfo.ACTION;
         float size = bare ? Math.min(w, h) * 0.86f : Math.min(w, h * 0.62f);
         float cx = w / 2f;
         float cy = bare ? h / 2f : h * 0.34f;

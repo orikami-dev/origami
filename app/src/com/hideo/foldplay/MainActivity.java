@@ -2756,7 +2756,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             label.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
             // Les consoles portent déjà leur sigle dans l'icône : pas d'étiquette flottante (BOSS).
             // 0.66.11 (BOSS) : plus de texte sous l'icône Réglages.
-            boolean named = sys == null;
+            boolean named = sys == null || sys == SystemInfo.ANDROID || sys == SystemInfo.ACTION;
             if (!named) label.setTag("muet");
             label.setAlpha(on && named ? 1f : 0f);
             // Les étiquettes des icônes non choisies sont carrément absentes de l'affichage.
