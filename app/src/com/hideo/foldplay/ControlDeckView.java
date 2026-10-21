@@ -580,6 +580,8 @@ final class ControlDeckView extends ViewGroup {
         // Motif gravé propre au thème (circuit, givre, carbone, cerisier, grille…).
         String motif = Theme.PAD_OWN ? "pad" : Theme.THEME_ID;
         PadSkins.draw(c, box, motif, accent, dp);
+        // Façade animée par thème (0.66.19).
+        if (Theme.ANIMATE && !editing) PadMotion.draw(c, box, motif, accent, dp);
         if (!PadSkins.replacesDots(motif)) {
             skinPaint.setColor(0x14FFFFFF);
             float step = 10 * dp;
