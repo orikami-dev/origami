@@ -23,6 +23,11 @@ import java.util.List;
 /** Page de réglages, une section à la fois, ouverte directement par l'engrenage. */
 public class SettingsActivity extends Activity {
     static final String EXTRA_SECTION = "section";
+    /** Ouvre directement les réglages avancés de ce cœur (depuis le menu Home d'un jeu). */
+    static final String EXTRA_CORE_OPTIONS = "core_options";
+    /** Jeu concerné : toute modification à la main fait passer son profil en Personnalisé. */
+    static final String EXTRA_GAME_ID = "game_id";
+    private String optionsGame;
     private static final int REQ_TREE = 11;
     private static final int REQ_BIOS = 12;
     private static final int REQ_SAVES = 13;
@@ -60,6 +65,18 @@ public class SettingsActivity extends Activity {
             public boolean onKey(String k) { return sectionKey(k); }
         });
         render();
+        // Réglages avancés d'un cœur hors jeu : la liste vient du dernier lancement du cœur.
+        String oc = getIntent().getStringExtra(EXTRA_CORE_OPTIONS);
+        if (oc != null) {
+            optionsGame = getIntent().getStringExtra(EXTRA_GAME_ID);
+            String[] specs = store.coreSpecs(oc);
+            if (specs.length == 0) {
+                toast("Lance un jeu de cette console pour voir ses réglages.");
+                finish();
+            } else {
+                coreOptions(oc, specs, new Runnable() { public void run() { finish(); } });
+            }
+        }
     }
 
     private PadNav nav;
@@ -661,6 +678,7 @@ public class SettingsActivity extends Activity {
                         v.radio(val, null, val.equals(current), new Runnable() {
                             public void run() {
                                 store.setCoreOption(core, key, val);
+                                if (optionsGame != null) store.setGameProfile(optionsGame, CoreProfiles.CUSTOM);
                                 self.run();
                             }
                         });

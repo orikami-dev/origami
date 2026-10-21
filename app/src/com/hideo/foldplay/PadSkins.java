@@ -61,13 +61,25 @@ final class PadSkins {
     private static void render(Canvas c, RectF box, String id, int accent, float dp) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         float w = box.width(), h = box.height();
-        if (id.equals("arctique")) Facets.arctique(c, w, h, accent, Theme.fold(), 0.75f, 1);
-        else if (id.equals("ecarlate")) Facets.ecarlate(c, w, h, accent, Theme.fold(), 0.75f, 1);
+        if (id.equals("arctique")) Facets.arctique(c, w, h, accent, Theme.fold(), 0.75f, ARCTIQUE_PAD_POLAIRE ? Facets.MANETTE : 1);
+        else if (id.equals("ecarlate")) Facets.ecarlate(c, w, h, accent, Theme.fold(), 0.75f, ECARLATE_PAD_JAPON ? Facets.MANETTE : 1);
+        else if (id.equals("sakura") && SAKURA_PAD_RIVIERE) Facets.sakura(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
         else if (id.equals("sakura")) sakura(c, box, accent, dp, p);
         else if (id.equals("ambre")) ambre(c, box, accent, dp, p);
         else if (id.equals("pad")) honeycomb(c, box, accent, dp, p);
-        else Facets.codec(c, w, h, accent, Theme.fold(), 0.75f, 1);
+        else Facets.codec(c, w, h, accent, Theme.fold(), 0.75f, CODEC_PAD_BASE ? Facets.MANETTE : 1);
     }
+
+    /**
+     * Façades assorties aux fonds « nuit » de l'écran du haut (Facets.MANETTE), comme le soleil d'Ambre l'est
+     * à la ville : false tant que BOSS n'a pas validé, l'ancienne façade reste.
+     * Codec : écran radar de la base ; Arctique : banquise sous l'aurore ; Écarlate : lune rouge et torii ;
+     * Sakura : eau de la rivière, reflet de lune et cerisiers des berges.
+     */
+    static boolean CODEC_PAD_BASE = true;
+    static boolean ARCTIQUE_PAD_POLAIRE = true;
+    static boolean ECARLATE_PAD_JAPON = true;
+    static boolean SAKURA_PAD_RIVIERE = true;
 
     /** Vrai si le motif remplace la trame de points d'origine. */
     static boolean replacesDots(String id) {

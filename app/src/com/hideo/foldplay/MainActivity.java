@@ -328,7 +328,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     private boolean appFilter() {
-        return filter.equals("android") || filter.equals("remote");
+        return filter.equals("android") || filter.equals("remote") || filter.equals("settings");
     }
 
     /** Ⓐ sur une entrée : jeu (émulateur), application, client à installer ou action. */
@@ -340,11 +340,43 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             else remoteMenu(g.group);
         } else if (g.uri.startsWith("action:addclient:")) {
             addClientMenu(g.group);
+        } else if (g.uri.startsWith("action:set:")) {
+            openSetting(g.uri.substring("action:set:".length()));
         } else if (g.isApp()) {
             MobileApps.open(this, store, g);
         } else {
             launcher.launch(g);
         }
+    }
+
+    /** Entrées de la catégorie « Paramètres » du XMB (Tsuru) : Thème, Manette, Réglages et ses sections. */
+    private List<Game> settingsEntries() {
+        List<Game> l = new ArrayList<Game>();
+        String[][] e = {
+            {"theme", "Thème", "Couleurs de l'interface, du logo et de la manette, Lumen."},
+            {"pads", "Manette", "Manette tactile, manettes physiques, disposition et éditeur."},
+            {"all", "Réglages", "Toutes les catégories de réglages d'Origami."},
+        };
+        for (String[] r : e) {
+            Game g = new Game(r[1], SystemInfo.SETTINGS, "action:set:" + r[0]);
+            g.note = r[2];
+            l.add(g);
+        }
+        for (String[] s : SettingsActivity.SECTIONS) {
+            Game g = new Game(s[1], SystemInfo.SETTINGS, "action:set:sec:" + s[0]);
+            g.note = "Réglages › " + s[1];
+            l.add(g);
+        }
+        return l;
+    }
+
+    private void openSetting(String id) {
+        if (id.equals("theme")) themeMenu();
+        else if (id.equals("pads")) controllerOptions();
+        else if (id.startsWith("sec:")) {
+            startActivity(new Intent(this, SettingsActivity.class)
+                    .putExtra(SettingsActivity.EXTRA_SECTION, id.substring(4)));
+        } else startActivity(new Intent(this, SettingsActivity.class));
     }
 
     /** Fenêtre codec « Mise à jour disponible » : Installer (téléchargement avec progression) ou plus tard (24 h). */
@@ -423,8 +455,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         // Plié à moitié ou remis à plat en paysage : la manette quitte ou reprend la surimpression.
         if (homeCol != null) {
             Configuration cf = getResources().getConfiguration();
-            boolean half = hingeAngle >= FLEX_MIN_ANGLE && hingeAngle <= FLEX_MAX_ANGLE;
-            if ((cf.screenWidthDp > cf.screenHeightDp && !half) != homeOverlayLandscape) applyPadHome();
+            if ((cf.screenWidthDp > cf.screenHeightDp) != homeOverlayLandscape) applyPadHome();
         }
     }
 
@@ -558,6 +589,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             shown.addAll(mobile);
         } else if (filter.equals("remote")) {
             shown.addAll(remote);
+        } else if (filter.equals("settings")) {
+            shown.addAll(settingsEntries());
         } else {
             for (Game g : library) {
                 if (filter.equals("all")
@@ -576,6 +609,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
     private List<String> filterKeys() {
         List<String> keys = new ArrayList<String>();
+        // Façon XMB PS3 : « Paramètres » tout à gauche, la sélection de départ reste sur « Tous ».
+        if (posture == Posture.FLEX) keys.add(SystemInfo.SETTINGS.id);
         keys.add("all");
         keys.add("fav");
         keys.add("recent");
@@ -741,6 +776,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     private void rebuild() {
         Posture before = posture;
         posture = computePosture();
+        // « Paramètres » n'existe qu'en Tsuru : en Washi, retour à « Tous ».
+        if (posture != Posture.FLEX && filter.equals("settings")) filter = "all";
         refilter();
         View outgoing = (before != null && before != posture && splashDone && root.getChildCount() == 1)
                 ? root.getChildAt(0) : null;
@@ -1206,8 +1243,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         // Paysage (écran interne à plat ou externe, pas à moitié plié) : comme en jeu, la manette
         // se superpose à l'accueil en plein écran, seulement ses touches, transparentes.
         Configuration cf = getResources().getConfiguration();
-        boolean halfOpen = hinge != null && hingeAngle >= FLEX_MIN_ANGLE && hingeAngle <= FLEX_MAX_ANGLE;
-        boolean landscape = cf.screenWidthDp > cf.screenHeightDp && !halfOpen;
+        // BOSS : même à moitié plié, si l'écran est en paysage la manette reste transparente en surimpression.
+        boolean landscape = cf.screenWidthDp > cf.screenHeightDp;
         homeOverlayLandscape = landscape;
         boolean flex = !padOnly && act != null && !mini && (act.overlaid() || landscape);
         boolean pad = padOnly || mini || flex;
@@ -1587,6 +1624,16 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
             });
         }
+        if (g.system.core != null) {
+            final String core = g.system.core;
+            pm.sub("Réglages avancés", "Toutes les options du cœur", new Runnable() {
+                public void run() {
+                    startActivity(new Intent(MainActivity.this, SettingsActivity.class)
+                            .putExtra(SettingsActivity.EXTRA_CORE_OPTIONS, core)
+                            .putExtra(SettingsActivity.EXTRA_GAME_ID, id));
+                }
+            });
+        }
         pm.show(menuHost());
     }
 
@@ -1779,7 +1826,17 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             }
             long d = animate ? 200 : 0;
             icon.animate().scaleX(k).scaleY(k).setDuration(d).start();
-            label.animate().alpha(on ? 1f : 0f).setDuration(d).start();
+            label.animate().cancel();
+            if (on) label.setVisibility(View.VISIBLE);
+            if (on || !animate) {
+                label.animate().alpha(on ? 1f : 0f).setDuration(d).start();
+                if (!on) label.setVisibility(View.INVISIBLE);
+            } else {
+                final View lb = label;
+                label.animate().alpha(0f).setDuration(d).withEndAction(new Runnable() {
+                    public void run() { lb.setVisibility(View.INVISIBLE); }
+                }).start();
+            }
             cell.animate().alpha(on ? 1f : 0.55f).setDuration(d).start();
             if (on) chosen = cell;
         }
@@ -1787,12 +1844,18 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             final View c = chosen;
             catScroll.post(new Runnable() {
                 public void run() {
-                    int x = Math.max(0, c.getLeft() - dp(16));
+                    int x = catScrollX(c);
                     if (animate) catScroll.smoothScrollTo(x, 0);
                     else catScroll.scrollTo(x, 0);
                 }
             });
         }
+    }
+
+    /** Défilement de la rangée : la choisie à gauche, sauf juste après « Paramètres » qui reste visible. */
+    private int catScrollX(View c) {
+        if (cats.indexOfChild(c) == 1 && SystemInfo.SETTINGS.id.equals(cats.getChildAt(0).getTag())) return 0;
+        return Math.max(0, c.getLeft() - dp(16));
     }
 
     private float flexScale() {
@@ -1805,6 +1868,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         catScroll.setHorizontalScrollBarEnabled(false);
         cats = new LinearLayout(this);
         cats.setPadding(dp(16 * s), dp(6), dp(400), 0);
+        cats.setClipChildren(false);
+        catScroll.setClipChildren(false);
         final List<String> keys = filterKeys();
         View chosen = null;
         for (final String key : keys) {
@@ -1833,10 +1898,16 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             TextView label = text(filterLabel(key).replace("★ ", ""), 11 * s, on ? Theme.CODEC : Theme.TEXT, false);
             label.setTypeface(Fonts.wide(this));
             label.setLetterSpacing(0.12f);
-            Theme.marquee(label);
+            // Pas de défilement (marquee) : pendant l'ouverture/fermeture, une mesure intermédiaire
+            // trop étroite faisait défiler/couper « Tous » et « Favoris » sur une 2e ligne (BOSS).
+            label.setSingleLine(true);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            label.setGravity(Gravity.CENTER_HORIZONTAL);
             label.setPadding(0, dp(4), 0, 0);
             label.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
             label.setAlpha(on ? 1f : 0f);
+            // Les étiquettes des icônes non choisies sont carrément absentes de l'affichage.
+            label.setVisibility(on ? View.VISIBLE : View.INVISIBLE);
             cell.addView(label);
             cell.setAlpha(on ? 1f : 0.55f);
             cell.setOnClickListener(new View.OnClickListener() {
@@ -1853,7 +1924,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         final View c = chosen;
         if (c != null) {
             catScroll.post(new Runnable() {
-                public void run() { catScroll.scrollTo(Math.max(0, c.getLeft() - dp(16)), 0); }
+                public void run() { catScroll.scrollTo(catScrollX(c), 0); }
             });
         }
         return catScroll;
@@ -2094,27 +2165,16 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         crane.animate(mark, 5000);
         LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(40), dp(40));
         mlp.rightMargin = dp(10);
-        // Le logo ouvre les applications du téléphone (0.60.4, à la place du bouton « Applications »).
-        mark.setContentDescription("Applications");
-        mark.setBackground(Theme.pill(0x00000000, dp(20)));
-        mark.setFocusable(true);
-        mark.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                appsMenu();
-            }
-        });
-        bar.addView(mark, mlp);
-        barButtons.add(mark);
-        titles.addView(logo);
-        titles.addView(postureTag);
-        bar.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        // L'icône montre la vue vers laquelle on bascule.
+        // BOSS : l'origami est le bouton Tsuru ⇄ Washi ; les applications ont leur propre icône.
         final boolean flexOn = posture == Posture.FLEX;
         final boolean onCover = hinge != null && getResources().getConfiguration().smallestScreenWidthDp < 600;
-        bar.addView(iconButton(flexOn ? "grid" : "flex",
-                flexOn ? "Passer en mode Washi" : "Passer en mode Tsuru", new View.OnClickListener() {
+        mark.setContentDescription(flexOn ? "Passer en mode Washi" : "Passer en mode Tsuru");
+        android.content.res.TypedArray ra = obtainStyledAttributes(
+                new int[] {android.R.attr.selectableItemBackgroundBorderless});
+        mark.setBackground(ra.getDrawable(0));
+        ra.recycle();
+        mark.setFocusable(true);
+        mark.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 // Sur l'écran externe, choix du moment ; sur l'écran interne, le réglage par défaut.
@@ -2126,7 +2186,31 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 }
                 rebuild();
             }
+        });
+        bar.addView(mark, mlp);
+        barButtons.add(mark);
+        titles.addView(logo);
+        titles.addView(postureTag);
+        bar.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        // Lanceur d'applications du téléphone, en Tsuru comme en Washi.
+        bar.addView(iconButton("apps", "Applications", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                appsMenu();
+            }
         }));
+        // Tsuru : Thème, Manette et Réglages sont dans la catégorie « Paramètres » du XMB.
+        if (!flexOn) addBarSettings(bar);
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View child = bar.getChildAt(i);
+            if (child instanceof android.widget.ImageView && child.isClickable()) barButtons.add(child);
+        }
+        paintBarFocus();
+        return bar;
+    }
+
+    private void addBarSettings(LinearLayout bar) {
         bar.addView(iconButton("palette", "Thème", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -2145,12 +2229,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 startActivity(new Intent(MainActivity.this, SettingsActivity.class));
             }
         }));
-        for (int i = 0; i < bar.getChildCount(); i++) {
-            View child = bar.getChildAt(i);
-            if (child instanceof android.widget.ImageView && child.isClickable()) barButtons.add(child);
-        }
-        paintBarFocus();
-        return bar;
     }
 
     /** Les cinq thèmes, puis les couleurs du logo et de la manette (un seul panneau, 0.61). */

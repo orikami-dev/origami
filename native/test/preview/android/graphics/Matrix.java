@@ -1,0 +1,2 @@
+package android.graphics;
+public class Matrix { public void reset(){} public void setTranslate(float x,float y){} public void setRotate(float d){} public void setRotate(float d,float x,float y){} public void setScale(float x,float y){} public boolean postTranslate(float x,float y){return true;} public boolean postRotate(float d){return true;} public boolean postRotate(float d,float x,float y){return true;} public boolean postScale(float x,float y){return true;} public boolean preTranslate(float x,float y){return true;} }

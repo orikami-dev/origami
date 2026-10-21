@@ -197,6 +197,102 @@ final class BackdropMotion {
         }
     }
 
+    /** Base Codec : le radar balaie en tournant, les balises clignotent (tour radar, grue, tour de garde). */
+    static void base(Canvas c, float w, float h, float u, int accent, float t) {
+        float[] pt = Facets.basePts(w, h);
+        float q = Math.min(w, h * 1.2f) * 0.06f;
+        float cx = pt[0], cy = pt[1] + q * 1.2f, R = Math.min(h, w * 0.9f) * 0.85f;
+        double a0 = -TAU * t;
+        for (int b = 0; b < 12; b++) {
+            double t0 = a0 - b * 0.07, t1 = t0 - 0.07;
+            P.setColor(a(accent, Math.round(0x2C * (1f - b / 12f))));
+            PATH.reset();
+            PATH.moveTo(cx, cy);
+            PATH.lineTo(cx + (float) Math.cos(t0) * R, cy + (float) Math.sin(t0) * R);
+            PATH.lineTo(cx + (float) Math.cos(t1) * R, cy + (float) Math.sin(t1) * R);
+            PATH.close();
+            c.drawPath(PATH, P);
+        }
+        for (int i = 0; i < 3; i++) {
+            float ph = fract(2 * t + i * 0.31f);
+            if (ph > 0.35f) continue;
+            float bx = pt[i * 2], by = pt[i * 2 + 1], r = u * 0.003f;
+            P.setColor(a(accent, 0x28));
+            c.drawCircle(bx, by, r * 4f, P);
+            P.setColor(a(0xFFB8FFD8, 0xC0));
+            c.drawCircle(bx, by, r, P);
+        }
+    }
+
+    /** Nuit polaire : l'aurore ondule (rayons qui se balancent) et la glace scintille. */
+    static void polaire(Canvas c, float w, float h, float u, int accent, float t) {
+        float top = h * 0.06f, bot = h * 0.52f;
+        for (int i = 0; i < 18; i++) {
+            float x = w * (i + 0.5f) / 18f + u * 0.015f * (float) Math.sin(TAU * (t + rnd(i, 1)));
+            float sw = u * 0.03f * (float) Math.sin(TAU * (2 * t + rnd(i, 2)));
+            float al = (float) Math.max(0, Math.sin(TAU * (t + rnd(i, 3))));
+            int alpha = Math.round((4 + 16 * al) * (0.25f + 0.75f * x / w));
+            P.setColor(a(i % 3 == 0 ? 0xFF9C8CFF : (i % 3 == 1 ? 0xFF6CFFC0 : accent), alpha));
+            PATH.reset();
+            PATH.moveTo(x - u * 0.004f, bot);
+            PATH.lineTo(x + sw - u * 0.012f, top);
+            PATH.lineTo(x + sw + u * 0.012f, top);
+            PATH.lineTo(x + u * 0.004f, bot);
+            PATH.close();
+            c.drawPath(PATH, P);
+        }
+        for (int i = 0; i < 24; i++) {
+            float x = w * (0.35f + 0.65f * rnd(i, 4)), y = h * (0.55f + 0.42f * rnd(i, 5));
+            float tw = Math.max(0f, (float) Math.sin(TAU * (1 + i % 3) * t + i * 1.7f));
+            P.setColor(a(0xFFEAF9FF, Math.round(20 + 150 * tw * tw)));
+            c.drawCircle(x, y, u * (0.0012f + 0.0012f * rnd(i, 6)), P);
+        }
+    }
+
+    /** Nuit japonaise : braises qui montent et lanternes qui se balancent sous la poutre du torii. */
+    static void japon(Canvas c, float w, float h, float u, int accent, float t) {
+        embers(c, w, h, u, accent, t);
+        float[] tp = Facets.japonPts(w, h);
+        float q = Math.min(w, h * 1.2f) * 0.06f;
+        for (int i = 0; i < 3; i++) {
+            float x = tp[0] + (i - 1) * tp[2] * 0.3f, y = tp[1] + q * 0.1f;
+            float sw = (float) Math.sin(TAU * (t + i * 0.23f)) * 0.12f;
+            float len = q * (0.5f + 0.12f * (i & 1)), lx = x + (float) Math.sin(sw) * len, ly = y + (float) Math.cos(sw) * len;
+            P.setColor(a(0xFFFFB347, 0x70));
+            P.setStyle(Paint.Style.STROKE);
+            P.setStrokeWidth(Math.max(1f, u / 1100f));
+            c.drawLine(x, y, lx, ly, P);
+            P.setStyle(Paint.Style.FILL);
+            R.set(lx - q * 0.2f, ly, lx + q * 0.2f, ly + q * 0.5f);
+            float fl = 0.8f + 0.2f * (float) Math.sin(TAU * (6 * t + i));
+            P.setColor(a(accent, (int) (0x24 * fl)));
+            c.drawCircle(lx, ly + q * 0.25f, q * 0.8f, P);
+            P.setColor(a(0xFFFF6A3C, (int) (0xC0 * fl)));
+            c.drawOval(R, P);
+            P.setColor(a(0xFFFFE0A0, (int) (0x60 * fl)));
+            R.set(lx - q * 0.08f, ly + q * 0.12f, lx + q * 0.08f, ly + q * 0.38f);
+            c.drawOval(R, P);
+        }
+    }
+
+    /** Rivière de printemps : pétales qui tombent et rides qui s'élargissent sur l'eau. */
+    static void riviere(Canvas c, float w, float h, float u, int accent, float t) {
+        petals(c, w, h, u, accent, t);
+        float bank = h * 0.64f, q = Math.min(w, h * 1.2f) * 0.06f;
+        P.setStyle(Paint.Style.STROKE);
+        P.setStrokeWidth(Math.max(1f, u / 1000f));
+        for (int i = 0; i < 9; i++) {
+            float ph = fract(t * (1 + i % 2) + rnd(i, 1));
+            float x = w * (0.3f + 0.7f * rnd(i, 2)), y = bank + (h - bank) * (0.15f + 0.8f * rnd(i, 3));
+            float depth = (y - bank) / (h - bank);
+            float r = q * (0.3f + 2.2f * ph) * (0.6f + depth);
+            P.setColor(a(Theme.lighten(accent, 0.4f), Math.round(0x40 * (1f - ph))));
+            R.set(x - r, y - r * 0.28f, x + r, y + r * 0.28f);
+            c.drawOval(R, P);
+        }
+        P.setStyle(Paint.Style.FILL);
+    }
+
     /** Vieux terminal : bande claire qui descend, scintillement de tube et curseur qui clignote. */
     static void terminal(Canvas c, float w, float h, float u, int accent, float t) {
         float y = fract(3 * t) * (h * 1.3f) - h * 0.15f;

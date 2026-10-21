@@ -20,6 +20,7 @@ import android.graphics.drawable.Drawable;
  * - Écarlate : flammes, escarbilles et chevrons d'alerte pliés (Facets) ;
  * - Sakura : mont, branche et fleurs de cerisier en papier plié (Facets) ;
  * - Ambre : ville Art déco la nuit (gratte-ciel à gradins, liserés d'or, éventail ; ancien terminal gardé, AMBRE_VILLE) ;
+ * - Variantes nuit (CODEC_BASE, ARCTIQUE_POLAIRE, ECARLATE_JAPON, SAKURA_RIVIERE), éteintes tant qu'elles ne sont pas validées ;
  * - Couleurs de la manette : le radar plié à la teinte de la manette.
  */
 final class ThemeBackdrop extends Drawable {
@@ -121,13 +122,21 @@ final class ThemeBackdrop extends Drawable {
         }
         c.translate(b.left, b.top);
         float u = Math.max(w, h);
-        if (id.equals("arctique")) BackdropMotion.snow(c, w, h, u, accent, t);
-        else if (id.equals("ecarlate")) BackdropMotion.embers(c, w, h, u, accent, t);
-        else if (id.equals("sakura")) BackdropMotion.petals(c, w, h, u, accent, t);
+        if (id.equals("arctique")) {
+            if (ARCTIQUE_POLAIRE) BackdropMotion.polaire(c, w, h, u, accent, t);
+            else BackdropMotion.snow(c, w, h, u, accent, t);
+        } else if (id.equals("ecarlate")) {
+            if (ECARLATE_JAPON) BackdropMotion.japon(c, w, h, u, accent, t);
+            else BackdropMotion.embers(c, w, h, u, accent, t);
+        } else if (id.equals("sakura")) {
+            if (SAKURA_RIVIERE) BackdropMotion.riviere(c, w, h, u, accent, t);
+            else BackdropMotion.petals(c, w, h, u, accent, t);
+        }
         else if (id.equals("ambre")) {
             if (AMBRE_VILLE) BackdropMotion.ville(c, w, h, u, accent, t);
             else BackdropMotion.terminal(c, w, h, u, accent, t);
         }
+        else if (CODEC_BASE) BackdropMotion.base(c, w, h, u, accent, t);
         else BackdropMotion.radar(c, w, h, u, accent, t);
         c.restore();
         if (isVisible()) scheduleSelf(tick, android.os.SystemClock.uptimeMillis() + 33);
@@ -150,13 +159,21 @@ final class ThemeBackdrop extends Drawable {
         p.setColor(bg);
         c.drawRect(0, 0, w, h, p);
         float u = Math.max(w, h);
-        if (id.equals("arctique")) ice(c, w, h, u);
-        else if (id.equals("ecarlate")) ember(c, w, h, u);
-        else if (id.equals("sakura")) sakura(c, w, h, u);
+        if (id.equals("arctique")) {
+            if (ARCTIQUE_POLAIRE) polaire(c, w, h, u);
+            else ice(c, w, h, u);
+        } else if (id.equals("ecarlate")) {
+            if (ECARLATE_JAPON) japon(c, w, h, u);
+            else ember(c, w, h, u);
+        } else if (id.equals("sakura")) {
+            if (SAKURA_RIVIERE) riviere(c, w, h, u);
+            else sakura(c, w, h, u);
+        }
         else if (id.equals("ambre")) {
             if (AMBRE_VILLE) ville(c, w, h, u);
             else terminal(c, w, h, u);
         }
+        else if (CODEC_BASE) base(c, w, h, u);
         else radar(c, w, h, u);
         p.setShader(null);
         c.restore();
@@ -213,6 +230,62 @@ final class ThemeBackdrop extends Drawable {
                 new float[] {0f, 0.6f, 1f}, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, p);
         p.setShader(null);
+    }
+
+    /**
+     * Nouveaux fonds « nuit » (comme AMBRE_VILLE) : false tant que BOSS n'a pas validé, les anciens restent.
+     * Codec : base militaire ; Arctique : nuit polaire ; Écarlate : nuit japonaise ; Sakura : rivière et pont.
+     */
+    static boolean CODEC_BASE = true;
+    static boolean ARCTIQUE_POLAIRE = true;
+    static boolean ECARLATE_JAPON = true;
+    static boolean SAKURA_RIVIERE = true;
+
+    /** Ciel commun : haut assombri, brume de couleur sur la bande d'horizon, lueur ponctuelle, vignette. */
+    private void ciel(Canvas c, float w, float h, float u, float horizon, int band, float gx, float gy, float gr, int glow) {
+        p.setShader(new LinearGradient(0, 0, 0, h * 0.6f, 0xCC030201, 0x00030201, Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h * 0.6f, p);
+        p.setShader(new LinearGradient(0, horizon - h * 0.4f, 0, horizon, a(accent, 0), a(accent, band), Shader.TileMode.CLAMP));
+        c.drawRect(0, horizon - h * 0.4f, w, horizon, p);
+        p.setShader(new RadialGradient(gx, gy, gr, a(accent, glow), a(accent, 0), Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+    }
+
+    private void vignette(Canvas c, float w, float h, float u) {
+        p.setShader(new RadialGradient(w * 0.5f, h * 0.5f, u * 0.8f, new int[] {0, 0, 0x70000000},
+                new float[] {0f, 0.6f, 1f}, Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+    }
+
+    private void base(Canvas c, float w, float h, float u) {
+        ciel(c, w, h, u, h * 0.88f, 0x2C, w * 0.88f, h * 0.88f, u * 0.55f, 0x30);
+        p.setColor(a(accent, 0x07));
+        c.drawRect(0, 0, w, h, p);
+        Facets.codec(c, w, h, accent, fold, 1f, Facets.FOND);
+        p.setColor(0x16000000);
+        float step = Math.max(2f, u / 400f);
+        for (float y = 0; y < h; y += step * 2) c.drawRect(0, y, w, y + step, p);
+        vignette(c, w, h, u);
+    }
+
+    private void polaire(Canvas c, float w, float h, float u) {
+        ciel(c, w, h, u, h * 0.8f, 0x1C, w * 0.7f, h * 0.8f, u * 0.5f, 0x20);
+        Facets.arctique(c, w, h, accent, fold, 1f, Facets.FOND);
+        vignette(c, w, h, u);
+    }
+
+    private void japon(Canvas c, float w, float h, float u) {
+        ciel(c, w, h, u, h * 0.9f, 0x30, w * 0.74f, h * 0.3f, u * 0.55f, 0x2A);
+        Facets.ecarlate(c, w, h, accent, fold, 1f, Facets.FOND);
+        vignette(c, w, h, u);
+    }
+
+    private void riviere(Canvas c, float w, float h, float u) {
+        ciel(c, w, h, u, h * 0.64f, 0x26, w * 0.7f, h * 0.2f, u * 0.55f, 0x26);
+        Facets.sakura(c, w, h, accent, fold, 1f, Facets.FOND);
+        vignette(c, w, h, u);
     }
 
     private void terminal(Canvas c, float w, float h, float u) {
