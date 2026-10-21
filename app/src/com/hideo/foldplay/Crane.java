@@ -40,6 +40,29 @@ final class Crane {
     /** Pli d'origine (thème Codec) ; ailleurs le pli suit le thème, voir Theme.fold(). */
     static final int GOLD = 0xFFFFD23F;
 
+
+    /**
+     * Grue en vol (0.66.12, choix de BOSS : variante F de la planche de logos) : cou dressé, bec à
+     * gauche, ailes en V, queue effilée ; repère 108 × 108. Nuance puis x, y, x, y…
+     * Le logo (Logo) et les icônes du lanceur (tools/make-crane.py) partagent ce dessin ; les décors
+     * (Facets.crane) et l'écran de démarrage gardent l'ancienne grue de face.
+     */
+    static final float[][] FLY = {
+        {4, 14, 31, 30, 21, 31, 35},
+        {2, 30, 21, 34, 22, 31, 35},
+        {3, 31, 35, 34, 22, 48, 46, 42, 60, 30, 59},
+        {1, 66, 6, 42, 36, 49, 47},
+        {2, 66, 6, 49, 47, 65, 36},
+        {4, 98, 11, 50, 49, 42, 60},
+        {2, 98, 11, 42, 60, 66, 65},
+        {1, 38, 60, 66, 66, 48, 93},
+        {0, 30, 59, 38, 60, 48, 93, 38, 90},
+        {2, 66, 66, 94, 85, 59, 78},
+    };
+    /** Bec doré (le pli) : triangle des trois premiers points de FLY[0]. */
+    static final float[] BEAK = {14, 31, 30, 21, 31, 35};
+    static final float FLY_CX = 56f, FLY_CY = 49.5f, FLY_SPAN = 94f;
+
     private Crane() {
     }
 
@@ -128,21 +151,48 @@ final class Crane {
             if (host.isAttachedToWindow()) a.start();
         }
 
+        private void shape(Canvas c, float[] f, int fill, int line) {
+            path.reset();
+            for (int i = 1; i + 1 < f.length; i += 2) {
+                if (i == 1) path.moveTo(f[i], f[i + 1]);
+                else path.lineTo(f[i], f[i + 1]);
+            }
+            path.close();
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(fill);
+            c.drawPath(path, paint);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setColor(line);
+            c.drawPath(path, paint);
+            paint.setStyle(Paint.Style.FILL);
+        }
+
         @Override
         public void draw(Canvas c) {
             android.graphics.Rect b = getBounds();
-            float s = Math.min(b.width(), b.height()) / SPAN;
+            float s = Math.min(b.width(), b.height()) / FLY_SPAN;
             int[] sh = shades(accent != 0 ? accent : Theme.logo(Theme.CODEC));
             int save = c.saveLayerAlpha(b.left, b.top, b.right, b.bottom, alpha);
             c.save();
-            c.translate(b.exactCenterX() - FOLD * s, b.exactCenterY() - CY * s);
+            c.translate(b.exactCenterX() - FLY_CX * s, b.exactCenterY() - FLY_CY * s);
             c.scale(s, s);
-            for (float[] f : WING_L) facet(c, path, paint, f, sh);
-            for (float[] f : WING_R) facet(c, path, paint, f, sh);
-            for (float[] f : LEFT) facet(c, path, paint, f, sh);
-            for (float[] f : RIGHT) facet(c, path, paint, f, sh);
-            paint.setColor(fold != 0 ? fold : Theme.fold());
-            c.drawRect(HINGE[0], HINGE[1], HINGE[2], HINGE[3], paint);
+            // Angles arrondis : chaque facette est aussi tracée en contour de sa couleur, jointure ronde.
+            paint.setStrokeJoin(Paint.Join.ROUND);
+            paint.setStrokeWidth(1.4f);
+            // Ombre portée douce sous la grue (lumière en haut à gauche).
+            c.save();
+            c.translate(1.8f, 3.2f);
+            for (float[] f : FLY) shape(c, f, 0x38000000, 0x38000000);
+            c.restore();
+            // Contour de chaque facette (nuance plus sombre) ; le bec est le triangle doré entier.
+            int gold = fold != 0 ? fold : Theme.fold();
+            for (int i = 0; i < FLY.length; i++) {
+                float[] f = FLY[i];
+                int col = sh[(int) f[0]];
+                if (i == 0) shape(c, f, gold, Theme.darken(gold, 0.45f));
+                else shape(c, f, col, Theme.darken(col, 0.45f));
+            }
+            paint.setStyle(Paint.Style.FILL);
             c.restore();
             if (shine >= 0f && shine <= 1f) {
                 // Reflet qui traverse la grue en diagonale, posé seulement sur ses facettes.
