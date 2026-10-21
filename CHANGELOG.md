@@ -2,6 +2,18 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.7
+
+- Trois nouveaux thèmes complets : Néon (ruelle de Tokyo sous la pluie), Jade (temple de montagne dans la brume) et Argent (grues en origami sous la pleine lune), avec leurs fonds, manettes, icônes d'appli, bruitages et musiques.
+- Le thème Codec devient Radar ; sa tour a une antenne qui tourne, un feu clignotant et des fenêtres qui s'allument.
+- Ambre : nouveau fond, une métropole japonaise de nuit avec la tour de Tokyo.
+- Écarlate : colline agrandie, pagode posée sur son socle, forêt de conifères au fond. Sakura : pont posé sur ses berges. Jade : vrai vert jade, temple et escalier posés sur le relief.
+- Nouvelles musiques de thème, composées ou réarrangées pour chacun des huit thèmes.
+- XMB en mode Tsuru : les entrées de « Paramètres » s'ouvrent dans le XMB, façon PS3, avec une icône propre à chaque thème ; le menu classique reste celui du mode Washi.
+- Paramètres réordonnés et redécrits ; « Mises à jour » et « À propos » ne forment plus qu'une page.
+- « Assombrir le fond » remplace l'effet cathodique, éteint par défaut.
+- Bulle de description et cartes des menus moins sombres.
+
 ## 0.66.6
 
 - Nouveaux fonds d'écran pour Codec (base radar), Arctique (nuit polaire), Écarlate (Japon sous la lune rouge) et Sakura (rivière et pont).

@@ -367,7 +367,8 @@ final class Theme {
 
     /**
      * Couleur du pli central de la grue : une par thème (jaune d'alerte pour Codec, givre pour
-     * Arctique, braise pour Écarlate, blanc rosé pour Sakura, cuivre pour Ambre). Avec une couleur
+     * Arctique, braise pour Écarlate, blanc rosé pour Sakura, cuivre pour Ambre, cyan pour Néon,
+     * lanterne pour Jade, blanc de lune pour Argent). Avec une couleur
      * de logo perso ou « Couleurs de la manette », un ton très clair de cette couleur.
      */
     static int fold() {
@@ -376,7 +377,7 @@ final class Theme {
         return FOLDS[themeIndex(THEME_ID)];
     }
 
-    static final int[] FOLDS = {0xFFFFD23F, 0xFFEAF9FF, 0xFFFFB347, 0xFFFFF0F7, 0xFFFF7A2E};
+    static final int[] FOLDS = {0xFFFFD23F, 0xFFEAF9FF, 0xFFFFB347, 0xFFFFF0F7, 0xFFFF7A2E, 0xFF5CF4FF, 0xFFFFC478, 0xFFFFFFFF};
 
     /** Curseurs, barres de progression et champs Android aux couleurs du thème (au lieu du vert d'origine). */
     static void tint(android.view.View v) {
@@ -447,15 +448,18 @@ final class Theme {
     /** Appelé après chaque mesure des barres ; l'accueil y recale ses marges. */
     static Runnable insetsHook;
 
-    /** Les cinq thèmes : identifiant, nom, puis fond, panneau, panneau clair, accent, touches. */
-    static final String[] THEMES = {"codec", "arctique", "ecarlate", "sakura", "ambre"};
-    static final String[] THEME_NAMES = {"Codec", "Arctique", "Écarlate", "Sakura", "Ambre"};
+    /** Les thèmes : identifiant, nom, puis fond, panneau, panneau clair, accent, touches. */
+    static final String[] THEMES = {"codec", "arctique", "ecarlate", "sakura", "ambre", "neon", "jade", "argent"};
+    static final String[] THEME_NAMES = {"Radar", "Arctique", "Écarlate", "Sakura", "Ambre", "Néon", "Jade", "Argent"};
     static final String[] THEME_HELP = {
         "Le vert de transmission sur fond nuit, l'original.",
         "Bleu glacier sur un fond d'encre, froid et net.",
         "Rouge d'alerte sur fond brun très sombre.",
         "Rose de cerisier sur fond prune, plus doux.",
         "Or chaud sur fond sépia, comme un vieux terminal.",
+        "Magenta et cyan sur fond d'encre violette, une ruelle sous la pluie.",
+        "Vrai vert jade, doux et bleuté, dans la brume : temple de montagne et bambous.",
+        "Argent et blanc sous la pleine lune, presque monochrome.",
     };
     private static final int[][] PALETTES = {
         {BG0, PANEL0, PANEL_HI0, CODEC0, STEEL0},
@@ -463,6 +467,9 @@ final class Theme {
         {0xFF120C0D, 0xFF1E1416, 0xFF2B1C1F, 0xFFFF5A4E, 0xFF46353A},
         {0xFF120E12, 0xFF1E171E, 0xFF2A202B, 0xFFFF8AC8, 0xFF443848},
         {0xFF110F0A, 0xFF1D1A12, 0xFF29251A, 0xFFFFC14D, 0xFF45402F},
+        {0xFF0D0A13, 0xFF18121F, 0xFF231A2E, 0xFFFF4FD8, 0xFF3D3249},
+        {0xFF09110F, 0xFF121E1C, 0xFF1B2D29, 0xFF3FB58A, 0xFF30463F},
+        {0xFF0C0D10, 0xFF17191E, 0xFF22252C, 0xFFC8D0DC, 0xFF3C414C},
     };
 
     /**

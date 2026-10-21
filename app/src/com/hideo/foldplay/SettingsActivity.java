@@ -27,26 +27,25 @@ public class SettingsActivity extends Activity {
     static final String EXTRA_CORE_OPTIONS = "core_options";
     /** Jeu concerné : toute modification à la main fait passer son profil en Personnalisé. */
     static final String EXTRA_GAME_ID = "game_id";
-    private String optionsGame;
     private static final int REQ_TREE = 11;
-    private static final int REQ_BIOS = 12;
-    private static final int REQ_SAVES = 13;
-    private String saveSystem;
 
     static final String[][] SECTIONS = {
         {"library", "Bibliothèque"},
         {"emulators", "Émulateurs"},
         {"display", "Affichage"},
-        {"monitoring", "Monitoring"},
         {"sound", "Son"},
         {"a11y", "Accessibilité"},
-        {"updates", "Mises à jour"},
-        {"about", "À propos"},
+        {"monitoring", "Monitoring"},
+        {"updates", "Mises à jour et À propos"},
     };
 
     private Store store;
     private String section;
     private LinearLayout body;
+    /** Menus codec communs avec le XMB (émulateurs, BIOS, sauvegardes, manettes). */
+    private SettingsMenus menus;
+    /** Emplacement du résultat de « Rechercher une mise à jour » dans la page courante. */
+    private LinearLayout updateResult;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -61,6 +60,8 @@ public class SettingsActivity extends Activity {
         listOnly = section == null && getResources().getConfiguration().screenWidthDp < 600;
         if (section == null) section = "library";
         if (section.equals("cores")) section = "emulators"; // ancienne catégorie fusionnée
+        if (section.equals("about")) section = "updates"; // Mises à jour et À propos réunis (BOSS, 0.66.7)
+        menus = new SettingsMenus(host);
         nav = new PadNav(this).hooks(new PadNav.Hooks() {
             public boolean onKey(String k) { return sectionKey(k); }
         });
@@ -68,15 +69,109 @@ public class SettingsActivity extends Activity {
         // Réglages avancés d'un cœur hors jeu : la liste vient du dernier lancement du cœur.
         String oc = getIntent().getStringExtra(EXTRA_CORE_OPTIONS);
         if (oc != null) {
-            optionsGame = getIntent().getStringExtra(EXTRA_GAME_ID);
             String[] specs = store.coreSpecs(oc);
             if (specs.length == 0) {
                 toast("Lance un jeu de cette console pour voir ses réglages.");
                 finish();
             } else {
-                coreOptions(oc, specs, new Runnable() { public void run() { finish(); } });
+                menus.coreOptions(oc, specs, new Runnable() { public void run() { finish(); } },
+                        getIntent().getStringExtra(EXTRA_GAME_ID));
             }
         }
+    }
+
+    /** L'hôte des lignes de réglages : ici, la page classique redessinée en entier à chaque changement. */
+    private final SettingsRows.Host host = new SettingsRows.Host() {
+        public Activity activity() { return SettingsActivity.this; }
+
+        public Store store() { return store; }
+
+        public SettingsMenus menus() { return menus; }
+
+        public void refresh() { render(); }
+
+        public void restyle() { render(); }
+
+        public void relayout() { }
+
+        public void toast(String msg) { SettingsActivity.this.toast(msg); }
+
+        public void pickFolder() {
+            try {
+                startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
+            } catch (ActivityNotFoundException e) {
+                toast("Sélecteur de dossiers indisponible.");
+            }
+        }
+
+        public void rescan() {
+            store.requestRescan();
+            toast("Bibliothèque relue au retour à l'accueil.");
+        }
+
+        public void forgetFolder() {
+            store.setTreeUri(null);
+            store.requestRescan();
+            render();
+        }
+
+        public void languageChanged(String sec) {
+            startActivity(new Intent(SettingsActivity.this, MainActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK));
+            startActivity(new Intent(SettingsActivity.this, SettingsActivity.class)
+                    .putExtra(EXTRA_SECTION, sec));
+        }
+
+        public void checkUpdate() { SettingsActivity.this.checkUpdate(); }
+    };
+
+    /** « Rechercher une mise à jour » : le résultat s'écrit sous la ligne, avec le bouton de téléchargement. */
+    private void checkUpdate() {
+        final LinearLayout result = updateResult;
+        if (result == null) return;
+        result.removeAllViews();
+        result.addView(text(I18n.tr("Recherche…"), 14, Theme.MUTED));
+        Updater.check(SettingsActivity.this, new Updater.Done() {
+            public void done(final Updater.Release r) {
+                result.removeAllViews();
+                if (r.error != null) {
+                    result.addView(text(I18n.tr(r.error), 14, Theme.MUTED));
+                } else if (!r.newer) {
+                    result.addView(text(I18n.tr("Origami est à jour."), 14, Theme.TEXT));
+                } else {
+                    result.addView(text("Origami " + r.version, 18, Theme.CODEC));
+                    if (r.summary != null && !r.summary.isEmpty()) result.addView(text(r.summary, 14, Theme.TEXT));
+                    TextView go = text(I18n.tr("Télécharger et installer"), 16, Theme.BG);
+                    go.setBackground(Theme.pill(Theme.CODEC, dp(20)));
+                    go.setPadding(dp(18), dp(10), dp(18), dp(10));
+                    final TextView goBtn = go;
+                    go.setOnClickListener(new View.OnClickListener() {
+                        public void onClick(View v) {
+                            goBtn.setOnClickListener(null);
+                            goBtn.setTextColor(Theme.TEXT);
+                            goBtn.setText(I18n.tr("Téléchargement… 0 %"));
+                            Updater.install(SettingsActivity.this, r, new Updater.Progress() {
+                                public void progress(int pct) {
+                                    goBtn.setText(I18n.tr("Téléchargement…") + " " + pct + " %");
+                                    goBtn.setBackground(Theme.progressPill(pct / 100f, dp(20)));
+                                }
+
+                                public void done(boolean ok) {
+                                    UiSound.play(SettingsActivity.this, ok ? UiSound.DONE : UiSound.ERROR);
+                                    goBtn.setText(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android"
+                                            : "Échec du téléchargement"));
+                                }
+                            });
+                        }
+                    });
+                    // Barre pleine largeur, texte centré (20/10).
+                    go.setGravity(Gravity.CENTER);
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+                    lp.topMargin = dp(12);
+                    result.addView(go, lp);
+                }
+            }
+        });
     }
 
     private PadNav nav;
@@ -143,15 +238,9 @@ public class SettingsActivity extends Activity {
             root.addView(main, new LinearLayout.LayoutParams(0, -1, 1f));
             if (listRight && list != null) root.addView(list, new LinearLayout.LayoutParams(dp(listW), -1));
 
-            if (section.equals("library")) library();
-            else if (section.equals("emulators")) emulators();
-            else if (section.equals("display")) display();
-            else if (section.equals("monitoring")) monitoring();
-            else if (section.equals("sound")) sound();
-            else if (section.equals("a11y")) accessibility();
-            else if (section.equals("updates")) updates();
-            else if (section.equals("pads")) pads();
-            else about();
+            // Les lignes sont décrites une fois pour toutes dans SettingsRows (le XMB de Tsuru les reprend).
+            if (section.equals("pads")) pads();
+            else renderRows(SettingsRows.build(host, section));
         }
         setContentView(root);
         Theme.fullscreen(this);
@@ -271,468 +360,51 @@ public class SettingsActivity extends Activity {
         return true;
     }
 
-    // ------------------------------------------------------------------ sections
+    // ------------------------------------------------------------------ lignes
 
-    private void library() {
-        String tree = store.treeUri();
-        action("Dossier de jeux", tree == null ? "Aucun dossier choisi" : readable(tree), new Runnable() {
-            public void run() {
-                try {
-                    startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
-                } catch (ActivityNotFoundException e) {
-                    toast("Sélecteur de dossiers indisponible.");
+    /** Dessine les lignes d'une section à la façon du menu classique ; les cases de grille se regroupent. */
+    private void renderRows(List<SettingsRows.Row> rows) {
+        updateResult = null;
+        for (SettingsRows.Row r : rows) {
+            if (!r.tile && !gridTiles.isEmpty()) gridEnd();
+            switch (r.type) {
+                case SettingsRows.Row.HEADER:
+                    header(r.title);
+                    break;
+                case SettingsRows.Row.NOTE:
+                    note(r.title);
+                    break;
+                case SettingsRows.Row.TOGGLE:
+                    toggle(r.title, r.desc, r.on, r.toggle);
+                    break;
+                case SettingsRows.Row.CHOICE:
+                    choice(r.title, r.labels, r.index, r.choice);
+                    break;
+                case SettingsRows.Row.SLIDER:
+                    slider(r.title, r.percent, r.choice);
+                    break;
+                case SettingsRows.Row.ACTION:
+                    if (r.tile) tile(r.title, r.desc, r.action);
+                    else action(r.title, r.desc, r.action);
+                    break;
+                case SettingsRows.Row.SLOT:
+                    updateResult = vertical();
+                    body.addView(updateResult);
+                    break;
+                case SettingsRows.Row.LOGO: {
+                    android.widget.ImageView mark = new android.widget.ImageView(this);
+                    mark.setImageDrawable(new Crane.Logo());
+                    LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(120), dp(120));
+                    mlp.gravity = Gravity.CENTER_HORIZONTAL;
+                    mlp.topMargin = dp(16);
+                    body.addView(mark, mlp);
+                    break;
                 }
+                default:
+                    break;
             }
-        });
-        if (tree != null) {
-            action("Rescanner la bibliothèque", "Cherche les nouveaux jeux dans ton dossier", new Runnable() {
-                public void run() {
-                    store.requestRescan();
-                    toast("Bibliothèque relue au retour à l'accueil.");
-                }
-            });
-            action("Oublier ce dossier", "Origami n'aura plus accès à ce dossier", new Runnable() {
-                public void run() {
-                    store.setTreeUri(null);
-                    store.requestRescan();
-                    render();
-                }
-            });
         }
-    }
-
-    private void emulators() {
-        if (!Libretro.available()) note("Demande un appareil 64 bits (arm64).");
-        final CoreManager cores = new CoreManager(this);
-        final Launcher launcher = new Launcher(this, store);
-
-        // 1. Une ligne par console : tout ce qui la concerne s'ouvre dans son menu.
-        // Une case par console (un cœur = une console) : nom, cœur installé ou aucun, taille.
-        header("Consoles");
-        gridStart();
-        for (final SystemInfo s : SystemInfo.ALL) {
-            if (consoleSummary(s, cores, launcher) == null) continue;
-            String core = Libretro.available() ? CoreManager.coreFor(s) : null;
-            String line2 = "aucun", line3 = "";
-            if (core != null && (CoreManager.bundled(core) || cores.installed(core))) {
-                line2 = CoreCatalog.name(core);
-                File f = cores.file(core);
-                line3 = f != null && f.exists() ? String.format(java.util.Locale.ROOT, "%.1f Mo", f.length() / 1048576f)
-                        : "livré";
-            }
-            tile(s.name, line2 + (line3.length() > 0 ? "\n" + line3 : ""), new Runnable() {
-                public void run() { consoleMenu(s, cores, launcher); }
-            });
-        }
-        gridEnd();
-        coreNote();
-
-        // 3. Fichiers communs à toutes les consoles.
-        header("BIOS et sauvegardes");
-        final boolean ps2 = Libretro.available() && cores.hasPs2Bios();
-        action("Importer un BIOS", (ps2 ? "BIOS PS2 présent ✓ · " : "") + "PS1, PS2, Saturn, Dreamcast, GBA, DS, Mega-CD, PC Engine CD, Neo Geo… fichiers ou .zip tirés de ta console",
-                new Runnable() {
-                    public void run() { pickBios(); }
-                });
-        if (Ps3Core.present(this)) {
-            action("Importer le firmware PS3", (Ps3Core.firmwareInstalled(this) ? "Installé ✓ · " : "")
-                    + "PS3UPDAT.PUP, téléchargé sur le site de PlayStation", new Runnable() {
-                        public void run() { pickPs3Firmware(); }
-                    });
-        }
-        action("Importer des sauvegardes", "Depuis un autre émulateur", new Runnable() {
-            public void run() { pickSaveSystem(); }
-        });
-        action("Exporter des sauvegardes", "Vers une autre app, un PC ou un dossier", new Runnable() {
-            public void run() { pickExportSystem(); }
-        });
-        note("Origami est aussi dans le menu Partager d'Android : envoie-lui des sauvegardes depuis une autre app "
-                + "pour les importer. Le fichier porte le nom du jeu (Zelda.sav pour Zelda.z64).");
-
-        // 4. Entretien.
-        header("Entretien");
-        if (Libretro.available()) {
-            action("Retélécharger les cœurs", "Réinstalle un émulateur ou tous, en cas de souci", new Runnable() {
-                public void run() { pickRedownload(cores); }
-            });
-            action("Supprimer les cœurs téléchargés", (cores.installedSize() / (1024 * 1024)) + " Mo utilisés",
-                    new Runnable() {
-                        public void run() {
-                            deleteRecursive(new File(getFilesDir(), "cores"));
-                            toast("Cœurs supprimés, retéléchargés au prochain lancement.");
-                            render();
-                        }
-                    });
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
-            boolean all = android.os.Environment.isExternalStorageManager();
-            action("Accès à tous les fichiers", all ? "Accordé : .cue/.bin lus directement"
-                    : "Pour les jeux multi-fichiers (.cue + .bin)", new Runnable() {
-                public void run() {
-                    try {
-                        startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                Uri.parse("package:" + getPackageName())));
-                    } catch (ActivityNotFoundException e) {
-                        toast("Réglage introuvable sur cet appareil.");
-                    }
-                }
-            });
-        }
-        note("Sauvegardes et BIOS : Android/data/com.hideo.foldplay/files (saves/ et system/).");
-    }
-
-    private static boolean bundled(String core) {
-        for (String b : CoreManager.BUNDLED) if (b.equals(core)) return true;
-        return false;
-    }
-
-    /** Résumé d'une console pour sa ligne, ou null si Origami n'a rien à proposer pour elle. */
-    private String consoleSummary(SystemInfo s, CoreManager cores, Launcher launcher) {
-        String core = Libretro.available() ? CoreManager.coreFor(s) : null;
-        String ext = launcher.emulatorLabel(s);
-        StringBuilder b = new StringBuilder();
-        if (core != null) {
-            b.append("Intégré · ").append(core);
-            if (bundled(core)) b.append(" · livré");
-            else b.append(cores.installed(core) ? " ✓" : " · au premier lancement");
-            if ("ps2".equals(s.id)) b.append(cores.hasPs2Bios() ? " · BIOS ✓" : " · BIOS manquant");
-        }
-        if (ext != null) b.append(b.length() > 0 ? " · " : "").append("Choix : ").append(ext);
-        if (b.length() == 0) return null;
-        return b.toString();
-    }
-
-    private void consoleMenu(final SystemInfo s, final CoreManager cores, final Launcher launcher) {
-        final Runnable back = new Runnable() {
-            public void run() { consoleMenu(s, cores, launcher); }
-        };
-        CodecMenu m = new CodecMenu(this).title(s.name, "CONSOLE · " + s.shortName);
-        final String core = Libretro.available() ? CoreManager.coreFor(s) : null;
-        if (core != null) {
-            boolean b = bundled(core);
-            m.item("Moteur intégré : " + CoreCatalog.name(core), b ? "Livré avec l'app" : cores.installed(core) ? "Installé ✓"
-                    : "Se télécharge au premier lancement d'un jeu", new Runnable() {
-                        public void run() { corePage(core, back); }
-                    });
-            if (!b) m.item(cores.installed(core) ? "Retélécharger le cœur" : "Télécharger le cœur maintenant",
-                    "Dernière version de libretro", new Runnable() {
-                        public void run() { redownload(cores, java.util.Collections.singletonList(core)); }
-                    });
-        }
-        if ("ps2".equals(s.id) || "psx".equals(s.id) || "ps1".equals(s.id) || "dc".equals(s.id)) {
-            String state = "ps2".equals(s.id) ? (cores.hasPs2Bios() ? "BIOS présent ✓" : "BIOS requis") : "Facultatif ou selon le cœur";
-            m.item("Importer un BIOS", state + " · fichier tiré de ta console", new Runnable() {
-                public void run() { pickBios(); }
-            });
-        }
-        if ("ps3".equals(s.id) && Ps3Core.present(this)) {
-            m.item("Importer le firmware PS3", Ps3Core.firmwareInstalled(this) ? "Installé ✓" : "Requis · PS3UPDAT.PUP",
-                    new Runnable() {
-                        public void run() { pickPs3Firmware(); }
-                    });
-        }
-        boolean saves = false;
-        for (String id : SaveImport.SYSTEMS) if (id.equals(s.id)) saves = true;
-        if (saves) {
-            m.item("Importer des sauvegardes", SaveImport.formats(s.id), new Runnable() {
-                public void run() { pickSaves(s.id); }
-            });
-            m.sub("Exporter des sauvegardes", "Partager ou enregistrer dans un dossier", new Runnable() {
-                public void run() { SaveTransfer.export(SettingsActivity.this, s.id, null, back); }
-            });
-        }
-        String ext = launcher.emulatorLabel(s);
-        if (ext != null) m.item("Oublier le choix : " + ext, "Le prochain lancement te redemandera l'émulateur",
-                new Runnable() {
-                    public void run() {
-                        store.setEmulator(s.id, (String) null);
-                        toast("Le prochain lancement " + s.shortName + " te redemandera l'émulateur.");
-                        render();
-                    }
-                });
-        if (core != null) m.sub("Page du cœur " + CoreCatalog.name(core), "Réglages, licence, code source", new Runnable() {
-            public void run() { corePage(core, back); }
-        });
-        m.show(CodecMenu.hostFor(this));
-    }
-
-    private void pickBios() {
-        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
-                .setType("*/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        try {
-            startActivityForResult(i, REQ_BIOS);
-        } catch (ActivityNotFoundException e) {
-            toast("Sélecteur de fichiers introuvable.");
-        }
-    }
-
-    private void pickSaves(String id) {
-        saveSystem = id;
-        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
-                .setType("*/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        try {
-            startActivityForResult(i, REQ_SAVES);
-        } catch (ActivityNotFoundException e) {
-            toast("Sélecteur de fichiers introuvable.");
-        }
-    }
-
-    // ------------------------------------------------------------------ cœurs
-
-    /** Les cœurs intégrés, une ligne chacun : leur page s'ouvre au toucher. */
-    private void coreNote() {
-        if (Libretro.available()) note("Switch : Eden, intégré comme les autres cœurs, bientôt.");
-    }
-
-    private void coreList(final CoreManager cores) {
-        if (!Libretro.available()) return;
-        header("Cœurs");
-        gridStart();
-        for (final CoreCatalog.Info i : CoreCatalog.ALL) {
-            String v = store.coreVariant(i.core);
-            tile(i.name + (v.equals(i.core) ? "" : " → " + CoreCatalog.variantLabel(i.core, v))
-                    + (cores.installed(i.core) ? "  ✓" : ""), CoreManager.systemsOf(i.core) + "\n"
-                    + coreState(cores, i.core), new Runnable() {
-                public void run() { corePage(i.core, null); }
-            });
-        }
-        gridEnd();
-        note("Switch : Eden, bientôt.");
-    }
-
-    private String coreState(CoreManager cores, String core) {
-        if (CoreManager.bundled(core)) return "livré avec l'app";
-        if (!cores.installed(core)) return "à télécharger";
-        File f = cores.file(core);
-        return String.format(java.util.Locale.ROOT, "installé · %.1f Mo", f.length() / 1048576f);
-    }
-
-    /** Page d'un cœur : présentation, état, téléchargement, réglages hors jeu, licence et source. */
-    private void corePage(final String core, final Runnable back) {
-        final CoreManager cores = new CoreManager(this);
-        final CoreCatalog.Info info = CoreCatalog.get(core);
-        final Runnable self = new Runnable() {
-            public void run() { corePage(core, back); }
-        };
-        CodecMenu m = new CodecMenu(this).title(CoreCatalog.name(core), "CŒUR · " + CoreManager.systemsOf(core))
-                .message((info != null ? info.about + "\n\n" : "") + "État : " + coreState(cores, core));
-        if (back != null) m.onBack(back);
-        if (!CoreManager.bundled(core)) {
-            m.item(cores.installed(core) ? "Mettre à jour" : "Télécharger", "Dernière version depuis libretro",
-                    new Runnable() {
-                        public void run() { redownload(cores, java.util.Collections.singletonList(core)); }
-                    });
-            if (cores.installed(core)) m.item("Supprimer", "Retire l'émulateur ; il se réinstalle au prochain jeu", new Runnable() {
-                public void run() {
-                    cores.delete(core);
-                    toast(CoreCatalog.name(core) + " supprimé.");
-                    render();
-                }
-            });
-        }
-        String inote = store.coreInstallNote(core);
-        if (inote != null) m.item("Installation", inote, null);
-        final java.util.List<String[]> variants = CoreCatalog.variants(core);
-        if (variants.size() > 1) {
-            m.sub("Version : " + CoreCatalog.variantLabel(core, store.coreVariant(core)),
-                    variants.size() + " versions disponibles · choisis ta préférée", new Runnable() {
-                public void run() { pickVariant(core, variants, self); }
-            });
-        }
-        if (cores.hasPrevious(core)) m.item("Revenir à la version précédente", "Celle d'avant la dernière mise à jour",
-                new Runnable() {
-                    public void run() {
-                        try {
-                            cores.rollback(core);
-                            store.setCoreInstallNote(core, "Version précédente rétablie");
-                            toast("Version précédente rétablie.");
-                        } catch (java.io.IOException e) {
-                            toast("Retour impossible : " + e.getMessage());
-                        }
-                        self.run();
-                    }
-                });
-        if (cores.installed(core)) m.item("Relancer l'installation", "Vérifie et réoptimise pour cet appareil",
-                new Runnable() {
-                    public void run() { runInstaller(core, self); }
-                });
-        final String[] specs = store.coreSpecs(core);
-        m.sub("Réglages du cœur", specs.length == 0 ? "Lance un jeu pour les voir"
-                : (specs.length / 3) + " réglages · appliqués au prochain lancement", new Runnable() {
-            public void run() {
-                if (specs.length == 0) {
-                    toast("Lance un jeu de cette console pour voir ses réglages.");
-                    self.run();
-                } else {
-                    coreOptions(core, specs, self);
-                }
-            }
-        });
-        if (info != null) {
-            m.item("Licence : " + info.licence, info.nonCommercial
-                    ? "Usage non commercial uniquement" : "Logiciel libre", null);
-            m.item("Code source", info.source.replace("https://", ""), new Runnable() {
-                public void run() {
-                    try {
-                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(info.source)));
-                    } catch (ActivityNotFoundException e) {
-                        toast("Aucun navigateur.");
-                    }
-                }
-            });
-        }
-        m.show(CodecMenu.hostFor(this));
-    }
-
-    private void pickVariant(final String core, java.util.List<String[]> variants, final Runnable back) {
-        String current = store.coreVariant(core);
-        CodecMenu m = new CodecMenu(this).title("Version", CoreCatalog.name(core).toUpperCase()).onBack(back);
-        for (final String[] v : variants) {
-            m.radio(v[2], v[3] + " · " + v[4], v[1].equals(current), new Runnable() {
-                public void run() {
-                    if (v[1].equals(store.coreVariant(core))) {
-                        back.run();
-                        return;
-                    }
-                    // Autre émulateur : ses réglages ne sont pas ceux du précédent.
-                    store.setCoreVariant(core, v[1]);
-                    store.clearCoreOptions(core);
-                    store.setCoreSpecs(core, new String[0]);
-                    store.setCoreInstallNote(core, null);
-                    redownload(new CoreManager(SettingsActivity.this), java.util.Collections.singletonList(core));
-                }
-            });
-        }
-        m.show(CodecMenu.hostFor(this));
-    }
-
-    private void runInstaller(final String core, final Runnable done) {
-        final CodecMenu dialog = new CodecMenu(this).title("Installation", CoreCatalog.name(core).toUpperCase())
-                .message("Préparation…").onBack(new Runnable() { public void run() { } });
-        dialog.show(CodecMenu.hostFor(this));
-        new Thread(new Runnable() {
-            public void run() {
-                String result;
-                try {
-                    result = CoreInstaller.run(SettingsActivity.this, core, new CoreInstaller.Log() {
-                        public void step(final String line) {
-                            runOnUiThread(new Runnable() {
-                                public void run() { dialog.updateMessage(line); }
-                            });
-                        }
-                    });
-                } catch (Exception e) {
-                    result = "Échec : " + e.getMessage();
-                }
-                final String r = result;
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        dialog.dismiss();
-                        toast(r);
-                        done.run();
-                    }
-                });
-            }
-        }).start();
-    }
-
-    /** Options d'un cœur hors jeu, rangées par thème : la liste vient du dernier lancement. */
-    private void coreOptions(final String core, final String[] vars, final Runnable back) {
-        CodecMenu m = new CodecMenu(this).title("Réglages", CoreCatalog.name(core).toUpperCase()).onBack(back);
-        final Runnable self = new Runnable() {
-            public void run() { coreOptions(core, vars, back); }
-        };
-        for (final java.util.Map.Entry<String, java.util.List<Integer>> g : CoreOptionGroups.split(vars).entrySet()) {
-            m.sub(g.getKey() + " (" + g.getValue().size() + ")", CoreOptionGroups.detail(g.getKey()), new Runnable() {
-                public void run() { coreOptionGroup(core, vars, g.getKey(), g.getValue(), self); }
-            });
-        }
-        m.item("Tout remettre par défaut", null, new Runnable() {
-            public void run() {
-                store.clearCoreOptions(core);
-                toast("Réglages par défaut au prochain lancement.");
-                self.run();
-            }
-        });
-        m.show(CodecMenu.hostFor(this));
-    }
-
-    private void coreOptionGroup(final String core, final String[] vars, final String group,
-            final java.util.List<Integer> idx, final Runnable back) {
-        java.util.Map<String, String> chosen = store.coreOptions(core);
-        CodecMenu m = new CodecMenu(this).title(group, CoreCatalog.name(core).toUpperCase()).onBack(back);
-        final Runnable self = new Runnable() {
-            public void run() { coreOptionGroup(core, vars, group, idx, back); }
-        };
-        for (int n : idx) {
-            final int i = n * 3;
-            final String key = vars[i], spec = vars[i + 1];
-            int semi = spec.indexOf(';');
-            final String label = CoreOptionGroups.label(key, spec);
-            final String[] values = (semi >= 0 ? spec.substring(semi + 1) : spec).trim().split("\\|");
-            final String current = chosen.containsKey(key) ? chosen.get(key) : vars[i + 2];
-            m.sub(label, current, new Runnable() {
-                public void run() {
-                    CodecMenu v = new CodecMenu(SettingsActivity.this).title(label, group.toUpperCase()).onBack(self);
-                    for (final String val : values) {
-                        v.radio(val, null, val.equals(current), new Runnable() {
-                            public void run() {
-                                store.setCoreOption(core, key, val);
-                                if (optionsGame != null) store.setGameProfile(optionsGame, CoreProfiles.CUSTOM);
-                                self.run();
-                            }
-                        });
-                    }
-                    v.show(CodecMenu.hostFor(SettingsActivity.this));
-                }
-            });
-        }
-        m.show(CodecMenu.hostFor(this));
-    }
-
-    private void covers() {
-        toggle("Jaquettes automatiques", "Jaquettes manquantes après chaque scan",
-                store.autoCovers(), new Toggle() {
-                    public void set(boolean on) {
-                        store.setAutoCovers(on);
-                    }
-                });
-        toggle("Fiches de jeux", "Résumé et année de sortie de chaque jeu, sur l'accueil",
-                store.autoInfo(), new Toggle() {
-                    public void set(boolean on) {
-                        store.setAutoInfo(on);
-                    }
-                });
-        toggle("Illustrations de fond", "L'accueil affiche une image du jeu sélectionné "
-                + "derrière : ScreenScraper (compte requis), sinon sa jaquette floutée", store.backdrops(), new Toggle() {
-            public void set(boolean on) {
-                store.setBackdrops(on);
-            }
-        });
-        String[] ss = store.screenScraper();
-        action("Compte ScreenScraper", ss[0].isEmpty()
-                ? "Synopsis officiels : identifiants développeur et compte"
-                : "Saisi · synopsis officiels activés", new Runnable() {
-            public void run() {
-                screenScraperDialog();
-            }
-        });
-        action("Retélécharger les fiches", "Efface les résumés enregistrés et les récupère à nouveau", new Runnable() {
-            public void run() {
-                new GameInfo(SettingsActivity.this).clear();
-                toast("Fiches effacées.");
-            }
-        });
-        action("Retélécharger toutes les jaquettes", "Efface le cache puis relance la récupération", new Runnable() {
-            public void run() {
-                deleteRecursive(new File(getFilesDir(), "covers"));
-                deleteRecursive(new File(getFilesDir(), "backdrops"));
-                store.requestRescan();
-                toast("Cache vidé. Les jaquettes reviendront à l'accueil.");
-            }
-        });
-        note("Source : libretro-thumbnails. Les jaquettes appartiennent à leurs éditeurs "
-                + "et restent sur ton appareil.");
+        if (!gridTiles.isEmpty()) gridEnd();
     }
 
     // ------------------------------------------------------------------ manettes physiques
@@ -743,7 +415,7 @@ public class SettingsActivity extends Activity {
     private void pads() {
         if (pads == null) pads = new Pads(this);
         toggle("Plein écran avec une manette", "Dès qu'une manette est branchée, jeu plein écran "
-                + "et manette à l'écran masquée", store.padFullscreen(), new Toggle() {
+                + "et manette à l'écran masquée", store.padFullscreen(), new SettingsRows.Toggle() {
             public void set(boolean on) {
                 store.setPadFullscreen(on);
             }
@@ -768,7 +440,7 @@ public class SettingsActivity extends Activity {
             action(p.name, PadView.familyLabel(PadView.family(d)) + " · joueur " + p.player + (p.nintendo ? " · disposition Nintendo" : "")
                     + (p.remap.isEmpty() ? " · touches automatiques" : " · touches réattribuées")
                     + " · toucher pour régler", new Runnable() {
-                public void run() { padMenu(d, p); }
+                public void run() { menus.padMenu(d, p); }
             });
         }
         boolean header = false;
@@ -790,121 +462,12 @@ public class SettingsActivity extends Activity {
                 + "Jusqu'à 4 joueurs : la première manette est le joueur 1.");
     }
 
-    private void padMenu(final android.view.InputDevice d, final Pads.Profile p) {
-        CodecMenu m = new CodecMenu(this).title(p.name, "MANETTE · JOUEUR " + p.player);
-        m.sub("Joueur", "Joueur " + p.player, new Runnable() {
-            public void run() {
-                CodecMenu r = new CodecMenu(SettingsActivity.this).title("Joueur", p.name);
-                for (int i = 1; i <= 4; i++) {
-                    final int n = i;
-                    r.radio("Joueur " + i, i == 1 ? "Partage la manette à l'écran et pilote les menus" : null,
-                            p.player == i, new Runnable() {
-                                public void run() {
-                                    p.player = n;
-                                    pads.save(p);
-                                    render();
-                                }
-                            });
-                }
-                r.onBack(new Runnable() { public void run() { padMenu(d, p); } });
-                r.show(CodecMenu.hostFor(SettingsActivity.this));
-            }
-        });
-        m.check("Disposition Nintendo", "A à droite, B en bas (Switch Pro, Joy-Con…)", p.nintendo, new Runnable() {
-            public void run() {
-                p.nintendo = !p.nintendo;
-                pads.save(p);
-                padMenu(d, p);
-            }
-        });
-        m.sub("Zone morte des sticks", p.deadzone + " %", new Runnable() {
-            public void run() {
-                CodecMenu r = new CodecMenu(SettingsActivity.this).title("Zone morte", p.name);
-                int[] values = {5, 10, 15, 20, 30};
-                for (final int v : values) {
-                    r.radio(v + " %", v == 15 ? "Par défaut" : null, p.deadzone == v, new Runnable() {
-                        public void run() {
-                            p.deadzone = v;
-                            pads.save(p);
-                            render();
-                        }
-                    });
-                }
-                r.onBack(new Runnable() { public void run() { padMenu(d, p); } });
-                r.show(CodecMenu.hostFor(SettingsActivity.this));
-            }
-        });
-        m.item("Réattribuer les touches", "Appuie sur chaque touche à son tour", new Runnable() {
-            public void run() {
-                p.remap.clear();
-                wizard = p;
-                wizardDevice = d.getId();
-                wizardStep = 0;
-                wizardPrompt();
-            }
-        });
-        if (!p.remap.isEmpty()) {
-            m.item("Revenir aux touches automatiques", null, new Runnable() {
-                public void run() {
-                    p.remap.clear();
-                    pads.save(p);
-                    render();
-                }
-            });
-        }
-        m.show(CodecMenu.hostFor(this));
-    }
-
-    private Pads.Profile wizard;
-    private int wizardDevice;
-    private int wizardStep;
-
-    private void wizardPrompt() {
-        if (wizard == null) return;
-        if (wizardStep >= Pads.FUNCTIONS.length) {
-            pads.save(wizard);
-            toast("Touches enregistrées pour " + wizard.name + ".");
-            wizard = null;
-            render();
-            return;
-        }
-        String f = Pads.FUNCTIONS[wizardStep];
-        new CodecMenu(this).title("Touche " + ControlLayout.label(f), wizard.name + " · " + (wizardStep + 1) + "/"
-                + Pads.FUNCTIONS.length)
-                .message("Appuie sur la touche de la manette qui doit servir de « " + ControlLayout.label(f) + " ».")
-                .sub("Passer", "Garde l'attribution d'origine pour cette touche", new Runnable() {
-                    public void run() {
-                        wizardStep++;
-                        wizardPrompt();
-                    }
-                })
-                .item("Terminer", null, new Runnable() {
-                    public void run() {
-                        wizardStep = Pads.FUNCTIONS.length;
-                        wizardPrompt();
-                    }
-                })
-                .onBack(new Runnable() {
-                    public void run() {
-                        wizard = null;
-                        render();
-                    }
-                })
-                .show(CodecMenu.hostFor(this));
-    }
-
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent e) {
         if (section.equals("pads")) for (PadView v : padViews) v.onKey(e);
         android.view.InputDevice d = e.getDevice();
-        if (wizard != null && d != null && d.getId() == wizardDevice) {
-            if (e.getAction() == android.view.KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
-                wizard.remap.put(e.getKeyCode(), Pads.FUNCTIONS[wizardStep]);
-                wizardStep++;
-                wizardPrompt();
-            }
-            return true;
-        }
+        // Réattribution des touches d'une manette en cours : la touche pressée est retenue.
+        if (menus.wizardKey(e)) return true;
         // Une manette pilote aussi les menus codec des réglages.
         CodecMenu open = CodecMenu.find(CodecMenu.hostFor(this));
         if (open != null && Pads.isPad(d)) {
@@ -936,11 +499,11 @@ public class SettingsActivity extends Activity {
     private final android.hardware.input.InputManager.InputDeviceListener padListener =
             new android.hardware.input.InputManager.InputDeviceListener() {
                 public void onInputDeviceAdded(int id) {
-                    if (section.equals("pads") && wizard == null) render();
+                    if (section.equals("pads") && !menus.wizardActive()) render();
                 }
 
                 public void onInputDeviceRemoved(int id) {
-                    if (section.equals("pads") && wizard == null) render();
+                    if (section.equals("pads") && !menus.wizardActive()) render();
                 }
 
                 public void onInputDeviceChanged(int id) {
@@ -962,363 +525,6 @@ public class SettingsActivity extends Activity {
         UiSound.musicPause();
     }
 
-    private void display() {
-        header("Langue");
-        action("Langue · Language", I18n.choiceName(this), new Runnable() {
-            public void run() {
-                I18n.pick(SettingsActivity.this, new Runnable() {
-                    public void run() {
-                        // Toute l'app repart dans la nouvelle langue, sur cette même page.
-                        startActivity(new Intent(SettingsActivity.this, MainActivity.class)
-                                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK));
-                        startActivity(new Intent(SettingsActivity.this, SettingsActivity.class)
-                                .putExtra(EXTRA_SECTION, "display"));
-                    }
-                });
-            }
-        });
-        header("Interface");
-        toggle("Plein écran hors jeu", "Masque les barres système dans les menus",
-                store.appFullscreen(), new Toggle() {
-                    public void set(boolean on) {
-                        store.setAppFullscreen(on);
-                        Theme.fullscreen(SettingsActivity.this);
-                    }
-                });
-        toggle("Pastilles", "Coins arrondis autour de l'écran du jeu, de la manette et de la barre du haut.",
-                store.pills(), new Toggle() {
-                    public void set(boolean on) {
-                        store.setPills(on);
-                    }
-                });
-        // 0.66.4 (BOSS) : l'accueil part en Washi par défaut, l'option se lit donc dans ce sens.
-        toggle("Mode Washi par défaut", "Écran interne ; sinon Tsuru. "
-                + "L'écran externe ouvre toujours Washi", !store.flexView(), new Toggle() {
-            public void set(boolean on) {
-                store.setFlexView(!on);
-            }
-        });
-        toggle("Mode Tsuru à l'ouverture", "Déplier le pliant dans Origami passe en mode jeu",
-                store.tsuruOnOpen(), new Toggle() {
-            public void set(boolean on) {
-                store.setTsuruOnOpen(on);
-            }
-        });
-        action("Origami comme lanceur par défaut", HomeApps.isDefault(this)
-                ? "Déjà le lanceur du téléphone. Touche pour changer"
-                : "Le bouton Accueil du téléphone ouvre Origami ; tes applis restent dans le menu Applications",
-                new Runnable() {
-            public void run() {
-                HomeApps.askDefault(SettingsActivity.this);
-            }
-        });
-        toggle("Écran titre au démarrage", "L'animation de la grue au lancement", store.intro(), new Toggle() {
-            public void set(boolean on) {
-                store.setIntro(on);
-            }
-        });
-        toggle("Fonds animés", "Le décor de chaque thème bouge doucement, en boucle", store.animatedBackdrop(), new Toggle() {
-            public void set(boolean on) {
-                store.setAnimatedBackdrop(on);
-                Theme.ANIMATE = on;
-                render();
-            }
-        });
-        toggle("Effet cathodique", "Lignes de balayage façon vieux téléviseur sur l'écran du haut", store.scanlines(), new Toggle() {
-            public void set(boolean on) {
-                store.setScanlines(on);
-            }
-        });
-        note("Manettes et vibrations : icône manette de l'accueil.");
-            header("Jaquettes et fiches");
-        covers();
-}
-
-    /** Monitoring : l'ATH en jeu façon RTSS, son style et les mesures affichées. */
-    private void monitoring() {
-        header("ATH en jeu");
-        toggle("ATH de monitoring en jeu", "Mesures en direct, façon RTSS",
-                store.hud(), new Toggle() {
-                    public void set(boolean on) {
-                        store.setHud(on);
-                    }
-                });
-        choice("Style", new String[] {"RTSS", "Bloc sur plusieurs lignes"},
-                "block".equals(store.hudStyle()) ? 1 : 0, new Choice() {
-                    public void set(int i) {
-                        store.setHudStyle(i == 1 ? "block" : "line");
-                    }
-                });
-        choice("Position", Hud.POS_LABELS, Hud.index(Hud.POS_KEYS, store.hudPos()), new Choice() {
-            public void set(int i) {
-                store.setHudPos(Hud.POS_KEYS[i]);
-            }
-        });
-        choice("Taille du texte", Hud.SIZE_LABELS, store.hudSize(), new Choice() {
-            public void set(int i) {
-                store.setHudSize(i);
-            }
-        });
-        choice("Couleur des libellés", Hud.COLOR_LABELS, Hud.index(Hud.COLOR_KEYS, store.hudColor()), new Choice() {
-            public void set(int i) {
-                store.setHudColor(Hud.COLOR_KEYS[i]);
-            }
-        });
-        choice("Unité de température", Hud.UNIT_LABELS, Hud.index(Hud.UNIT_KEYS, store.tempUnit()), new Choice() {
-            public void set(int i) {
-                store.setTempUnit(Hud.UNIT_KEYS[i]);
-            }
-        });
-        int rate = 1;
-        for (int i = 0; i < Hud.RATES.length; i++) if (Hud.RATES[i] == store.hudRate()) rate = i;
-        choice("Mise à jour", Hud.RATE_LABELS, rate, new Choice() {
-            public void set(int i) {
-                store.setHudRate(Hud.RATES[i]);
-            }
-        });
-        toggle("Bandeau sombre", "Fond sombre derrière l'ATH ; sinon texte ombré sur l'image", store.hudBackground(),
-                new Toggle() {
-                    public void set(boolean on) {
-                        store.setHudBackground(on);
-                    }
-                });
-        header("Mesures affichées");
-        java.util.Set<String> items = store.hudItems();
-        for (final String[] it : Hud.ITEMS) {
-            toggle(it[1], it[2], items.contains(it[0]), new Toggle() {
-                public void set(boolean on) {
-                    store.setHudItem(it[0], on);
-                }
-            });
-        }
-    }
-
-    /** Son (0.62.1) : sa propre catégorie, demandée par BOSS. */
-    /**
-     * Accessibilité (0.62.5) : tenue à une main (droitier ou gaucher), textes, contraste,
-     * animations, et aides de jeu pour qui a du mal à maintenir un appui ou à faire de grands gestes.
-     */
-    private void accessibility() {
-        header("Lecture");
-        choice("Taille des textes", new String[] {"Normale", "Grande", "Très grande"}, store.a11yText(), new Choice() {
-            public void set(int i) {
-                store.setA11yText(i);
-                a11yChanged();
-            }
-        });
-        toggle("Contraste élevé", "Textes secondaires plus clairs, plus faciles à lire", store.highContrast(), new Toggle() {
-            public void set(boolean on) {
-                store.setHighContrast(on);
-                a11yChanged();
-            }
-        });
-        toggle("Réduire les animations", "Fonds et contour de la manette immobiles", store.reduceMotion(), new Toggle() {
-            public void set(boolean on) {
-                store.setReduceMotion(on);
-                a11yChanged();
-            }
-        });
-        header("En jeu");
-        toggle("Gâchettes à bascule", "L, R, L2 et R2 : un appui les enfonce, le suivant les relâche, sans garder le doigt dessus",
-                store.latchTriggers(), new Toggle() {
-                    public void set(boolean on) {
-                        store.setLatchTriggers(on);
-                        Theme.sync(SettingsActivity.this);
-                    }
-                });
-        choice("Course des joysticks", new String[] {"Normale", "Courte", "Très courte"}, store.stickReach(), new Choice() {
-            public void set(int i) {
-                store.setStickReach(i);
-                Theme.sync(SettingsActivity.this);
-            }
-        });
-        note("Une course courte pousse le joystick à fond avec un petit geste du pouce.");
-        toggle("Vibrations renforcées", "Retour plus fort et plus long à chaque appui sur la manette", store.strongHaptics(),
-                new Toggle() {
-                    public void set(boolean on) {
-                        store.setStrongHaptics(on);
-                        Theme.sync(SettingsActivity.this);
-                    }
-                });
-    }
-
-    private void a11yChanged() {
-        Theme.sync(this);
-        Theme.textScale(this);
-        render();
-    }
-
-    /** Mises à jour (0.62.5) : version installée, recherche, téléchargement et installation. */
-    private void updates() {
-        header("Version installée");
-        note("Origami " + Updater.installed(this));
-        toggle("Vérifier automatiquement", "Vérifie toutes les 6 h à l'ouverture de l'accueil, puis prévient par une notification et une fenêtre",
-                store.autoUpdates(), new Toggle() {
-                    public void set(boolean on) {
-                        store.setAutoUpdates(on);
-                        if (on && android.os.Build.VERSION.SDK_INT >= 33) {
-                            requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, 62);
-                        }
-                    }
-                });
-        toggle("Préversions", "Reçois aussi les builds de test et les corrections rapides avant la version stable",
-                store.previewUpdates(), new Toggle() {
-                    public void set(boolean on) {
-                        store.setPreviewUpdates(on);
-                    }
-                });
-        final LinearLayout result = vertical();
-        action("Rechercher une mise à jour", "Compare avec la dernière version publiée", new Runnable() {
-            public void run() {
-                result.removeAllViews();
-                result.addView(text(I18n.tr("Recherche…"), 14, Theme.MUTED));
-                Updater.check(SettingsActivity.this, new Updater.Done() {
-                    public void done(final Updater.Release r) {
-                        result.removeAllViews();
-                        if (r.error != null) {
-                            result.addView(text(I18n.tr(r.error), 14, Theme.MUTED));
-                        } else if (!r.newer) {
-                            result.addView(text(I18n.tr("Origami est à jour."), 14, Theme.TEXT));
-                        } else {
-                            result.addView(text("Origami " + r.version, 18, Theme.CODEC));
-                            if (r.summary != null && !r.summary.isEmpty()) result.addView(text(r.summary, 14, Theme.TEXT));
-                            TextView go = text(I18n.tr("Télécharger et installer"), 16, Theme.BG);
-                            go.setBackground(Theme.pill(Theme.CODEC, dp(20)));
-                            go.setPadding(dp(18), dp(10), dp(18), dp(10));
-                            final TextView goBtn = go;
-                            go.setOnClickListener(new View.OnClickListener() {
-                                public void onClick(View v) {
-                                    goBtn.setOnClickListener(null);
-                                    goBtn.setTextColor(Theme.TEXT);
-                                    goBtn.setText(I18n.tr("Téléchargement… 0 %"));
-                                    Updater.install(SettingsActivity.this, r, new Updater.Progress() {
-                                        public void progress(int pct) {
-                                            goBtn.setText(I18n.tr("Téléchargement…") + " " + pct + " %");
-                                            goBtn.setBackground(Theme.progressPill(pct / 100f, dp(20)));
-                                        }
-
-                                        public void done(boolean ok) {
-                                            UiSound.play(SettingsActivity.this, ok ? UiSound.DONE : UiSound.ERROR);
-                                            goBtn.setText(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android"
-                                                    : "Échec du téléchargement"));
-                                        }
-                                    });
-                                }
-                            });
-                            // Barre pleine largeur, texte centré (20/10).
-                            go.setGravity(Gravity.CENTER);
-                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-                            lp.topMargin = dp(12);
-                            result.addView(go, lp);
-                        }
-                    }
-                });
-            }
-        });
-        body.addView(result);
-    }
-
-    private void sound() {
-        header("Interface");
-        toggle("Bruits de l'interface", "Déplacement, validation, retour, lancement d'un jeu, "
-                + "propres à chaque thème", store.menuSound(), new Toggle() {
-            public void set(boolean on) {
-                store.setMenuSound(on);
-                UiSound.play(SettingsActivity.this, UiSound.SELECT);
-            }
-        });
-        slider("Volume des bruits", store.uiVolume(), new Choice() {
-            public void set(int v) {
-                store.setUiVolume(v);
-                UiSound.play(SettingsActivity.this, UiSound.SELECT);
-            }
-        });
-        header("Musique");
-        toggle("Musique d'accueil", "Une boucle par thème, coupée pendant les parties", store.musicOn(), new Toggle() {
-            public void set(boolean on) {
-                store.setMusicOn(on);
-                if (on) UiSound.musicStart(SettingsActivity.this);
-                else UiSound.musicPause();
-            }
-        });
-        slider("Volume de la musique", store.musicVolume(), new Choice() {
-            public void set(int v) {
-                store.setMusicVolume(v);
-                UiSound.musicStart(SettingsActivity.this);
-            }
-        });
-        note("Musique et bruits ne jouent qu'en mode sonnerie : rien en vibreur ou en silencieux.");
-    }
-
-    private void about() {
-        action("Relancer l'assistant de démarrage", "Dossier, moteurs intégrés, émulateurs, manette", new Runnable() {
-            public void run() {
-                startActivity(new Intent(SettingsActivity.this, SetupActivity.class));
-            }
-        });
-        String version = "?";
-        try {
-            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-        } catch (Exception ignored) {
-            // Version inconnue.
-        }
-        header("Débogage");
-        toggle("Mode débogage", "Journal détaillé et rapport de plantage, "
-                + "à partager en cas de bug", store.debug(), new Toggle() {
-            public void set(boolean on) {
-                store.setDebug(on);
-                DebugLog.sync(SettingsActivity.this);
-            }
-        });
-        long logSize = DebugLog.size(this);
-        if (logSize > 0) {
-            action("Partager le journal", String.format(java.util.Locale.ROOT, "%.1f Mo", logSize / 1048576f)
-                    + " · fiche de l'appareil comprise", new Runnable() {
-                public void run() {
-                    DebugLog.share(SettingsActivity.this);
-                }
-            });
-            action("Copier le journal", "Un clic : la fin du journal part dans le presse-papiers, à coller dans le chat",
-                    new Runnable() {
-                public void run() {
-                    DebugLog.copy(SettingsActivity.this);
-                }
-            });
-            action("Effacer le journal", "Supprime les journaux et rapports enregistrés", new Runnable() {
-                public void run() {
-                    boolean on = store.debug();
-                    DebugLog.stop();
-                    DebugLog.clear(SettingsActivity.this);
-                    if (on) DebugLog.sync(SettingsActivity.this);
-                    I18n.toast(SettingsActivity.this, "Journal effacé",
-                            android.widget.Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-        android.widget.ImageView mark = new android.widget.ImageView(this);
-        mark.setImageDrawable(new Crane.Logo());
-        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(120), dp(120));
-        mlp.gravity = Gravity.CENTER_HORIZONTAL;
-        mlp.topMargin = dp(16);
-        body.addView(mark, mlp);
-        header("ORIGAMI " + version);
-        note("Déplie. Joue. Une production KAMI-WORKS.");
-        note("Origami n'est affilié à aucun fabricant de consoles ni éditeur de jeux. Les noms de "
-                + "consoles cités servent uniquement à indiquer la compatibilité et appartiennent à leurs "
-                + "propriétaires respectifs.");
-        note("Origami ne fournit ni jeu, ni BIOS, ni clé. Utilise tes propres copies.");
-        note("Polices : Black Ops One et Michroma, sous licence SIL Open Font License 1.1.");
-        note("Moteur PS2 : ARMSX2 (dérivé de PCSX2), cœur libretro sous licence GNU GPL 3.0, livré avec l'app "
-                + "et compilé depuis le code source publié ci-dessous, avec un petit correctif Origami pour "
-                + "l'accéléré (native/armsx2-patches, fourni sur demande avec le code de l'app).");
-        link("Code source d'ARMSX2", "Version " + ARMSX2_COMMIT.substring(0, 7),
-                "https://github.com/ARMSX2/ARMSX2/tree/" + ARMSX2_COMMIT);
-        note("Moteur GameCube et Wii : Dolphin, cœur libretro sous licence GNU GPL 2.0 ou ultérieure, livré avec "
-                + "l'app et compilé sans modification depuis le code source publié ci-dessous.");
-        link("Code source de Dolphin (libretro)", "Version " + DOLPHIN_COMMIT.substring(0, 7),
-                "https://github.com/libretro/dolphin/tree/" + DOLPHIN_COMMIT);
-    }
-
     /** Version de Dolphin (libretro) compilée dans l'APK (native/build-dolphin.sh). */
     static final String DOLPHIN_COMMIT = "5466da350f2fd143ee3e7b921e8c33aee64f7065";
 
@@ -1330,15 +536,7 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (SaveTransfer.onResult(this, request, result, data)) return;
-        if (request == REQ_SAVES && result == RESULT_OK && data != null && saveSystem != null) {
-            importSaves(data, saveSystem);
-            return;
-        }
-        if (request == REQ_BIOS && result == RESULT_OK && data != null) {
-            importBios(data);
-            return;
-        }
+        if (menus.onResult(request, result, data)) return;
         if (request != REQ_TREE || result != RESULT_OK || data == null || data.getData() == null) return;
         Uri tree = data.getData();
         try {
@@ -1349,44 +547,6 @@ public class SettingsActivity extends Activity {
         store.setTreeUri(tree.toString());
         store.requestRescan();
         render();
-    }
-
-    private void pickSaveSystem() {
-        final String[] ids = SaveImport.SYSTEMS;
-        CodecMenu m = new CodecMenu(this).title("Importer", "SAUVEGARDES · QUELLE CONSOLE ?");
-        for (final String id : ids) {
-            SystemInfo si = SystemInfo.byId(id);
-            m.item(si != null ? si.name : id, SaveImport.formats(id), new Runnable() {
-                public void run() { pickSaves(id); }
-            });
-        }
-        m.show(CodecMenu.hostFor(this));
-    }
-
-    private void importSaves(Intent data, String system) {
-        java.util.List<Uri> uris = new java.util.ArrayList<Uri>();
-        if (data.getClipData() != null) {
-            for (int i = 0; i < data.getClipData().getItemCount(); i++) uris.add(data.getClipData().getItemAt(i).getUri());
-        } else if (data.getData() != null) {
-            uris.add(data.getData());
-        }
-        StringBuilder msg = new StringBuilder();
-        SaveTransfer.install(this, system, SaveTransfer.read(this, uris, msg), msg, null);
-    }
-
-    private void pickExportSystem() {
-        CodecMenu m = new CodecMenu(this).title("Exporter", "SAUVEGARDES · QUELLE CONSOLE ?");
-        for (final String id : SaveImport.SYSTEMS) {
-            SystemInfo si = SystemInfo.byId(id);
-            m.sub(si != null ? si.name : id, null, new Runnable() {
-                public void run() {
-                    SaveTransfer.export(SettingsActivity.this, id, null, new Runnable() {
-                        public void run() { pickExportSystem(); }
-                    });
-                }
-            });
-        }
-        m.show(CodecMenu.hostFor(this));
     }
 
     /** Nom affiché d'un document choisi par le sélecteur Android. */
@@ -1408,25 +568,10 @@ public class SettingsActivity extends Activity {
         return name;
     }
 
-    /** Range chaque BIOS choisi (ou contenu dans un .zip) là où son émulateur le cherche (BiosImport). */
-    private void importBios(Intent data) {
-        BiosImport.Report report = BiosImport.fromIntent(this, data);
-        toast(report.text());
-        render();
-    }
-
     // ------------------------------------------------------------------ briques
 
-    private interface Toggle {
-        void set(boolean on);
-    }
-
-    private interface Choice {
-        void set(int index);
-    }
-
     /** Réglage à plusieurs valeurs : chaque appui passe à la suivante. */
-    private void choice(String title, final String[] labels, int value, final Choice c) {
+    private void choice(String title, final String[] labels, int value, final SettingsRows.Choice c) {
         LinearLayout row = row(title, null);
         final TextView v = text(labels[Math.max(0, Math.min(labels.length - 1, value))], 14, Theme.CODEC);
         v.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
@@ -1444,7 +589,7 @@ public class SettingsActivity extends Activity {
     }
 
     /** Curseur de volume par paliers de 20 % (0.62.2) ; c reçoit le pourcentage. */
-    private void slider(String title, int value, final Choice c) {
+    private void slider(String title, int value, final SettingsRows.Choice c) {
         LinearLayout row = row(title, null);
         row.setOrientation(LinearLayout.VERTICAL);
         row.setGravity(Gravity.NO_GRAVITY);
@@ -1600,7 +745,7 @@ public class SettingsActivity extends Activity {
         });
     }
 
-    private void toggle(String title, String subtitle, boolean value, final Toggle t) {
+    private void toggle(String title, String subtitle, boolean value, final SettingsRows.Toggle t) {
         LinearLayout row = row(title, subtitle);
         // Interrupteur maison (ThemeSwitch), aux couleurs du thème.
         final ThemeSwitch box = new ThemeSwitch(this, value);
@@ -1621,70 +766,10 @@ public class SettingsActivity extends Activity {
         });
     }
 
-    private void link(String title, String subtitle, final String url) {
-        action(title, subtitle + " · site officiel", new Runnable() {
-            public void run() {
-                try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-                } catch (ActivityNotFoundException e) {
-                    toast(url);
-                }
-            }
-        });
-    }
-
     private void note(String s) {
         TextView t = text(s, 13, Theme.MUTED);
         t.setPadding(dp(4), dp(10), dp(4), dp(4));
         body.addView(t);
-    }
-
-    private static String readable(String treeUri) {
-        String id = Uri.decode(treeUri);
-        int i = id.lastIndexOf("/tree/");
-        if (i >= 0) id = id.substring(i + 6);
-        return id.replace("primary:", "Stockage interne/");
-    }
-
-    private static void deleteRecursive(File f) {
-        File[] kids = f.listFiles();
-        if (kids != null) for (File k : kids) deleteRecursive(k);
-        f.delete();
-    }
-
-    private void screenScraperDialog() {
-        String[] cur = store.screenScraper();
-        LinearLayout box = vertical();
-        box.setPadding(dp(20), dp(8), dp(20), 0);
-        final android.widget.EditText[] f = new android.widget.EditText[4];
-        String[] hints = {"Identifiant développeur (devid)", "Mot de passe développeur",
-            "Ton identifiant ScreenScraper (facultatif)", "Ton mot de passe ScreenScraper"};
-        for (int i = 0; i < 4; i++) {
-            f[i] = new android.widget.EditText(this);
-            f[i].setHint(hints[i]);
-            f[i].setText(cur[i]);
-            f[i].setTextColor(Theme.TEXT);
-            f[i].setSingleLine(true);
-            if (i % 2 == 1) {
-                f[i].setInputType(android.text.InputType.TYPE_CLASS_TEXT
-                        | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-            }
-            box.addView(f[i]);
-        }
-        Theme.show(new android.app.AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-                .setTitle("Compte ScreenScraper")
-                .setView(box)
-                .setNegativeButton("Annuler", null)
-                .setPositiveButton("Enregistrer", new android.content.DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(android.content.DialogInterface d, int w) {
-                        store.setScreenScraper(f[0].getText().toString().trim(), f[1].getText().toString().trim(),
-                                f[2].getText().toString().trim(), f[3].getText().toString());
-                        toast("Les fiches seront recherchées sur ScreenScraper.");
-                        render();
-                    }
-                })
-                );
     }
 
     private LinearLayout vertical() {
@@ -1699,80 +784,6 @@ public class SettingsActivity extends Activity {
         t.setTextSize(sp);
         t.setTextColor(color);
         return t;
-    }
-
-    /** Choix du cœur à retélécharger : « Tous » puis chaque cœur, installé ou non. */
-    private void pickRedownload(final CoreManager cores) {
-        final List<String> all = CoreManager.allCores();
-        final String[] items = new String[all.size() + 1];
-        items[0] = "Tous les cœurs";
-        for (int i = 0; i < all.size(); i++) {
-            String c = all.get(i);
-            items[i + 1] = CoreManager.systemsOf(c) + " · " + c + (cores.installed(c) ? "  ✓" : "");
-        }
-        CodecMenu m = new CodecMenu(this).title("Retélécharger", "MOTEUR INTÉGRÉ");
-        m.item(items[0], null, new Runnable() {
-            public void run() { redownload(cores, all); }
-        });
-        for (int i = 0; i < all.size(); i++) {
-            final String c = all.get(i);
-            m.item(items[i + 1], null, new Runnable() {
-                public void run() { redownload(cores, java.util.Collections.singletonList(c)); }
-            });
-        }
-        m.show(CodecMenu.hostFor(this));
-    }
-
-    private void redownload(final CoreManager cores, final List<String> list) {
-        // Menu codec sans entrée : il affiche la progression, B ou le voile ne l'interrompent pas.
-        final CodecMenu dialog = new CodecMenu(this).title("Téléchargement des cœurs", "MOTEUR INTÉGRÉ")
-                .message("Préparation…").onBack(new Runnable() { public void run() { } });
-        dialog.show(CodecMenu.hostFor(this));
-        new Thread(new Runnable() {
-            public void run() {
-                final StringBuilder failed = new StringBuilder();
-                for (int i = 0; i < list.size(); i++) {
-                    final String core = list.get(i);
-                    final String step = list.size() > 1 ? (i + 1) + "/" + list.size() + " · " : "";
-                    try {
-                        cores.redownload(core, new CoreManager.Progress() {
-                            long last;
-
-                            public void onProgress(final long done, final long total) {
-                                if (done - last < 128 * 1024 && done != total) return;
-                                last = done;
-                                runOnUiThread(new Runnable() {
-                                    public void run() {
-                                        dialog.updateMessage(step + core + " · " + (total > 0 ? (done * 100 / total) + " %"
-                                                : (done / 1024) + " Ko"));
-                                    }
-                                });
-                            }
-                        });
-                        // Script d'installation du cœur, étape par étape dans la fenêtre.
-                        CoreInstaller.run(SettingsActivity.this, core, new CoreInstaller.Log() {
-                            public void step(final String line) {
-                                runOnUiThread(new Runnable() {
-                                    public void run() { dialog.updateMessage(step + CoreCatalog.name(core) + " · " + line); }
-                                });
-                            }
-                        });
-                    } catch (Exception e) {
-                        if (failed.length() > 0) failed.append(", ");
-                        failed.append(core);
-                    }
-                }
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        dialog.dismiss();
-                        UiSound.play(SettingsActivity.this, failed.length() == 0 ? UiSound.DONE : UiSound.ERROR);
-                        toast(failed.length() == 0 ? (list.size() > 1 ? "Cœurs retéléchargés." : "Cœur retéléchargé.")
-                                : "Échec pour : " + failed + ". Vérifie la connexion et réessaie.");
-                        render();
-                    }
-                });
-            }
-        }, "foldplay-redownload").start();
     }
 
     private void toast(String msg) {
@@ -1795,7 +806,7 @@ public class SettingsActivity extends Activity {
         Theme.fullscreen(this);
         Theme.orientation(this);
         // Rotation, pli ou écran externe : les volets se recalculent pour la nouvelle largeur.
-        if (c.screenWidthDp != lastWidthDp && wizard == null) render();
+        if (c.screenWidthDp != lastWidthDp && !menus.wizardActive()) render();
     }
 
     /** Retour Android : ferme d'abord le menu codec ouvert (ou revient à son menu parent). */
@@ -1822,9 +833,4 @@ public class SettingsActivity extends Activity {
         return used || super.dispatchGenericMotionEvent(e);
     }
 
-    /** Le firmware s'installe dans le processus du moteur PS3 (Ps3Activity), qui ouvre le sélecteur. */
-    private void pickPs3Firmware() {
-        startActivity(new Intent(this, Ps3Activity.class).putExtra(Ps3Activity.EXTRA_FIRMWARE, true)
-                .putExtra(Ps3Activity.EXTRA_TITLE, "Firmware PS3"));
-    }
 }

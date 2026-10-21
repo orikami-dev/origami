@@ -199,6 +199,38 @@ final class Andon extends View {
             corner.lineTo(6 * d, 3 * d);
             corner.lineTo(10 * d, 3 * d);
             corner.lineTo(10 * d, 0);
+        } else if (frameTheme.equals("neon")) {
+            // Néon : double tube aux coins arrondis, l'intérieur au cyan du thème.
+            frameColor = Theme.lighten(Theme.CODEC, 0.15f);
+            frameThin.addRoundRect(new RectF(i, i, w - i, h - i), 7 * d, 7 * d, Path.Direction.CW);
+            frameBold.addRoundRect(new RectF(i + 3 * d, i + 3 * d, w - i - 3 * d, h - i - 3 * d), 5 * d, 5 * d, Path.Direction.CW);
+            Path drop = new Path();
+            drop.moveTo(8 * d, 5 * d);
+            drop.quadTo(10.5f * d, 8.5f * d, 10 * d, 10 * d);
+            drop.quadTo(8 * d, 12 * d, 6 * d, 10 * d);
+            drop.quadTo(5.5f * d, 8.5f * d, 8 * d, 5 * d);
+            drop.close();
+            fill.addPath(drop);
+        } else if (frameTheme.equals("jade")) {
+            // Jade : filet simple, nœuds de bambou le long des bords près des coins, petite lanterne dans le coin.
+            frameColor = Theme.lighten(Theme.CODEC, 0.1f);
+            frameThin.addRect(i, i, w - i, h - i, Path.Direction.CW);
+            corner.moveTo(14 * d, -2.5f * d);
+            corner.lineTo(14 * d, 2.5f * d);
+            corner.moveTo(-2.5f * d, 14 * d);
+            corner.lineTo(2.5f * d, 14 * d);
+            corner.moveTo(26 * d, -1.5f * d);
+            corner.lineTo(26 * d, 1.5f * d);
+            corner.moveTo(-1.5f * d, 26 * d);
+            corner.lineTo(1.5f * d, 26 * d);
+            fill.addOval(new RectF(4 * d, 3.5f * d, 9 * d, 10.5f * d), Path.Direction.CW);
+        } else if (frameTheme.equals("argent")) {
+            // Argent : filet fin, pli d'origami en biais dans chaque coin, petite pleine lune.
+            frameColor = Theme.lighten(Theme.CODEC, 0.35f);
+            frameThin.addRect(i, i, w - i, h - i, Path.Direction.CW);
+            corner.moveTo(0, 12 * d);
+            corner.lineTo(12 * d, 0);
+            fill.addCircle(4.2f * d, 4.2f * d, 2 * d, Path.Direction.CW);
         } else { // codec : double filet et équerres
             frameThin.addRect(i, i, w - i, h - i, Path.Direction.CW);
             frameThin.addRect(i + 3 * d, i + 3 * d, w - i - 3 * d, h - i - 3 * d, Path.Direction.CW);
@@ -211,7 +243,7 @@ final class Andon extends View {
             Matrix m = new Matrix();
             m.setScale(cs[n][2], cs[n][3]);
             m.postTranslate(cs[n][0], cs[n][1]);
-            if (frameTheme.equals("codec") || frameTheme.equals("ambre")) frameBold.addPath(corner, m);
+            if (frameTheme.equals("codec") || frameTheme.equals("ambre") || frameTheme.equals("jade")) frameBold.addPath(corner, m);
             else frameThin.addPath(corner, m);
             frameFill.addPath(fill, m);
         }

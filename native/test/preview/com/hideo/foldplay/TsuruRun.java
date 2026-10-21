@@ -7,10 +7,12 @@ import java.awt.geom.Ellipse2D; import java.awt.geom.Path2D; import java.awt.geo
  * avec la façade du thème (PadSkins, comme ControlDeckView.drawSkin) et ses touches par-dessus.
  * java TsuruRun dossier [old] : écrit <thème>-pad-new.png pour chaque thème et la planche pads-new.png
  * (Ambre en référence). Avec « old », les anciennes façades (drapeaux de PadSkins éteints), fichiers -pad-old.
+ * Avec « fixes » : planche fixes-0667.png (Radar, Écarlate, Sakura, Jade, Ambre : fond d'écran du haut + manette en mode Tsuru).
+ * Avec « new » : les nouveaux thèmes (Néon, Jade, Argent), fichiers <thème>-tsuru.png et planche themes-new.png (Ambre en référence).
  */
 public class TsuruRun {
- static final String[] TH={"codec","arctique","ecarlate","sakura","ambre"};
- static final String[] NM={"Codec","Arctique","Écarlate","Sakura","Ambre"};
+ static String[] TH={"codec","arctique","ecarlate","sakura","ambre"};
+ static String[] NM={"Codec","Arctique","Écarlate","Sakura","Ambre"};
  static final int W=1100, TOP=640, PAD=600, GAP=14; static final float DP=1.6f;
 
  static java.awt.image.BufferedImage shot(int i){
@@ -49,9 +51,12 @@ public class TsuruRun {
 
  static void text(Graphics2D g,String s,float cx,float cy,float size,java.awt.Color col){ g.setColor(col); g.setFont(new Font(Font.SANS_SERIF,Font.BOLD,Math.max(6,Math.round(size)))); FontMetrics fm=g.getFontMetrics(); g.drawString(s,cx-fm.stringWidth(s)/2f,cy+(fm.getAscent()-fm.getDescent())/2f);}
 
- static final int[][] PAL={{0xFF0E0F13,0xFF181A21,0,0xFF4CFFA0,0xFF343946},{0xFF0B1016,0xFF141C26,0,0xFF5CD6FF,0xFF34414F},{0xFF120C0D,0xFF1E1416,0,0xFFFF5A4E,0xFF46353A},{0xFF120E12,0xFF1E171E,0,0xFFFF8AC8,0xFF443848},{0xFF110F0A,0xFF1D1A12,0,0xFFFFC14D,0xFF45402F}};
+ static int[][] PAL={{0xFF0E0F13,0xFF181A21,0,0xFF4CFFA0,0xFF343946},{0xFF0B1016,0xFF141C26,0,0xFF5CD6FF,0xFF34414F},{0xFF120C0D,0xFF1E1416,0,0xFFFF5A4E,0xFF46353A},{0xFF120E12,0xFF1E171E,0,0xFFFF8AC8,0xFF443848},{0xFF110F0A,0xFF1D1A12,0,0xFFFFC14D,0xFF45402F}};
+ static final int[][] PAL_NEW={{0xFF0D0A13,0xFF18121F,0,0xFFFF4FD8,0xFF3D3249},{0xFF09110F,0xFF121E1C,0,0xFF3FB58A,0xFF30463F},{0xFF0C0D10,0xFF17191E,0,0xFFC8D0DC,0xFF3C414C},{0xFF110F0A,0xFF1D1A12,0,0xFFFFC14D,0xFF45402F}};
 
  public static void main(String[] a) throws Exception { String d=a[0]; boolean old=a.length>1&&a[1].equals("old");
+  if(a.length>1&&a[1].equals("new")){ fresh(d); return; }
+  if(a.length>1&&a[1].equals("fixes")){ fixes(d); return; }
   ThemeBackdrop.CODEC_BASE=true; ThemeBackdrop.ARCTIQUE_POLAIRE=true; ThemeBackdrop.ECARLATE_JAPON=true; ThemeBackdrop.SAKURA_RIVIERE=true;
   PadSkins.CODEC_PAD_BASE=!old; PadSkins.ARCTIQUE_PAD_POLAIRE=!old; PadSkins.ECARLATE_PAD_JAPON=!old; PadSkins.SAKURA_PAD_RIVIERE=!old;
   String suf=old?"-pad-old.png":"-pad-new.png";
@@ -63,4 +68,24 @@ public class TsuruRun {
   Graphics2D G=sheet.createGraphics(); G.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BICUBIC); G.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
   G.setColor(new java.awt.Color(0x08090C)); G.fillRect(0,0,sheet.getWidth(),sheet.getHeight());
   for(int i=0;i<TH.length;i++){ int x=g+i*(sw+g); G.setColor(new java.awt.Color(0xE8EAEE)); G.setFont(new Font(Font.SANS_SERIF,Font.BOLD,18)); G.drawString(NM[i]+(i==4?" (référence)":""),x,24); G.drawImage(im[i],x,lab,sw,shh,null); }
-  javax.imageio.ImageIO.write(sheet,"png",new java.io.File(d+(old?"/pads-old.png":"/pads-new.png"))); } }
+  javax.imageio.ImageIO.write(sheet,"png",new java.io.File(d+(old?"/pads-old.png":"/pads-new.png"))); }  static void fresh(String d) throws Exception {
+  TH=new String[]{"neon","jade","argent","ambre"}; NM=new String[]{"Néon","Jade","Argent","Ambre"}; PAL=PAL_NEW;
+  java.awt.image.BufferedImage[] im=new java.awt.image.BufferedImage[TH.length];
+  for(int i=0;i<TH.length;i++){ im[i]=shot(i); if(i<3) javax.imageio.ImageIO.write(im[i],"png",new java.io.File(d+"/"+TH[i]+"-tsuru.png")); }
+  int sw=W/2, shh=(TOP+GAP+PAD)/2, g=20, lab=34;
+  java.awt.image.BufferedImage sheet=new java.awt.image.BufferedImage(g+TH.length*(sw+g),lab+shh+g,java.awt.image.BufferedImage.TYPE_INT_RGB);
+  Graphics2D G=sheet.createGraphics(); G.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BICUBIC); G.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+  G.setColor(new java.awt.Color(0x08090C)); G.fillRect(0,0,sheet.getWidth(),sheet.getHeight());
+  for(int i=0;i<TH.length;i++){ int x=g+i*(sw+g); G.setColor(new java.awt.Color(0xE8EAEE)); G.setFont(new Font(Font.SANS_SERIF,Font.BOLD,18)); G.drawString(NM[i]+(i==3?" (référence)":""),x,24); G.drawImage(im[i],x,lab,sw,shh,null); }
+  javax.imageio.ImageIO.write(sheet,"png",new java.io.File(d+"/themes-new.png"));  }
+ static void fixes(String d) throws Exception {
+  TH=new String[]{"codec","ecarlate","sakura","jade","ambre"}; NM=new String[]{"Radar","Écarlate","Sakura","Jade","Ambre"};
+  PAL=new int[][]{PAL[0],PAL[2],PAL[3],PAL_NEW[1],PAL[4]};
+  java.awt.image.BufferedImage[] im=new java.awt.image.BufferedImage[TH.length];
+  for(int i=0;i<TH.length;i++) im[i]=shot(i);
+  int sw=W/2, shh=(TOP+GAP+PAD)/2, g=20, lab=34;
+  java.awt.image.BufferedImage sheet=new java.awt.image.BufferedImage(g+TH.length*(sw+g),lab+shh+g,java.awt.image.BufferedImage.TYPE_INT_RGB);
+  Graphics2D G=sheet.createGraphics(); G.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BICUBIC); G.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+  G.setColor(new java.awt.Color(0x08090C)); G.fillRect(0,0,sheet.getWidth(),sheet.getHeight());
+  for(int i=0;i<TH.length;i++){ int x=g+i*(sw+g); G.setColor(new java.awt.Color(0xE8EAEE)); G.setFont(new Font(Font.SANS_SERIF,Font.BOLD,18)); G.drawString(NM[i],x,24); G.drawImage(im[i],x,lab,sw,shh,null); }
+  javax.imageio.ImageIO.write(sheet,"png",new java.io.File(d+"/fixes-0667.png")); } }

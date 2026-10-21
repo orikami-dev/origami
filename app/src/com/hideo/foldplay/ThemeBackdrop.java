@@ -19,7 +19,10 @@ import android.graphics.drawable.Drawable;
  * - Arctique : glaciers, aurore et cristaux facettés, pliés comme la grue (Facets) ;
  * - Écarlate : flammes, escarbilles et chevrons d'alerte pliés (Facets) ;
  * - Sakura : mont, branche et fleurs de cerisier en papier plié (Facets) ;
- * - Ambre : ville Art déco la nuit (gratte-ciel à gradins, liserés d'or, éventail ; ancien terminal gardé, AMBRE_VILLE) ;
+ * - Ambre : métropole japonaise la nuit (tour en treillis rouge et blanc, Fuji, gratte-ciel de verre, passerelles ; ville Art déco gardée en réserve, AMBRE_VILLE_DECO ; ancien terminal, AMBRE_VILLE) ;
+ * - Néon : ruelle de Tokyo la nuit sous la pluie, enseignes sans texte, reflets sur le bitume mouillé ;
+ * - Jade : temple de montagne dans la brume, bambouseraie et lanternes ;
+ * - Argent : pleine lune presque monochrome, grues en origami au-dessus d'une mer de nuages ;
  * - Variantes nuit (CODEC_BASE, ARCTIQUE_POLAIRE, ECARLATE_JAPON, SAKURA_RIVIERE), éteintes tant qu'elles ne sont pas validées ;
  * - Couleurs de la manette : le radar plié à la teinte de la manette.
  */
@@ -133,9 +136,13 @@ final class ThemeBackdrop extends Drawable {
             else BackdropMotion.petals(c, w, h, u, accent, t);
         }
         else if (id.equals("ambre")) {
-            if (AMBRE_VILLE) BackdropMotion.ville(c, w, h, u, accent, t);
-            else BackdropMotion.terminal(c, w, h, u, accent, t);
+            if (!AMBRE_VILLE) BackdropMotion.terminal(c, w, h, u, accent, t);
+            else if (AMBRE_VILLE_DECO) BackdropMotion.ville(c, w, h, u, accent, t);
+            else BackdropMotion.tokyo(c, w, h, u, accent, t);
         }
+        else if (id.equals("neon")) BackdropMotion.ruelle(c, w, h, u, accent, fold, t);
+        else if (id.equals("jade")) BackdropMotion.temple(c, w, h, u, accent, fold, t);
+        else if (id.equals("argent")) BackdropMotion.lune(c, w, h, u, accent, fold, t);
         else if (CODEC_BASE) BackdropMotion.base(c, w, h, u, accent, t);
         else BackdropMotion.radar(c, w, h, u, accent, t);
         c.restore();
@@ -170,9 +177,13 @@ final class ThemeBackdrop extends Drawable {
             else sakura(c, w, h, u);
         }
         else if (id.equals("ambre")) {
-            if (AMBRE_VILLE) ville(c, w, h, u);
-            else terminal(c, w, h, u);
+            if (!AMBRE_VILLE) terminal(c, w, h, u);
+            else if (AMBRE_VILLE_DECO) ville(c, w, h, u);
+            else tokyo(c, w, h, u);
         }
+        else if (id.equals("neon")) ruelle(c, w, h, u);
+        else if (id.equals("jade")) temple(c, w, h, u);
+        else if (id.equals("argent")) lune(c, w, h, u);
         else if (CODEC_BASE) base(c, w, h, u);
         else radar(c, w, h, u);
         p.setShader(null);
@@ -212,8 +223,27 @@ final class ThemeBackdrop extends Drawable {
         Facets.sakura(c, w, h, accent, fold, 1f, u / 1000f);
     }
 
-    /** Fond d'Ambre : ville Art déco la nuit (BOSS) ; false rend l'ancien vieux terminal au soleil. */
+    /** Fond d'Ambre : ville la nuit (BOSS) ; false rend l'ancien vieux terminal au soleil. */
     static final boolean AMBRE_VILLE = true;
+
+    /**
+     * Variante de réserve, éteinte : la ville Art déco la nuit (gratte-ciel à gradins, éventail doré, ville() ci-dessous,
+     * Facets variante 3, BackdropMotion.ville). Mettre true pour la remettre à la place de la métropole japonaise.
+     */
+    static final boolean AMBRE_VILLE_DECO = false;
+
+    /** Fond actif d'Ambre : métropole japonaise la nuit (tour en treillis rouge et blanc, Fuji, passerelles, enseignes sans texte). */
+    private void tokyo(Canvas c, float w, float h, float u) {
+        p.setShader(new LinearGradient(0, 0, 0, h * 0.6f, 0xCC030201, 0x00030201, Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h * 0.6f, p);
+        p.setShader(new LinearGradient(0, h * 0.4f, 0, h * 0.9f, a(accent, 0), a(accent, 0x3C), Shader.TileMode.CLAMP));
+        c.drawRect(0, h * 0.4f, w, h * 0.9f, p);
+        p.setShader(new RadialGradient(w * 0.68f, h * 0.88f, u * 0.6f, a(accent, 0x44), a(accent, 0), Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+        Facets.ambre(c, w, h, accent, fold, 1f, Facets.AMBRE_TOKYO);
+        vignette(c, w, h, u);
+    }
 
     private void ville(Canvas c, float w, float h, float u) {
         // Ciel : haut presque noir, puis brume ambrée qui monte de l'horizon, plus forte côté tours (droite).
@@ -285,6 +315,29 @@ final class ThemeBackdrop extends Drawable {
     private void riviere(Canvas c, float w, float h, float u) {
         ciel(c, w, h, u, h * 0.64f, 0x26, w * 0.7f, h * 0.2f, u * 0.55f, 0x26);
         Facets.sakura(c, w, h, accent, fold, 1f, Facets.FOND);
+        vignette(c, w, h, u);
+    }
+
+    // ------------------------------------------------------------------ Néon, Jade, Argent (0.66)
+
+    /** Néon : ruelle de Tokyo sous la pluie, lueur magenta au bout de la rue. */
+    private void ruelle(Canvas c, float w, float h, float u) {
+        ciel(c, w, h, u, h * 0.5f, 0x16, w * 0.56f, h * 0.48f, u * 0.4f, 0x18);
+        Facets.neon(c, w, h, accent, fold, 1f, Facets.FOND);
+        vignette(c, w, h, u);
+    }
+
+    /** Jade : temple de montagne dans la brume, bambous aux bords. */
+    private void temple(Canvas c, float w, float h, float u) {
+        ciel(c, w, h, u, h * 0.62f, 0x1C, w * 0.78f, h * 0.3f, u * 0.5f, 0x1E);
+        Facets.jade(c, w, h, accent, fold, 1f, Facets.FOND);
+        vignette(c, w, h, u);
+    }
+
+    /** Argent : pleine lune et grues au-dessus d'une mer de nuages. */
+    private void lune(Canvas c, float w, float h, float u) {
+        ciel(c, w, h, u, h * 0.64f, 0x14, w * 0.72f, h * 0.27f, u * 0.5f, 0x1A);
+        Facets.argent(c, w, h, accent, fold, 1f, Facets.FOND);
         vignette(c, w, h, u);
     }
 

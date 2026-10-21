@@ -87,7 +87,7 @@ final class CodecMenu extends FrameLayout {
         super(ctx);
         dp = ctx.getResources().getDisplayMetrics().density;
         // Voile : un appui à côté de la carte ferme le menu.
-        setBackgroundColor(0x99000000);
+        setBackgroundColor(0x66000000);
         setClickable(true);
         setOnClickListener(new OnClickListener() {
             @Override
@@ -353,7 +353,7 @@ final class CodecMenu extends FrameLayout {
         card.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
         // Carte translucide : on devine le jeu en pause derrière.
-        bg.setColor(0xD9121419);
+        bg.setColor(Theme.alpha(Theme.PANEL_HI, 0xCC)); // moins sombre (BOSS 0.66.7)
         bg.setCornerRadius(22 * dp);
         bg.setStroke(Math.round(1.5f * dp), Theme.alpha(Theme.CODEC, 0x66));
         card.setBackground(bg);

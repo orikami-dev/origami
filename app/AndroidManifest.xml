@@ -168,6 +168,42 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+        <activity-alias
+            android:name=".IconNeon"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_neon"
+            android:roundIcon="@mipmap/ic_launcher_neon"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconJade"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_jade"
+            android:roundIcon="@mipmap/ic_launcher_jade"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconArgent"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_argent"
+            android:roundIcon="@mipmap/ic_launcher_argent"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <activity
             android:name=".GameActivity"
             android:exported="false"

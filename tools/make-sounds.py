@@ -4,7 +4,7 @@ import numpy as np, subprocess, os
 
 SR = 44100
 ROOT = os.environ.get("ORIGAMI_ASSETS", "/mnt/project-files/foldplay/app/assets")
-THEMES = ["codec", "arctique", "ecarlate", "sakura", "ambre"]
+THEMES = ["codec", "arctique", "ecarlate", "sakura", "ambre", "neon", "jade", "argent"]
 DUR = 64                      # durée des boucles musicales (s)
 L = DUR * SR                  # longueur en échantillons
 
@@ -188,7 +188,90 @@ def sfx_ambre(r):
     o['launch'] = srev(warm(mixl(n, it)), n, .5, .2)
     return o
 
-SFX = dict(codec=sfx_codec, arctique=sfx_arctique, ecarlate=sfx_ecarlate, sakura=sfx_sakura, ambre=sfx_ambre)
+# ---------- Néon, Jade, Argent (0.66) ----------
+def synth(f, dur, tau=.12, cut=3500, det=1.006, glide=0.):
+    # synthé de ruelle : deux dents de scie désaccordées, filtrées, petite montée de hauteur à l'attaque
+    n = int(dur * SR); t = T(n); y = np.zeros(n)
+    fi = f * (1 + glide * np.exp(-t / .03))
+    for d in (1 / det, det):
+        ph = np.cumsum(fi * d) / SR
+        y += 2 * (ph % 1) - 1
+    return endfade(filt(y * .5, hi=cut) * ad(n, .003, tau))
+
+def hum(dur, r, g=1.):
+    # bourdonnement d'un tube néon qui s'allume : 100 Hz et harmoniques, grésillement irrégulier
+    n = int(dur * SR); t = T(n)
+    y = sum(np.sin(2 * np.pi * 100 * k * t) / k for k in (1, 2, 3, 5))
+    crack = (r.random(n) < .002) * r.uniform(-1, 1, n)
+    crack = filt(crack, 2000, 9000) * 6
+    gate = np.clip(filt(r.standard_normal(n), hi=30) * 6 + .6, 0, 1)
+    return endfade(filt(y, hi=1800) * .25 * gate * g + crack * .3)
+
+def rain(n, r, g=1.):
+    return filt(r.standard_normal(n), 2500, 9000) * g
+
+def sfx_neon(r):
+    o = {}
+    o['move'] = synth(mf(91), .05, .02, 5000, glide=.06)
+    o['select'] = mixl(N('select'), [(0, synth(mf(84), .1, .06, 4200), 1), (.05, synth(mf(91), .12, .07, 4800), .9)])
+    o['back'] = mixl(N('back'), [(0, synth(mf(91), .1, .06, 4200), .9), (.05, synth(mf(84), .12, .07, 3600), 1)])
+    n = N('open'); dr = rain(n, r, .03) * np.sin(np.linspace(0, np.pi, n)) ** 2
+    x = mixl(n, [(.05 * i, synth(mf(m), .22, .1, 4000), .9) for i, m in enumerate((72, 79, 84, 88))]) + dr
+    y = x.copy()
+    for k in (1, 2):                                          # écho de ruelle, sans reboucler
+        d = int(.11 * SR * k); y[d:] += .35 ** k * x[:n - d]
+    o['open'] = y
+    n = N('launch'); arp = [(.18 + .07 * i, synth(mf(m), .4, .18, 5000), .75) for i, m in enumerate((60, 67, 72, 75, 79, 84, 87, 91))]
+    pad = [(.7, synth(mf(m), .85, .5, 2500, 1.01), .45) for m in (60, 67, 72, 75)]
+    o['launch'] = mixl(n, [(0, hum(.35, r), 1)] + arp + pad) + rain(n, r, .025) * np.sin(np.linspace(0, np.pi, n))
+    return o
+
+def bamboo(f, dur, r, bright=.5):
+    # tube de bambou frappé : résonance boisée (partiels inharmoniques courts) et claquement
+    n = int(dur * SR); t = T(n)
+    y = (np.sin(2 * np.pi * f * t) * np.exp(-t / .045) + .5 * np.sin(2 * np.pi * f * 2.57 * t) * np.exp(-t / .02)
+         + .25 * np.sin(2 * np.pi * f * 4.1 * t) * np.exp(-t / .01))
+    clk = filt(r.standard_normal(n), 1500, 7000) * np.exp(-t / .004) * bright
+    return endfade((y + clk) * np.sin(np.minimum(1, t / .0008) * np.pi / 2))
+
+def sfx_jade(r):
+    o = {}
+    o['move'] = bamboo(mf(86), .05, r, .3)
+    o['select'] = mixl(N('select'), [(0, bamboo(mf(79), .12, r), 1), (.06, bamboo(mf(86), .12, r), .9)])
+    o['back'] = mixl(N('back'), [(0, bamboo(mf(86), .12, r), .9), (.06, bamboo(mf(79), .12, r), 1)])
+    o['open'] = srev(mixl(N('open'), [(.05 * i, kotoq(mf(m), .45, r, .4, .2), .8) for i, m in enumerate((67, 69, 74, 76))]
+                          + [(.02, bamboo(mf(74), .2, r), .7)]), N('open'), .5, .3)
+    n = N('launch')
+    shishi = [(0, bamboo(mf(62), .3, r, .9), 1.1), (.09, bamboo(mf(67), .2, r, .4), .5)]
+    run = [(.2 + .09 * i, kotoq(mf(m), .8, r, .5, .2), .75) for i, m in enumerate((62, 64, 67, 69, 74, 76))]
+    o['launch'] = srev(mixl(n, shishi + run + [(.75, kane(mf(86), .85), .55), (.78, kane(mf(81), .8), .35)]), n, 1.0, .3)
+    return o
+
+def glass(f, dur, tau=.25):
+    # verre et célesta : partiels presque harmoniques, attaque nette, longue tenue
+    return voice(f, dur, [(1, 1, 1), (2.01, .35, .6), (3.98, .15, .35), (6.2, .05, .2)], .0015, tau)
+
+def wing(dur, r, f0=900):
+    # battement d'ailes de papier : souffle filtré en deux poussées
+    n = int(dur * SR); t = T(n)
+    env = np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 2 * (.6 + .4 * np.sin(2 * np.pi * t / dur * 2) ** 2)
+    return endfade(filt(r.standard_normal(n), f0, f0 * 5) * env)
+
+def sfx_argent(r):
+    o = {}
+    o['move'] = glass(mf(96), .05, .02)
+    o['select'] = mixl(N('select'), [(0, glass(mf(88), .14, .07), 1), (.05, glass(mf(95), .12, .06), .8)])
+    o['back'] = mixl(N('back'), [(0, glass(mf(95), .12, .06), .8), (.05, glass(mf(88), .12, .07), 1)])
+    n = N('open')
+    o['open'] = srev(mixl(n, [(0, wing(.25, r), .25)] + [(.06 + .06 * i, glass(mf(m), .35, .18), .9) for i, m in enumerate((83, 88, 90, 95))]), n, .8, .35)
+    n = N('launch')
+    flaps = [(.0 + .16 * i, wing(.16, r, 700 + 150 * i), .3 - .05 * i) for i in range(3)]
+    asc = [(.3 + .08 * i, glass(mf(m), .9, .5), .8) for i, m in enumerate((76, 81, 83, 88, 93, 95, 100))]
+    o['launch'] = srev(mixl(n, flaps + asc + [(.9, glass(mf(88), .7, .6), .5), (.9, glass(mf(95), .7, .6), .4)]), n, 1.4, .4)
+    return o
+
+SFX = dict(codec=sfx_codec, arctique=sfx_arctique, ecarlate=sfx_ecarlate, sakura=sfx_sakura, ambre=sfx_ambre,
+           neon=sfx_neon, jade=sfx_jade, argent=sfx_argent)
 
 # ---------- musiques (tampon circulaire de 64 s) ----------
 def m_codec(r):
@@ -410,11 +493,14 @@ def voice_of(th, r):
     if th == 'arctique': return lambda m, d: bell(mf(m), d, d * .5)
     if th == 'ecarlate': return lambda m, d: pluck(mf(m), d, r, .12)
     if th == 'sakura': return lambda m, d: box(mf(m), d, d * .5)
+    if th == 'neon': return lambda m, d: synth(mf(m), d, d * .45, 4200)
+    if th == 'jade': return lambda m, d: bamboo(mf(m), d, r, .4)
+    if th == 'argent': return lambda m, d: glass(mf(m), d, d * .5)
     return lambda m, d: rhodes(mf(m), d, .7, d * .6)
 
 def sfx_extra(th, r):
     v = voice_of(th, r)
-    base = dict(codec=84, arctique=84, ecarlate=67, sakura=84, ambre=72)[th]
+    base = dict(codec=84, arctique=84, ecarlate=67, sakura=84, ambre=72, neon=79, jade=79, argent=88)[th]
     n = lambda k: int(EXTRA[k] * SR)
     o = {}
     o['next'] = mixl(n('next'), [(0, v(base, .1), 1), (.06, v(base + 5, .12), 1)])
@@ -426,8 +512,9 @@ def sfx_extra(th, r):
     o['close'] = mixl(n('close'), [(0, v(base + 3, .1), .9), (.06, v(base - 4, .12), 1)])
     return o
 
-def build_extra():
+def build_extra(only=None):
     for ti, th in enumerate(THEMES):
+        if only and th not in only: continue
         for k, x in sfx_extra(th, np.random.default_rng(3000 + ti)).items():
             like = EXTRA_LIKE[k]
             y = stereo_ui(fin(body(x, like), EXTRA[k]), like, 400 + ti)
@@ -435,14 +522,25 @@ def build_extra():
             print(th, k)
 
 if __name__ == "__main__":
+    # Usage : make-sounds.py [extra] [--no-music] [--themes neon,jade,argent]
+    #   --no-music (ou ORIGAMI_NO_MUSIC=1) : ne touche pas à assets/music/ (les musiques viennent de tools/make-music.py).
+    #   --themes : seulement ces thèmes (par défaut, tous).
     import sys
-    if sys.argv[1:] == ["extra"]:
-        build_extra(); sys.exit(0)
+    args = sys.argv[1:]
+    no_music = "--no-music" in args or os.environ.get("ORIGAMI_NO_MUSIC") == "1"
+    only = None
+    if "--themes" in args:
+        only = args[args.index("--themes") + 1].split(",")
+    if "extra" in args:
+        build_extra(only); sys.exit(0)
     rows = []
     for ti, th in enumerate(THEMES):
+        if only and th not in only: continue
         for k, x in SFX[th](np.random.default_rng(1000 + ti)).items():
             p = f"{ROOT}/sounds/{th}/{k}.ogg"
             encode(p, stereo_ui(fin(body(x, k), DUR_UI[k]), k, 300 + ti), 2, 6); rows.append(p)
+        if no_music or th not in MUSIC:
+            continue
         m = master(MUSIC[th](np.random.default_rng(2000 + ti)), -10)
         jump = abs(m[:, 0] - m[:, -1]).max(); typ = np.sqrt((np.diff(m, axis=1) ** 2).mean())
         print(f"{th}: saut boucle {jump:.2e}, diff rms typique {typ:.2e}, pic {20*np.log10(abs(m).max()):.1f} dBFS")
@@ -452,4 +550,6 @@ if __name__ == "__main__":
     for p in rows:
         s = os.path.getsize(p); tot += s
         print(f"{p.replace(ROOT + '/', ''):<70}{probe(p):>10.3f}{s / 1024:>12.1f}")
+    if only or no_music:
+        build_extra(only)
     print(f"\nTotal: {tot / 1024:.1f} Ko ({tot / 1048576:.2f} Mo)")

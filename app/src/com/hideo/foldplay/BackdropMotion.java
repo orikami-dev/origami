@@ -197,30 +197,167 @@ final class BackdropMotion {
         }
     }
 
-    /** Base Codec : le radar balaie en tournant, les balises clignotent (tour radar, grue, tour de garde). */
+    /**
+     * Antenne radar à barre (vue de face, elle tourne autour du pylône) : la barre se raccourcit de profil,
+     * son côté proche descend légèrement, un cornet d'alimentation dépasse côté avant. phase en radians.
+     */
+    static void antenna(Canvas c, float cx, float ay, float q, float lw, int tint, float phase) {
+        float co = (float) Math.cos(phase), si = (float) Math.sin(phase);
+        float len = q * 1.6f * Math.max(0.07f, Math.abs(co)), hb = q * 0.13f, dy = si * q * 0.12f;
+        P.setStyle(Paint.Style.FILL);
+        PATH.reset();
+        PATH.moveTo(cx - len, ay - hb - dy);
+        PATH.quadTo(cx, ay - hb * 2.2f, cx + len, ay - hb + dy);
+        PATH.lineTo(cx + len, ay + hb + dy);
+        PATH.quadTo(cx, ay + hb * 0.4f, cx - len, ay + hb - dy);
+        PATH.close();
+        P.setColor(0xFF0A100C);
+        c.drawPath(PATH, P);
+        P.setStyle(Paint.Style.STROKE);
+        P.setStrokeWidth(Math.max(1f, lw * 1.3f));
+        P.setStrokeCap(Paint.Cap.ROUND);
+        P.setColor(a(tint, 0x90));
+        c.drawLine(cx - len, ay - hb - dy, cx + len, ay - hb + dy, P);
+        P.setColor(a(tint, 0x60));
+        c.drawLine(cx, ay, cx + si * q * 0.35f, ay - q * 0.28f * (si > 0 ? 1f : 0.4f), P);
+        P.setStyle(Paint.Style.FILL);
+        P.setColor(0xFF0A100C);
+        c.drawCircle(cx, ay, q * 0.12f, P);
+    }
+
+    /** Balise d'obstacle : halo et point, lum de 0 à 1 (au repos : lueur faible). */
+    static void beacon(Canvas c, float x, float y, float q, int col, float lum) {
+        P.setStyle(Paint.Style.FILL);
+        P.setShader(new RadialGradient(x, y, Math.max(1f, q * 1.1f), a(col, Math.round(0x58 * lum)), a(col, 0), Shader.TileMode.CLAMP));
+        c.drawCircle(x, y, q * 1.1f, P);
+        P.setShader(null);
+        P.setColor(a(col, Math.round(0x40 + 0xC0 * lum)));
+        c.drawCircle(x, y, q * 0.11f, P);
+        P.setColor(a(0xFFFFE0E0, Math.round(0xB0 * lum)));
+        c.drawCircle(x, y, q * 0.05f, P);
+    }
+
+    /**
+     * Base Codec : l'antenne radar de la tour tourne lentement (un tour toutes les 8 s), la balise rouge clignote,
+     * quelques fenêtres de la cabine et de la tour de garde s'allument et s'éteignent, et les balises de la grue
+     * et de la tour de garde pulsent. Plus de balayage ni d'échos : le sonar reste sur la manette.
+     */
     static void base(Canvas c, float w, float h, float u, int accent, float t) {
-        float[] pt = Facets.basePts(w, h);
-        float q = Math.min(w, h * 1.2f) * 0.06f;
-        float cx = pt[0], cy = pt[1] + q * 1.2f, R = Math.min(h, w * 0.9f) * 0.85f;
-        double a0 = -TAU * t;
-        for (int b = 0; b < 12; b++) {
-            double t0 = a0 - b * 0.07, t1 = t0 - 0.07;
-            P.setColor(a(accent, Math.round(0x2C * (1f - b / 12f))));
-            PATH.reset();
-            PATH.moveTo(cx, cy);
-            PATH.lineTo(cx + (float) Math.cos(t0) * R, cy + (float) Math.sin(t0) * R);
-            PATH.lineTo(cx + (float) Math.cos(t1) * R, cy + (float) Math.sin(t1) * R);
-            PATH.close();
-            c.drawPath(PATH, P);
+        float[] pt = Facets.basePts(w, h), tw = Facets.towerPts(w, h);
+        float q = Math.min(w, h * 1.2f) * 0.06f, lw = Math.max(1f, u / 1100f);
+        // Les fenêtres : chacune a son rythme, allumée un peu moins d'une fois sur deux.
+        P.setStyle(Paint.Style.FILL);
+        for (int i = 0; i < 3; i++) {
+            float wx = tw[0] + (i - 1) * q * 0.34f;
+            if (fract(2 * t + rnd(i, 11)) < 0.55f) {
+                P.setColor(a(0xFFFFE9A8, 0xB8));
+                c.drawRect(wx - q * 0.08f, tw[1] + q * 0.22f, wx + q * 0.08f, tw[1] + q * 0.46f, P);
+                P.setColor(a(0xFFFFE9A8, 0x1C));
+                c.drawCircle(wx, tw[1] + q * 0.34f, q * 0.3f, P);
+            }
         }
         for (int i = 0; i < 3; i++) {
-            float ph = fract(2 * t + i * 0.31f);
-            if (ph > 0.35f) continue;
+            float wx = pt[4] + (i - 1) * q * 0.62f;
+            if (fract(3 * t + rnd(i, 21)) < 0.5f) {
+                P.setColor(a(0xFFFFE9A8, 0xA8));
+                c.drawRect(wx - q * 0.12f, pt[5] + q * 0.12f, wx + q * 0.12f, pt[5] + q * 0.42f, P);
+            }
+        }
+        antenna(c, tw[0], tw[2], q, lw, accent, (float) (TAU * 3 * t));
+        // Balise rouge : deux brefs éclats puis une pause (une fois par seconde et demie environ).
+        float ph = fract(16 * t);
+        float lum = ph < 0.18f ? 1f : (ph > 0.3f && ph < 0.42f ? 0.8f : 0f);
+        beacon(c, tw[0], tw[3], q, 0xFFFF3B3B, lum);
+        for (int i = 1; i < 3; i++) {
+            float ph2 = fract(2 * t + i * 0.31f);
+            if (ph2 > 0.35f) continue;
             float bx = pt[i * 2], by = pt[i * 2 + 1], r = u * 0.003f;
             P.setColor(a(accent, 0x28));
             c.drawCircle(bx, by, r * 4f, P);
             P.setColor(a(0xFFB8FFD8, 0xC0));
             c.drawCircle(bx, by, r, P);
+        }
+    }
+
+    // ------------------------------------------------------------------ Ambre : métropole japonaise
+
+    /** Deux projecteurs posés sur les toits des tours hautes (rf = {xg, yg, xd, yd}) ; t règle l'angle de balayage. */
+    static void searchlights(Canvas c, float w, float h, int tint, float[] rf, float t) {
+        for (int i = 0; i < 2; i++) {
+            float bx = rf[i * 2], by = rf[i * 2 + 1];
+            double ang = -Math.PI / 2 + (i == 0 ? 0.6 : -0.55) * Math.sin(TAU * (t + i * 0.37f));
+            float len = Math.max(h * 0.9f, w * 0.45f), spread = len * 0.04f;
+            float tx = bx + (float) Math.cos(ang) * len, ty = by + (float) Math.sin(ang) * len;
+            float nx = (float) -Math.sin(ang) * spread, ny = (float) Math.cos(ang) * spread;
+            PATH.reset();
+            PATH.moveTo(bx, by);
+            PATH.lineTo(tx + nx, ty + ny);
+            PATH.lineTo(tx - nx, ty - ny);
+            PATH.close();
+            P.setStyle(Paint.Style.FILL);
+            P.setShader(new LinearGradient(bx, by, tx, ty, a(tint, i == 0 ? 0x2A : 0x34), a(tint, 0), Shader.TileMode.CLAMP));
+            c.drawPath(PATH, P);
+            P.setShader(null);
+            P.setColor(a(0xFFFFE2A0, 0xA0));
+            c.drawCircle(bx, by, Math.max(2f, h * 0.004f), P);
+        }
+    }
+
+    /**
+     * Métropole japonaise : projecteurs qui balaient depuis les toits, balises rouges qui clignotent (sommet de la
+     * tour, tours hautes), lumières qui montent le long de la tour, fenêtres qui s'allument et s'éteignent.
+     */
+    static void tokyo(Canvas c, float w, float h, float u, int accent, float t) {
+        float H0 = Math.min(h, w * 0.9f), q = Math.min(w, h * 1.2f) * 0.06f, ground = h * 0.9f, lw = Math.max(1f, u / 1100f);
+        searchlights(c, w, h, accent, Facets.tokyoRoofs(w, h), t);
+        // Lumières de la tour : une vague chaude qui monte le long des arêtes, deux fois par tour d'horloge de boucle.
+        float[] tg = Facets.tokyoTower(w, h);
+        int nb = 14;
+        P.setStyle(Paint.Style.FILL);
+        for (int k = 0; k <= nb; k++) {
+            float s = k / (float) nb, y = ground - tg[3] * s, hw = Facets.towerHalf(tg, s);
+            float d = fract(6 * t - s);
+            float lum = d < 0.3f ? 1f - d / 0.3f : 0f;
+            if (lum <= 0f) continue;
+            for (int sd = -1; sd <= 1; sd += 2) {
+                P.setColor(a(0xFFFFB347, Math.round(0x30 * lum)));
+                c.drawCircle(tg[0] + sd * hw, y, q * 0.2f, P);
+                P.setColor(a(0xFFFFE2A0, Math.round(0xD0 * lum)));
+                c.drawCircle(tg[0] + sd * hw, y, q * 0.05f, P);
+            }
+        }
+        // Balise rouge au sommet : deux éclats puis pause.
+        float ph = fract(12 * t);
+        beacon(c, tg[0], tg[4], q * 0.8f, 0xFFFF3B3B, ph < 0.16f ? 1f : (ph > 0.28f && ph < 0.4f ? 0.8f : 0f));
+        // Fenêtres : sur les tours hautes, quelques cases s'allument et s'éteignent.
+        float[][] near = Facets.tokyoBlocks(w, h, 1);
+        int shown = 0;
+        for (int i = 0; i < near.length; i++) {
+            float[] b = near[i];
+            if (b[2] < H0 * 0.22f) continue;
+            float top = ground - b[2], cw = q * 0.2f, ch = q * 0.3f;
+            int cols = Math.max(2, Math.round(b[1] / cw));
+            float cwa = b[1] / cols;
+            int rows = (int) ((b[2] - ch * 1.2f) / ch);
+            for (int k = 0; k < 12 && rows > 1; k++) {
+                int cx = (int) (rnd(i * 31 + k, 41) * cols), cy = (int) (rnd(i * 31 + k, 42) * rows);
+                float ph2 = fract(2 * t + rnd(i * 31 + k, 43));
+                float lum = ph2 < 0.5f ? 1f : 0f;
+                if (lum == 0f) continue;
+                float x = b[0] + cx * cwa, y = top + ch * 0.7f + cy * ch;
+                P.setColor(a(rnd(i, k) < 0.2f ? 0xFFFFF0D0 : 0xFFFFC66B, 0xC0));
+                c.drawRect(x + cwa * 0.2f, y, x + cwa * 0.8f, y + ch * 0.5f, P);
+            }
+            // Balise de toit : clignote à son rythme.
+            float bp = fract(8 * t + rnd(i, 51));
+            if (bp < 0.2f) {
+                float bx = b[0] + b[1] * 0.75f, by = top - q * 0.8f;
+                P.setColor(a(0xFFFF3B3B, 0x50));
+                c.drawCircle(bx, by, q * 0.26f, P);
+                P.setColor(a(0xFFFF6A5A, 0xE0));
+                c.drawCircle(bx, by, q * 0.07f, P);
+            }
+            if (++shown >= 8) break;
         }
     }
 
@@ -308,6 +445,106 @@ final class BackdropMotion {
             P.setColor(a(accent, 0x70));
             R.set(w * 0.05f, h * 0.92f - cs * 1.6f, w * 0.05f + cs, h * 0.92f);
             c.drawRect(R, P);
+        }
+    }
+
+    // ------------------------------------------------------------------ Néon, Jade, Argent (0.66)
+
+    /** Ruelle de Tokyo : la pluie tombe en biais, des gouttes éclatent sur le bitume, deux enseignes grésillent. */
+    static void ruelle(Canvas c, float w, float h, float u, int accent, int fold, float t) {
+        float m = Math.min(w * 0.9f, h) * 0.05f;
+        float[] sg = Facets.neonSigns(w, h);
+        int[] flick = {2, 6};
+        for (int f = 0; f < flick.length; f++) {
+            int i = flick[f];
+            float x0 = sg[i * 7], y0 = sg[i * 7 + 1], x1 = sg[i * 7 + 2], y1 = sg[i * 7 + 3];
+            int col = sg[i * 7 + 4] == 0 ? accent : fold;
+            float ph = fract(3 * t + f * 0.41f);
+            boolean off = (ph > 0.62f && ph < 0.66f) || (ph > 0.70f && ph < 0.72f) || (ph > 0.75f && ph < 0.86f);
+            if (off) {
+                P.setColor(0xB0100A16);
+                R.set(x0, y0, x1, y1);
+                c.drawRoundRect(R, m * 0.2f, m * 0.2f, P);
+            } else {
+                float g = 0.5f + 0.5f * (float) Math.sin(TAU * (5 * t + f));
+                P.setShader(new RadialGradient((x0 + x1) / 2, (y0 + y1) / 2, Math.max(1f, (y1 - y0) * 0.8f),
+                        a(col, Math.round(0x10 + 0x14 * g)), a(col, 0), Shader.TileMode.CLAMP));
+                c.drawCircle((x0 + x1) / 2, (y0 + y1) / 2, (y1 - y0) * 0.8f, P);
+                P.setShader(null);
+            }
+        }
+        P.setStyle(Paint.Style.STROKE);
+        P.setStrokeCap(Paint.Cap.ROUND);
+        for (int i = 0; i < 120; i++) {
+            int laps = 3 + (int) (rnd(i, 1) * 3);
+            float len = m * (0.8f + 1.4f * rnd(i, 5)), y = fract(rnd(i, 2) + laps * t) * (h + len * 2) - len;
+            float x = w * rnd(i, 3) - (y / h) * len * 0.6f;
+            P.setStrokeWidth(Math.max(1f, u / 1500f) * (0.7f + rnd(i, 6)));
+            P.setColor(a(i % 4 == 0 ? fold : (i % 5 == 0 ? accent : 0xFFD8D0FF), Math.round(0x20 + 0x30 * rnd(i, 4))));
+            c.drawLine(x, y, x - len * 0.18f, y + len, P);
+        }
+        float vy = h * 0.5f, gN = h * 0.95f, gF = gN + (vy - gN) * 0.8f;
+        P.setStrokeWidth(Math.max(1f, u / 1400f));
+        for (int i = 0; i < 18; i++) {
+            float ph = fract(2 * t + rnd(i, 7));
+            float y = gF + (h - gF) * (0.1f + 0.9f * rnd(i, 8)), depth = (y - gF) / (h - gF);
+            float x = w * (0.1f + 0.8f * rnd(i, 9)), r = m * (0.15f + 0.9f * ph) * (0.4f + depth);
+            P.setColor(a(i % 2 == 0 ? fold : accent, Math.round(0x50 * (1f - ph))));
+            R.set(x - r, y - r * 0.25f, x + r, y + r * 0.25f);
+            c.drawOval(R, P);
+        }
+        P.setStyle(Paint.Style.FILL);
+    }
+
+    /** Temple dans la brume : bancs de brume qui dérivent, lucioles, lanternes qui respirent. */
+    static void temple(Canvas c, float w, float h, float u, int accent, int fold, float t) {
+        float[] lp = Facets.jadePts(w, h);
+        for (int i = 0; i < lp.length / 3; i++) {
+            float br = 0.5f + 0.5f * (float) Math.sin(TAU * (2 * t + i * 0.17f));
+            float r = lp[i * 3 + 2] * (4f + 1.5f * br);
+            P.setShader(new RadialGradient(lp[i * 3], lp[i * 3 + 1], Math.max(1f, r), a(fold, Math.round(0x10 + 0x18 * br)), a(fold, 0), Shader.TileMode.CLAMP));
+            c.drawCircle(lp[i * 3], lp[i * 3 + 1], r, P);
+        }
+        float H0 = Math.min(h, w * 0.9f);
+        float[] bands = {h * 0.6f, h * 0.72f, h * 0.88f};
+        for (int i = 0; i < 18; i++) {
+            float R0 = H0 * (0.12f + 0.12f * rnd(i, 1)), y = bands[i % 3] + (rnd(i, 2) - 0.5f) * H0 * 0.06f;
+            float x = fract(rnd(i, 3) + (i % 2 == 0 ? t : -t)) * (w + 2 * R0) - R0;
+            P.setShader(new RadialGradient(x, y, R0, a(0xFFB6D8D0, 0x16), a(0xFFB6D8D0, 0), Shader.TileMode.CLAMP));
+            c.drawCircle(x, y, R0, P);
+        }
+        P.setShader(null);
+        for (int i = 0; i < 16; i++) {
+            float x = w * (0.12f + 0.76f * rnd(i, 4)) + u * 0.03f * (float) Math.sin(TAU * (t * (1 + i % 2) + rnd(i, 5)));
+            float y = h * (0.55f + 0.4f * rnd(i, 6)) + u * 0.02f * (float) Math.sin(TAU * (t * (2 + i % 3) + rnd(i, 7)));
+            float g = Math.max(0f, (float) Math.sin(TAU * ((3 + i % 3) * t + rnd(i, 8))));
+            P.setColor(a(fold, Math.round(0x18 * g)));
+            c.drawCircle(x, y, u * 0.006f, P);
+            P.setColor(a(Theme.lighten(fold, 0.5f), Math.round(0xC0 * g)));
+            c.drawCircle(x, y, u * 0.0016f, P);
+        }
+    }
+
+    /** Pleine lune : les grues traversent le ciel en battant des ailes, les étoiles scintillent, le halo respire. */
+    static void lune(Canvas c, float w, float h, float u, int accent, int fold, float t) {
+        float[] lp = Facets.lunePts(w, h);
+        float br = 0.5f + 0.5f * (float) Math.sin(TAU * 2 * t);
+        P.setShader(new RadialGradient(lp[0], lp[1], lp[2] * 3f, a(0xFFFFFFFF, Math.round(0x08 + 0x0C * br)), a(0xFFFFFFFF, 0), Shader.TileMode.CLAMP));
+        c.drawCircle(lp[0], lp[1], lp[2] * 3f, P);
+        P.setShader(null);
+        for (int i = 0; i < 20; i++) {
+            float tw = Math.max(0f, (float) Math.sin(TAU * (1 + i % 3) * t + i * 2.3f));
+            P.setColor(a(0xFFFFFFFF, Math.round(0xB0 * tw * tw)));
+            c.drawCircle(w * rnd(i, 1), h * 0.6f * rnd(i, 2), u * 0.0012f, P);
+        }
+        int[] sh = Crane.shades(accent);
+        float H0 = Math.min(h, w * 0.9f);
+        for (int i = 0; i < Facets.FLOCK.length; i++) {
+            float[] g = Facets.FLOCK[i];
+            float size = H0 * g[2], x = fract(g[0] + t) * (w + 2 * size) - size;
+            float y = h * g[1] - (x / w - g[0]) * h * 0.08f + size * 0.08f * (float) Math.sin(TAU * (3 * t + i * 0.3f));
+            float flap = 0.3f + 0.7f * (float) Math.sin(TAU * ((18 + 4 * (i % 3)) * t + i * 0.37f));
+            Facets.crane(c, P, PATH, sh, fold, x, y, size, g[3], flap, 0xC8, false);
         }
     }
 }

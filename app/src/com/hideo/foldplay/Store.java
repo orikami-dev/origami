@@ -418,7 +418,7 @@ final class Store {
         prefs.edit().putBoolean("smooth_" + system, on).apply();
     }
 
-    /** Pack d'icônes : « auto » suit le thème, sinon trait, givre, braise, petale, phosphore. */
+    /** Pack d'icônes : « auto » suit le thème, sinon trait, givre, braise, petale, phosphore, neon, bambou, lune. */
     String iconPack() {
         // Les icônes suivent le thème tant que le store de thèmes communautaires n'est pas ouvert.
         return "auto";
@@ -454,12 +454,13 @@ final class Store {
         prefs.edit().putBoolean("pills", on).apply();
     }
 
-    boolean scanlines() {
-        return prefs.getBoolean("scanlines", true);
+    /** Voile sombre sur le fond d'écran de l'accueil ; éteint par défaut. */
+    boolean dimBackdrop() {
+        return prefs.getBoolean("dim_backdrop", false);
     }
 
-    void setScanlines(boolean on) {
-        prefs.edit().putBoolean("scanlines", on).apply();
+    void setDimBackdrop(boolean on) {
+        prefs.edit().putBoolean("dim_backdrop", on).apply();
     }
 
     /** Plein écran (manette à l'écran masquée) dès qu'une manette physique est branchée. */

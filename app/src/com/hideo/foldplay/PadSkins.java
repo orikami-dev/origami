@@ -15,6 +15,9 @@ import java.util.Random;
  * l'écran du haut tout en restant du même univers (voir render) ;
  * - Sakura : vagues seigaiha au trait, branche en fleurs dans un coin, pétales qui dérivent ;
  * - Ambre : métal brossé, soleil Art déco qui se lève du bas, arcs à gradins et filets dorés ;
+ * - Néon : bitume mouillé, colonnes de reflets, enseigne ronde reflétée, ronds de pluie ;
+ * - Jade : bambouseraie de près, toit du temple dans la brume, deux lanternes suspendues ;
+ * - Argent : patron de pliage de la grue au trait, pleine lune au centre, nuages au pied ;
  * - Couleurs de la manette : nid d'abeilles à la teinte de l'accent.
  * Tirages aléatoires à graine fixe : le motif ne bouge jamais d'un affichage à l'autre.
  */
@@ -66,6 +69,9 @@ final class PadSkins {
         else if (id.equals("sakura") && SAKURA_PAD_RIVIERE) Facets.sakura(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
         else if (id.equals("sakura")) sakura(c, box, accent, dp, p);
         else if (id.equals("ambre")) ambre(c, box, accent, dp, p);
+        else if (id.equals("neon")) Facets.neon(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
+        else if (id.equals("jade")) Facets.jade(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
+        else if (id.equals("argent")) Facets.argent(c, w, h, accent, Theme.fold(), 0.75f, Facets.MANETTE);
         else if (id.equals("pad")) honeycomb(c, box, accent, dp, p);
         else Facets.codec(c, w, h, accent, Theme.fold(), 0.75f, CODEC_PAD_BASE ? Facets.MANETTE : 1);
     }

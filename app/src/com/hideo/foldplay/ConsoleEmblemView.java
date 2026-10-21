@@ -49,9 +49,11 @@ final class ConsoleEmblemView extends View {
         label.setColor(tint);
 
         // Le pictogramme occupe les deux tiers du haut, le sigle le tiers du bas.
-        float size = Math.min(w, h * 0.62f);
+        // Paramètres : pas de sigle, son nom est déjà écrit dessous ; le pictogramme prend toute la place.
+        boolean bare = system == SystemInfo.SETTINGS;
+        float size = bare ? Math.min(w, h) * 0.86f : Math.min(w, h * 0.62f);
         float cx = w / 2f;
-        float cy = h * 0.34f;
+        float cy = bare ? h / 2f : h * 0.34f;
         if (pk.equals("phosphore")) {
             // Rémanence : la silhouette, pâle et décalée, sous l'emblème.
             int ghost = c.saveLayerAlpha(0, 0, w, h, 110);
@@ -64,6 +66,7 @@ final class ConsoleEmblemView extends View {
         finish(c, pk, cx, cy, size);
         c.restoreToCount(layer);
 
+        if (bare) return;
         label.setTextSize(Math.min(h * 0.2f, w / Math.max(3, system.shortName.length()) * 1.1f));
         c.drawText(system.shortName, cx, h * 0.9f, label);
         mark(c, pk, cx + label.measureText(system.shortName) / 2f, h * 0.9f, label.getTextSize(), accent);
@@ -123,6 +126,22 @@ final class ConsoleEmblemView extends View {
             over.setColor(0x47000000);
             float step = Math.max(3f, s * 0.04f);
             for (float y = t; y < b; y += step) c.drawRect(l, y, rr, y + step * 0.4f, over);
+        } else if (pk.equals("neon")) {
+            // Reflet sur le bitume mouillé : le bas prend la lueur cyan du thème.
+            over.setColor(Theme.alpha(Theme.fold(), 0x48));
+            c.drawRect(l, t + s * 0.68f, rr, b, over);
+            over.setColor(0x30000000);
+            c.drawRect(l, t + s * 0.66f, rr, t + s * 0.68f, over);
+        } else if (pk.equals("bambou")) {
+            // Tiges de bambou : fines rayures verticales et un nœud.
+            over.setColor(0x2E000000);
+            float step = Math.max(4f, s * 0.12f);
+            for (float x = l; x < rr; x += step) c.drawRect(x, t, x + step * 0.18f, b, over);
+            c.drawRect(l, t + s * 0.55f, rr, t + s * 0.57f, over);
+        } else if (pk.equals("lune")) {
+            // Clair de lune : halo pâle en haut à droite.
+            over.setColor(0x3CFFFFFF);
+            c.drawCircle(rr - s * 0.12f, t + s * 0.12f, s * 0.45f, over);
         }
     }
 
@@ -161,6 +180,35 @@ final class ConsoleEmblemView extends View {
         } else if (pk.equals("phosphore")) {
             // Curseur plein, posé sur la ligne du sigle.
             c.drawRect(x + ts * 0.2f, base - ts * 0.7f, x + ts * 0.2f + ts * 0.4f, base, over);
+        } else if (pk.equals("neon")) {
+            // Goutte de pluie.
+            path.reset();
+            path.moveTo(mx, my - m);
+            path.quadTo(mx + m * 0.75f, my + m * 0.1f, mx + m * 0.6f, my + m * 0.45f);
+            path.quadTo(mx, my + m * 1.05f, mx - m * 0.6f, my + m * 0.45f);
+            path.quadTo(mx - m * 0.75f, my + m * 0.1f, mx, my - m);
+            path.close();
+            c.drawPath(path, over);
+        } else if (pk.equals("bambou")) {
+            path.reset();
+            path.moveTo(mx - m, my + m);
+            path.lineTo(mx, my + m * 0.2f);
+            path.lineTo(mx + m, my - m);
+            path.close();
+            c.drawPath(path, over);
+            over.setColor(Theme.alpha(accent, 0x80));
+            path.reset();
+            path.moveTo(mx - m, my + m);
+            path.lineTo(mx + m * 0.4f, my + m * 0.4f);
+            path.lineTo(mx + m, my - m);
+            path.close();
+            c.drawPath(path, over);
+        } else if (pk.equals("lune")) {
+            c.drawCircle(mx, my, m * 0.6f, over);
+            over.setStyle(Paint.Style.STROKE);
+            over.setStrokeWidth(Math.max(1f, ts * 0.04f));
+            c.drawCircle(mx, my, m, over);
+            over.setStyle(Paint.Style.FILL);
         }
     }
 

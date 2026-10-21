@@ -16,11 +16,14 @@ import android.graphics.drawable.Drawable;
  * - givre (Arctique) : trait fin, petit éclat de givre en haut à droite ;
  * - braise (Écarlate) : trait épais, angles vifs, flammèche pliée en bas à droite ;
  * - petale (Sakura) : trait rond, formes fermées teintées, fleur en bas à droite ;
- * - phosphore (Ambre) : trait doublé d'une rémanence décalée, comme un écran à phosphore ; curseur.
+ * - phosphore (Ambre) : trait doublé d'une rémanence décalée, comme un écran à phosphore ; curseur ;
+ * - neon (Néon) : tube lumineux, halo large et pâle sous le trait ; goutte de pluie ;
+ * - bambou (Jade) : trait souple ; feuille de bambou en bas à droite ;
+ * - lune (Argent) : trait fin ; pleine lune cerclée en bas à droite.
  */
 final class Icons extends Drawable {
-    static final String[] PACKS = {"auto", "trait", "givre", "braise", "petale", "phosphore"};
-    static final String[] PACK_NAMES = {"Suit le thème", "Trait", "Givre", "Braise", "Pétale", "Phosphore"};
+    static final String[] PACKS = {"auto", "trait", "givre", "braise", "petale", "phosphore", "neon", "bambou", "lune"};
+    static final String[] PACK_NAMES = {"Suit le thème", "Trait", "Givre", "Braise", "Pétale", "Phosphore", "Néon", "Bambou", "Lune"};
     static final String[] PACK_HELP = {
         "Le pack du thème choisi",
         "Trait rond, net (Codec)",
@@ -28,8 +31,11 @@ final class Icons extends Drawable {
         "Trait épais, angles vifs, flammèche (Écarlate)",
         "Formes teintées et fleur de cerisier (Sakura)",
         "Pointillés de terminal et curseur (Ambre)",
+        "Tube lumineux et goutte de pluie (Néon)",
+        "Trait souple et feuille de bambou (Jade)",
+        "Trait fin et pleine lune (Argent)",
     };
-    private static final String[] THEME_PACK = {"trait", "givre", "braise", "petale", "phosphore"};
+    private static final String[] THEME_PACK = {"trait", "givre", "braise", "petale", "phosphore", "neon", "bambou", "lune"};
 
     /** Pack en service, posé par Theme.sync. */
     static String PACK = "auto";
@@ -99,7 +105,8 @@ final class Icons extends Drawable {
         c.translate(b.left + (b.width() - 24 * s) / 2f, b.top + (b.height() - 24 * s) / 2f);
         c.scale(s, s);
         String pk = pack();
-        stroke.setStrokeWidth(pk.equals("givre") ? 1.3f : pk.equals("braise") ? 2.4f : pk.equals("phosphore") ? 2f : 1.8f);
+        stroke.setStrokeWidth(pk.equals("givre") ? 1.3f : pk.equals("braise") ? 2.4f : pk.equals("phosphore") ? 2f
+                : pk.equals("neon") ? 1.6f : pk.equals("bambou") ? 1.6f : pk.equals("lune") ? 1.25f : 1.8f);
         boolean sharp = pk.equals("braise");
         stroke.setStrokeCap(sharp ? Paint.Cap.SQUARE : Paint.Cap.ROUND);
         stroke.setStrokeJoin(sharp ? Paint.Join.MITER : Paint.Join.ROUND);
@@ -113,6 +120,19 @@ final class Icons extends Drawable {
             c.translate(1.1f, 1.1f);
             shape(c);
             c.restore();
+            stroke.setColor(sc);
+            fill.setColor(fc);
+            path.reset();
+        }
+        if (pk.equals("neon")) {
+            // Halo du tube : la même forme, large et pâle, sous le trait.
+            int sc = stroke.getColor(), fc = fill.getColor();
+            float sw = stroke.getStrokeWidth();
+            stroke.setColor((sc & 0x00FFFFFF) | ((((sc >>> 24) & 0xFF) * 22 / 100) << 24));
+            fill.setColor((fc & 0x00FFFFFF) | ((((fc >>> 24) & 0xFF) * 22 / 100) << 24));
+            stroke.setStrokeWidth(sw * 3.2f);
+            shape(c);
+            stroke.setStrokeWidth(sw);
             stroke.setColor(sc);
             fill.setColor(fc);
             path.reset();
@@ -174,6 +194,175 @@ final class Icons extends Drawable {
         } else if (pk.equals("phosphore")) {
             r.set(19.5f, 19, 22.5f, 23);
             c.drawRect(r, fill);
+        } else if (pk.equals("neon")) {
+            // Goutte de pluie.
+            path.reset();
+            path.moveTo(20.8f, 16.6f);
+            path.quadTo(22.6f, 19.6f, 22.4f, 21.2f);
+            path.quadTo(22, 23, 20.8f, 23);
+            path.quadTo(19.6f, 23, 19.2f, 21.2f);
+            path.quadTo(19, 19.6f, 20.8f, 16.6f);
+            path.close();
+            c.drawPath(path, fill);
+        } else if (pk.equals("bambou")) {
+            // Feuille de bambou en deux faces, nervure au pli.
+            path.reset();
+            path.moveTo(17.5f, 23);
+            path.lineTo(20, 19.6f);
+            path.lineTo(23.2f, 16.5f);
+            path.close();
+            c.drawPath(path, fill);
+            fill.setColor((col & 0x00FFFFFF) | ((((col >>> 24) & 0xFF) / 2) << 24));
+            path.reset();
+            path.moveTo(17.5f, 23);
+            path.lineTo(21.2f, 21.4f);
+            path.lineTo(23.2f, 16.5f);
+            path.close();
+            c.drawPath(path, fill);
+            fill.setColor(col);
+        } else if (pk.equals("lune")) {
+            c.drawCircle(20.6f, 20.6f, 1.5f, fill);
+            float sw = stroke.getStrokeWidth();
+            stroke.setStrokeWidth(0.6f);
+            c.drawCircle(20.6f, 20.6f, 2.6f, stroke);
+            stroke.setStrokeWidth(sw);
+        }
+    }
+
+    /** Pictogramme d'une entrée de la catégorie Paramètres (action:set:<id>) : Thème, Manette et les sections des réglages. */
+    static String forSetting(String id) {
+        if (id.equals("theme")) return "palette";
+        if (id.equals("pads")) return "pads";
+        // Mises à jour et À propos réunis dans une seule entrée.
+        if (id.equals("sec:updates")) return "updates_about";
+        // Émulateurs : la puce des cœurs, pour ne pas répéter la manette de l'entrée « Manette ».
+        if (id.equals("sec:emulators")) return "cores";
+        if (id.startsWith("sec:")) {
+            String s = id.substring(4);
+            if (s.equals("display") || s.equals("sound") || s.equals("a11y") || s.equals("library")
+                    || s.equals("monitoring") || s.equals("updates") || s.equals("about")) return s;
+        }
+        return "settings";
+    }
+
+    /**
+     * Écrin dessiné derrière le pictogramme d'une entrée de Paramètres, propre au pack (donc au thème) :
+     * octogone (trait), hexagone de givre, losange plié (braise), corolle (pétale), écran à balayage
+     * (phosphore), tube double (néon), ensō (bambou), halo de lune (lune). side : diamètre en pixels.
+     */
+    static void frame(Canvas c, String pk, float cx, float cy, float side, int color) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        Path path = new Path();
+        float R = side / 2f, lw = Math.max(1f, side / 40f);
+        int a1 = (color & 0x00FFFFFF) | 0x1C000000, a2 = (color & 0x00FFFFFF) | 0x66000000;
+        p.setStrokeJoin(Paint.Join.ROUND);
+        if (pk.equals("givre") || pk.equals("trait")) {
+            int n = pk.equals("givre") ? 6 : 8;
+            double off = pk.equals("givre") ? -Math.PI / 2 : Math.PI / 8;
+            for (int i = 0; i < n; i++) {
+                double t = off + Math.PI * 2 * i / n;
+                float x = cx + (float) Math.cos(t) * R, y = cy + (float) Math.sin(t) * R;
+                if (i == 0) path.moveTo(x, y);
+                else path.lineTo(x, y);
+            }
+            path.close();
+            p.setColor(a1);
+            c.drawPath(path, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(pk.equals("givre") ? lw * 0.8f : lw);
+            p.setColor(a2);
+            c.drawPath(path, p);
+            if (pk.equals("givre")) {
+                for (int i = 0; i < 6; i++) {
+                    double t = -Math.PI / 2 + Math.PI * 2 * i / 6;
+                    float x = cx + (float) Math.cos(t) * R, y = cy + (float) Math.sin(t) * R;
+                    c.drawLine(x, y, x + (float) Math.cos(t) * R * 0.12f, y + (float) Math.sin(t) * R * 0.12f, p);
+                }
+            }
+        } else if (pk.equals("braise")) {
+            path.moveTo(cx, cy - R);
+            path.lineTo(cx + R, cy);
+            path.lineTo(cx, cy + R);
+            path.close();
+            p.setColor((color & 0x00FFFFFF) | 0x26000000);
+            c.drawPath(path, p);
+            path.reset();
+            path.moveTo(cx, cy - R);
+            path.lineTo(cx - R, cy);
+            path.lineTo(cx, cy + R);
+            path.close();
+            p.setColor((color & 0x00FFFFFF) | 0x12000000);
+            c.drawPath(path, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(lw * 1.4f);
+            p.setStrokeJoin(Paint.Join.MITER);
+            p.setColor(a2);
+            path.reset();
+            path.moveTo(cx, cy - R);
+            path.lineTo(cx + R, cy);
+            path.lineTo(cx, cy + R);
+            path.lineTo(cx - R, cy);
+            path.close();
+            c.drawPath(path, p);
+        } else if (pk.equals("petale")) {
+            for (int i = 0; i < 5; i++) {
+                double t = -Math.PI / 2 + Math.PI * 2 * i / 5;
+                p.setColor(a1);
+                c.drawCircle(cx + (float) Math.cos(t) * R * 0.42f, cy + (float) Math.sin(t) * R * 0.42f, R * 0.6f, p);
+            }
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(lw);
+            p.setColor(a2);
+            c.drawCircle(cx, cy, R * 0.98f, p);
+        } else if (pk.equals("phosphore")) {
+            RectF o = new RectF(cx - R, cy - R * 0.85f, cx + R, cy + R * 0.85f);
+            p.setColor(a1);
+            c.drawRoundRect(o, R * 0.18f, R * 0.18f, p);
+            p.setColor((color & 0x00FFFFFF) | 0x10000000);
+            for (float y = o.top; y < o.bottom; y += lw * 3) c.drawRect(o.left, y, o.right, y + lw, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(lw);
+            p.setColor(a2);
+            c.drawRoundRect(o, R * 0.18f, R * 0.18f, p);
+        } else if (pk.equals("neon")) {
+            RectF o = new RectF(cx - R, cy - R, cx + R, cy + R);
+            p.setStyle(Paint.Style.STROKE);
+            float[] wd = {lw * 6f, lw * 3f, lw * 1.1f};
+            int[] al = {0x14, 0x30, 0xC0};
+            for (int i = 0; i < 3; i++) {
+                p.setStrokeWidth(wd[i]);
+                p.setColor((i == 2 ? Theme.lighten(color, 0.5f) & 0x00FFFFFF : color & 0x00FFFFFF) | (al[i] << 24));
+                c.drawRoundRect(o, R * 0.32f, R * 0.32f, p);
+            }
+            int cy2 = Theme.fold();
+            p.setStrokeWidth(lw);
+            p.setColor((cy2 & 0x00FFFFFF) | 0x70000000);
+            c.drawRoundRect(new RectF(o.left + lw * 4, o.top + lw * 4, o.right - lw * 4, o.bottom - lw * 4), R * 0.24f, R * 0.24f, p);
+        } else if (pk.equals("bambou")) {
+            p.setColor(a1);
+            c.drawCircle(cx, cy, R * 0.95f, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            RectF o = new RectF(cx - R, cy - R, cx + R, cy + R);
+            p.setColor(a2);
+            p.setStrokeWidth(lw * 2.2f);
+            c.drawArc(o, 120, 270, false, p);
+            p.setStrokeWidth(lw);
+            c.drawArc(o, 50, 50, false, p);
+        } else if (pk.equals("lune")) {
+            p.setShader(new android.graphics.RadialGradient(cx, cy, R * 1.15f, (color & 0x00FFFFFF) | 0x30000000, color & 0x00FFFFFF,
+                    android.graphics.Shader.TileMode.CLAMP));
+            c.drawCircle(cx, cy, R * 1.15f, p);
+            p.setShader(null);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(lw * 0.8f);
+            p.setColor(a2);
+            c.drawCircle(cx, cy, R * 0.92f, p);
+            p.setColor((color & 0x00FFFFFF) | 0x30000000);
+            c.drawCircle(cx, cy, R * 1.08f, p);
+        } else {
+            p.setColor(a1);
+            c.drawCircle(cx, cy, R, p);
         }
     }
 
@@ -300,6 +489,15 @@ final class Icons extends Drawable {
                 c.drawLine(12, 8, 12, 15.5f, stroke);
                 c.drawLine(9, 12.8f, 12, 15.8f, stroke);
                 c.drawLine(15, 12.8f, 12, 15.8f, stroke);
+                break;
+            case "updates_about":
+                // Mises à jour et À propos (0.66) : la flèche circulaire des mises à jour autour du « i » d'information.
+                r.set(4, 4, 20, 20);
+                c.drawArc(r, -60, 300, false, stroke);
+                c.drawLine(16, 4.2f, 20, 5.3f, stroke);
+                c.drawLine(16, 4.2f, 17, 8.2f, stroke);
+                c.drawLine(12, 11, 12, 16, stroke);
+                c.drawCircle(12, 8.1f, 1.1f, fill);
                 break;
             case "about":
                 c.drawCircle(12, 12, 8.5f, stroke);
