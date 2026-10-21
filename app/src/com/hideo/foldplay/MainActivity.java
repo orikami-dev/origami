@@ -389,7 +389,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             {"pads", "Manette", "Manette tactile et manettes branchées : disposition, éditeur, touches et vibrations."},
             {"sec:a11y", "Accessibilité", "Textes plus grands et plus contrastés, animations réduites, gâchettes à bascule et vibrations renforcées."},
             {"sec:monitoring", "Monitoring", "ATH en jeu façon RTSS : images par seconde, processeur, mémoire, température."},
-            {"sec:updates", "Mises à jour et À propos", "Version installée, vérification automatique, préversions, équipe KAMI-WORKS, licences et mode débogage."},
+            {"sec:updates", "Version", "Version installée, vérification automatique, préversions, équipe KAMI-WORKS, licences et mode débogage."},
         };
         for (String[] r : e) {
             Game g = new Game(r[1], SystemInfo.SETTINGS, "action:set:" + r[0]);

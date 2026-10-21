@@ -36,7 +36,7 @@ public class SettingsActivity extends Activity {
         {"sound", "Son"},
         {"a11y", "Accessibilité"},
         {"monitoring", "Monitoring"},
-        {"updates", "Mises à jour et À propos"},
+        {"updates", "Version"},
     };
 
     private Store store;
