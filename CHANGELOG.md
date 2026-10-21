@@ -2,6 +2,11 @@
 
 Studio : KAMI-WORKS.
 
+## 0.66.8
+
+- XMB en mode Tsuru : la catégorie « Paramètres » devient « Réglages », son nom ne se coupe plus.
+- Argent : les grues du fond battent des ailes plus doucement, ailes toujours du bon côté, le corps monte quand elles redescendent.
+
 ## 0.66.7
 
 - Trois nouveaux thèmes complets : Néon (ruelle de Tokyo sous la pluie), Jade (temple de montagne dans la brume) et Argent (grues en origami sous la pleine lune), avec leurs fonds, manettes, icônes d'appli, bruitages et musiques.

@@ -90,7 +90,7 @@ final class SystemInfo {
     static final SystemInfo ANDROID = new SystemInfo("android", "Jeux mobiles", "MOBILE", null, 0xFF1E9E8A, a(), a());
     static final SystemInfo REMOTE = new SystemInfo("remote", "Remote Play", "REMOTE", null, 0xFF6A5ACD, a(), a());
     /** Catégorie « Paramètres » du XMB (Tsuru seulement) : Thème, Manette, Réglages. */
-    static final SystemInfo SETTINGS = new SystemInfo("settings", "Paramètres", "Paramètres", null, 0xFF5B6475, a(), a());
+    static final SystemInfo SETTINGS = new SystemInfo("settings", "Réglages", "Réglages", null, 0xFF5B6475, a(), a());
     /** Entrées d'action (« Actualiser la bibliothèque ») glissées dans une catégorie. */
     static final SystemInfo ACTION = new SystemInfo("action", "Bibliothèque", "MAJ", null, 0xFF3A4150, a(), a());
 

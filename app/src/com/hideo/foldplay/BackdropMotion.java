@@ -542,8 +542,12 @@ final class BackdropMotion {
         for (int i = 0; i < Facets.FLOCK.length; i++) {
             float[] g = Facets.FLOCK[i];
             float size = H0 * g[2], x = fract(g[0] + t) * (w + 2 * size) - size;
-            float y = h * g[1] - (x / w - g[0]) * h * 0.08f + size * 0.08f * (float) Math.sin(TAU * (3 * t + i * 0.3f));
-            float flap = 0.3f + 0.7f * (float) Math.sin(TAU * ((18 + 4 * (i % 3)) * t + i * 0.37f));
+            // Battement : ailes toujours du bon côté (jamais retournées sous le corps), plus lent ; le corps
+            // monte quand les ailes redescendent et s'abaisse quand elles se lèvent (BOSS).
+            float ph = (float) (TAU * ((10 + 2 * (i % 3)) * t + i * 0.37f));
+            float cph = (float) Math.cos(ph);
+            float y = h * g[1] - (x / w - g[0]) * h * 0.08f + size * 0.05f * cph;
+            float flap = 0.55f + 0.45f * cph;
             Facets.crane(c, P, PATH, sh, fold, x, y, size, g[3], flap, 0xC8, false);
         }
     }

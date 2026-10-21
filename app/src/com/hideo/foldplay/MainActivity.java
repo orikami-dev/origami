@@ -594,7 +594,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         lvHeader.addView(icon, new LinearLayout.LayoutParams(size, size));
         LinearLayout col = vertical();
         col.setPadding(dp(10), 0, 0, 0);
-        TextView sub = text(up("Paramètres"), 10 * s, Theme.MUTED, false);
+        TextView sub = text(up("Réglages"), 10 * s, Theme.MUTED, false);
         sub.setTypeface(Fonts.wide(this));
         sub.setLetterSpacing(0.2f);
         sub.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
@@ -939,7 +939,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         for (int i = 0; i < lvRows.size(); i++) styleLevelRow(i, i == lvSel);
         Game e = levelEntry();
         String name = e == null ? "" : e.title;
-        heroSystem.setText(up("Paramètres") + " › " + up(name));
+        heroSystem.setText(up("Réglages") + " › " + up(name));
         heroTitle.setVisibility(View.GONE);
         heroMeta.setText(I18n.tr("◀ ▶ change la valeur · Ⓐ valide · Ⓑ retour"));
         heroEmblem.setVisibility(View.INVISIBLE);
