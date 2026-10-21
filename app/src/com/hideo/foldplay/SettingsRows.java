@@ -463,6 +463,16 @@ final class SettingsRows {
     /** Monitoring : l'ATH en jeu façon RTSS, son style et les mesures affichées. */
     private static void monitoring(Host h, List<Row> l) {
         final Store store = h.store();
+        header(l, "Cœurs du processeur");
+        int cm = 0;
+        for (int i = 0; i < CoreAffinity.MODES.length; i++) if (CoreAffinity.MODES[i].equals(store.coresMode())) cm = i;
+        choice(l, "Répartition des cœurs", CoreAffinity.LABELS, cm, new Choice() {
+            public void set(int i) {
+                store.setCoresMode(CoreAffinity.MODES[i]);
+            }
+        });
+        note(l, "PS3 et Xbox 360. Performance : le son, le rendu et le jeu passent sur les gros cœurs, les shaders se "
+                + "compilent sur les moyens. Économie : tout sur les moyens, le téléphone chauffe moins. Auto : Android décide.");
         header(l, "ATH en jeu");
         toggle(l, "ATH de monitoring en jeu", "Mesures en direct, façon RTSS",
                 store.hud(), new Toggle() {

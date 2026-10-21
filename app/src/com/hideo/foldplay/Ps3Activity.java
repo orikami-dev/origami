@@ -330,6 +330,7 @@ public class Ps3Activity extends Activity {
         if (CodecMenu.find(stage) != null) return;
         booted = true;
         DebugLog.event("[PS3] démarrage du jeu : applyPs3 puis nativeBoot");
+        CoreAffinity.start(this, "ps3");
         new Thread(new Runnable() {
             public void run() {
                 EngineSettings.applyPs3(Ps3Activity.this, title + " " + path);

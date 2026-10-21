@@ -1433,14 +1433,6 @@ final class Facets {
 
     // ---- Écarlate : nuit japonaise
 
-    /** Hauteur de colline (t de 0 à 1 en travers de l'écran) : basse au centre, un grand mont à droite. */
-    static float hillH(float t, float H0) {
-        // Grand mont à sommet plat centré sur la pagode (t = 0,88) : le château repose sur la crête.
-        float g = Math.abs(t - 0.88f) / 0.2f;
-        float g2 = (t - 0.04f) / 0.1f;
-        return H0 * (0.05f + 0.025f * (float) Math.sin(t * 9f) + 0.31f * (float) Math.exp(-g * g * g) + 0.12f * (float) Math.exp(-g2 * g2));
-    }
-
     /** Conifère en silhouette : quatre étages de triangles sur un tronc court. */
     private void conifer(float x, float yb, float hgt, int color) {
         float ww = hgt * 0.2f;
@@ -1451,15 +1443,112 @@ final class Facets {
         }
     }
 
-    /** Forêt dense : rangées de conifères en plans successifs (pâles au loin) posées sur la crête lointaine. */
+    /**
+     * Torii vermillon de face (le même que la manette) : piliers sur socles, nuki qui dépasse, plaque, linteau et
+     * chapeau noir aux bouts relevés. Rend le bas du nuki, où pendent les lanternes.
+     */
+    private float toriiGate(float cx, float span, float top, float base, float m, float lw) {
+        float xl = cx - span / 2, xr = cx + span / 2, pw = m * 0.042f, pt = top + m * 0.06f;
+        float ny = top + (base - top) * 0.29f, nh = m * 0.045f, ext = m * 0.09f, th = m * 0.055f, L = span * 0.5f + m * 0.16f;
+        for (int i = 0; i < 2; i++) {
+            float x = i == 0 ? xl : xr;
+            poly(a(Theme.darken(VERM, 0.45f), 0xFC), x - pw, base, x, base, x, pt, x - pw * 0.82f, pt);
+            poly(a(VERM, 0xFC), x, base, x + pw, base, x + pw * 0.82f, pt, x, pt);
+            line(x + pw * 0.75f, base, x + pw * 0.6f, pt, lw, a(Theme.lighten(VERM, 0.45f), 0x70));
+            box(x - pw * 1.35f, base - m * 0.02f, x + pw * 1.35f, base + m * 0.04f, a(0xFF0A0505, 0xFC));
+            line(x - pw * 1.35f, base - m * 0.02f, x + pw * 1.35f, base - m * 0.02f, lw, a(fold, 0x60));
+            box(x - pw * 1.05f, base - m * 0.07f, x + pw * 1.05f, base - m * 0.045f, a(0xFF2A1408, 0xFC));
+            line(x - pw * 1.05f, base - m * 0.07f, x + pw * 1.05f, base - m * 0.07f, lw, a(fold, 0x80));
+        }
+        box(xl - ext, ny, xr + ext, ny + nh, a(VERM, 0xFC));
+        box(xl - ext, ny + nh * 0.6f, xr + ext, ny + nh, a(Theme.darken(VERM, 0.35f), 0xFC));
+        line(xl - ext, ny, xr + ext, ny, lw * 1.2f, a(Theme.lighten(VERM, 0.45f), 0x80));
+        for (int i = 0; i < 2; i++) {
+            float x = i == 0 ? xl : xr;
+            box(x + pw * 0.9f, ny - nh * 0.2f, x + pw * 1.5f, ny + nh * 1.2f, a(0xFF0A0505, 0xF0));
+        }
+        box(cx - m * 0.035f, top + th, cx + m * 0.035f, ny, a(Theme.darken(VERM, 0.3f), 0xFC));
+        box(cx - m * 0.05f, top + th + m * 0.025f, cx + m * 0.05f, ny - m * 0.02f, a(0xFF0E0606, 0xFA));
+        line(cx - m * 0.05f, top + th + m * 0.025f, cx + m * 0.05f, top + th + m * 0.025f, lw, a(fold, 0x70));
+        box(cx - span * 0.5f - m * 0.08f, top + th * 0.55f, cx + span * 0.5f + m * 0.08f, top + th * 1.15f, a(VERM, 0xFC));
+        for (int k = 0; k < 2; k++) {
+            path.reset();
+            path.moveTo(cx - L - m * 0.04f, top - m * 0.06f);
+            path.quadTo(cx - L * 0.6f, top + th * 0.2f, cx, top + th * 0.25f);
+            path.quadTo(cx + L * 0.6f, top + th * 0.2f, cx + L + m * 0.04f, top - m * 0.06f);
+            if (k == 0) {
+                path.lineTo(cx + L * 0.9f, top + th * 0.6f);
+                path.quadTo(cx, top + th * 0.9f, cx - L * 0.9f, top + th * 0.6f);
+                path.close();
+                p.setColor(a(0xFF120607, 0xFC));
+            } else {
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(lw * 1.4f);
+                p.setColor(a(Theme.lighten(VERM, 0.4f), 0x90));
+            }
+            c.drawPath(path, p);
+            p.setStyle(Paint.Style.FILL);
+        }
+        return ny + nh;
+    }
+
+    /** Lanterne de pierre (tōrō) posée en b, de taille s. */
+    private void toro(float x, float b, float s, float lw) {
+        int st = a(0xFF0B0707, 0xFA);
+        box(x - s * 0.8f, b - s * 0.35f, x + s * 0.8f, b, st);
+        box(x - s * 0.22f, b - s * 1.4f, x + s * 0.22f, b - s * 0.35f, st);
+        box(x - s * 0.75f, b - s * 1.65f, x + s * 0.75f, b - s * 1.4f, a(0xFF0E0909, 0xFA));
+        box(x - s * 0.5f, b - s * 2.35f, x + s * 0.5f, b - s * 1.65f, st);
+        box(x - s * 0.3f, b - s * 2.2f, x + s * 0.3f, b - s * 1.8f, a(fold, 0x70));
+        poly(st, x - s * 1.05f, b - s * 2.35f, x, b - s * 2.95f, x + s * 1.05f, b - s * 2.35f);
+        line(x, b - s * 2.95f, x + s * 1.05f, b - s * 2.35f, lw, a(sh[3], 0x40));
+        disc(x, b - s * 3.05f, s * 0.14f, st);
+    }
+
+    /** Branches de pin qui entrent par un bord (dir 1 depuis la gauche, -1 depuis la droite). */
+    private void pinBranches(float x0, float dir, float h, float m, float lw) {
+        for (int k = 0; k < 3; k++) {
+            float y = h * (0.05f + 0.07f * k), len = m * (0.34f - 0.07f * k);
+            line(x0, y, x0 + dir * len, y + m * 0.04f, lw * 2.4f, a(0xFF0A0405, 0xF8));
+            for (int j = 0; j < 5; j++) {
+                float px = x0 + dir * len * (0.3f + 0.15f * j), py = y + m * 0.04f * (0.3f + 0.15f * j);
+                for (int n = 0; n < 7; n++) {
+                    double ang = -Math.PI / 2 + (n - 3) * 0.32;
+                    line(px, py, px + (float) Math.cos(ang) * m * 0.035f, py + (float) Math.sin(ang) * m * 0.035f + m * 0.02f, lw * 0.9f, a(0xFF0F0607, 0xF0));
+                }
+            }
+        }
+    }
+
+    /** Feuilles d'érable tombées dans un rectangle. */
+    private void mapleLeaves(float x0, float x1, float y0, float y1, int n, float m) {
+        for (int i = 0; i < n; i++) {
+            float x = x0 + (x1 - x0) * rnd(), y = y0 + (y1 - y0) * rnd(), s2 = m * 0.012f;
+            for (int k = 0; k < 5; k++) {
+                double ang = -Math.PI / 2 + (k - 2) * 0.55;
+                float ex = x + (float) Math.cos(ang) * s2 * 2, ey = y + (float) Math.sin(ang) * s2 * 2;
+                float nx = -(float) Math.sin(ang) * s2 * 0.5f, nyy = (float) Math.cos(ang) * s2 * 0.5f;
+                poly(a((k & 1) == 1 ? sh[2] : fold, 0x60), x, y, (x + ex) / 2 + nx, (y + ey) / 2 + nyy, ex, ey, (x + ex) / 2 - nx, (y + ey) / 2 - nyy);
+            }
+        }
+    }
+
+    /** Hauteur de colline (t de 0 à 1 en travers de l'écran) : basse au centre, un grand mont à droite. */
+    static float hillH(float t, float H0) {
+        float g = Math.abs(t - 0.88f) / 0.2f, g2 = (t - 0.04f) / 0.1f;
+        return H0 * (0.05f + 0.025f * (float) Math.sin(t * 9f) + 0.31f * (float) Math.exp(-g * g * g) + 0.12f * (float) Math.exp(-g2 * g2));
+    }
+
+    private static float ridge(float t, float H0) {
+        return H0 * (0.12f + 0.05f * (float) Math.sin(t * 7f + 1f) + 0.12f * t);
+    }
+
+    /** Forêt dense posée sur la crête lointaine : quatre rangées, pâles au loin. */
     private void foret(float w, float h, float H0, float ground) {
-        float[] hgt = {0.07f, 0.085f, 0.1f, 0.12f};
-        float[] drop = {0.0f, 0.02f, 0.045f, 0.075f};
+        float[] hgt = {0.07f, 0.085f, 0.1f, 0.12f}, drop = {0f, 0.02f, 0.045f, 0.075f};
         int[] col = {a(0xFF3C1D20, 0xB8), a(0xFF2E1618, 0xE0), a(0xFF251213, 0xF4), a(0xFF170909, 0xFA)};
         for (int r = 0; r < 4; r++) {
             float step = H0 * (0.022f + 0.004f * r);
-            float x0 = -step + step * 0.5f * (r & 1);
-            // Sol de la rangée, pour qu'aucun jour ne laisse voir le ciel entre les troncs.
             path.reset();
             path.moveTo(0, h);
             for (float x = 0; x <= w + step; x += step) path.lineTo(x, ground - ridge(x / w, H0) + H0 * drop[r]);
@@ -1467,71 +1556,80 @@ final class Facets {
             path.close();
             p.setColor(col[r]);
             c.drawPath(path, p);
-            for (float x = x0; x < w + step; x += step) {
-                float yb = ground - ridge(x / w, H0) + H0 * drop[r] + H0 * 0.012f;
-                conifer(x, yb, H0 * hgt[r] * (0.75f + 0.5f * rnd()), col[r]);
-            }
+            for (float x = -step + step * 0.5f * (r & 1); x < w + step; x += step)
+                conifer(x, ground - ridge(x / w, H0) + H0 * drop[r] + H0 * 0.012f, H0 * hgt[r] * (0.75f + 0.5f * rnd()), col[r]);
         }
-    }
-
-    /** Crête de la colline lointaine (couche 0). */
-    private static float ridge(float t, float H0) {
-        return H0 * (0.12f + 0.05f * (float) Math.sin(t * 7f + 1f) + 0.12f * t);
-    }
-
-    /** Repères du torii (x, hauteur de la poutre, portée), partagés avec BackdropMotion (lanternes suspendues). */
-    static float[] japonPts(float w, float h) {
-        float H0 = Math.min(h, w * 0.9f), q = Math.min(w, h * 1.2f) * 0.06f, ground = h * 0.9f;
-        float tx = w * 0.5f;
-        return new float[] {tx, ground - hillH(0.5f, H0) + q * 0.1f - q * 3.6f + q * 0.14f, q * 3.8f};
     }
 
     private void pin(float x, float y, float hgt, float lw) {
         float ww = hgt * 0.22f;
-        box(x - lw * 1.2f, y - hgt * 0.35f, x + lw * 1.2f, y + 1, a(0xFF0A0405, 0xF8));
+        int col = a(0xFF0A0405, 0xF8);
+        box(x - lw * 1.2f, y - hgt * 0.35f, x + lw * 1.2f, y + 1, col);
         for (int i = 0; i < 4; i++) {
             float yy = y - hgt * (0.28f + 0.2f * i), wd = ww * (1f - 0.22f * i);
-            poly(a(0xFF0A0405, 0xF8), x - wd, yy, x, yy - hgt * 0.3f, x + wd, yy);
-            line(x, yy - hgt * 0.3f, x + wd, yy, lw, a(sh[3], 0x30));
+            poly(col, x - wd, yy, x, yy - hgt * 0.3f, x + wd, yy);
+            line(x, yy - hgt * 0.3f, x + wd, yy, lw, a(fold, 0x34));
         }
     }
 
     /**
-     * Nuit japonaise : lune rouge laquée en facettes et ses nervures d'éventail, nuages en écailles,
-     * collines sombres, pagode à cinq toits et torii sur le grand mont à droite, pins et lanterne de
-     * pierre au bord gauche. Le centre reste bas et sombre.
+     * Repères du fond Torii (0.66.23), partagés avec BackdropMotion : x du torii, portée, bas du nuki, échelle,
+     * puis x, y et demi-largeur des cinq fenêtres de la pagode.
+     */
+    static float[] japonPts(float w, float h) {
+        float H0 = Math.min(h, w * 0.9f), q = Math.min(w, h * 1.2f) * 0.06f, ground = h * 0.9f;
+        float top = ground - hillH(0.5f, H0) + q * 0.1f - q * 3.6f, base = ground - hillH(0.5f, H0) + q * 0.3f;
+        float[] r = new float[4 + 15];
+        r[0] = w * 0.5f;
+        r[1] = q * 3.8f;
+        r[2] = top + (base - top) * 0.29f + q * 3.6f * 0.045f;
+        r[3] = q * 3.6f;
+        float qq = q * 0.82f, bw = qq * 2.6f, y = ground - hillH(0.88f, H0) + qq * 0.1f - qq * 0.28f;
+        for (int i = 0; i < 5; i++) {
+            float bwi = bw * (1f - 0.15f * i), bh = qq * 0.7f;
+            r[4 + i * 3] = w * 0.88f;
+            r[5 + i * 3] = y - bh * 0.5f;
+            r[6 + i * 3] = bwi * 0.3f;
+            y = y - bh - qq * 0.36f;
+        }
+        return r;
+    }
+
+    /**
+     * Fond Torii (0.66.23, l'ancien Écarlate dans la DA de la manette) : lune rouge en facettes et nervures
+     * d'éventail, nuages dorés en écailles, collines et forêt, pagode vermillon aux fenêtres allumées sur le grand
+     * mont, petit torii au centre, pins et lanterne de pierre à gauche, feuilles d'érable devant. Braises, lanternes
+     * de papier, fenêtres qui respirent et feuilles qui tombent : BackdropMotion.japon.
      */
     private void japon(float w, float h) {
         float u = Math.max(w, h), H0 = Math.min(h, w * 0.9f), q = Math.min(w, h * 1.2f) * 0.06f;
         float ground = h * 0.9f, lw = Math.max(1f, u / 1100f);
-        float mx = w * 0.56f, my = Math.min(h * 0.25f, ground - H0 * 0.62f), mr = H0 * 0.12f;
-        for (int i = 0; i < 28; i++) star(w * rnd(), ground * 0.5f * rnd(), u * (0.001f + 0.0012f * rnd()), 0x20 + Math.round(rnd() * 0x40));
-        // Nervures d'éventail derrière la lune.
-        for (int i = 0; i < 26; i++) {
-            double ang = Math.PI * 2 * i / 26;
-            line(mx + (float) Math.cos(ang) * mr * 1.3f, my + (float) Math.sin(ang) * mr * 1.3f,
-                    mx + (float) Math.cos(ang) * u, my + (float) Math.sin(ang) * u, lw, a(fold, 0x0A));
+        float mx = w * 0.56f, my = Math.min(h * 0.25f, ground - H0 * 0.62f), mr = H0 * 0.13f;
+        vgrad(0, 0, w, h, a(0xFF1E0C0D, 0x80), a(0xFF070304, 0xA0));
+        glow(mx, my, H0 * 0.85f, sh[2], 0x1E);
+        for (int i = 0; i < 30; i++) star(w * rnd(), ground * 0.5f * rnd(), u * (0.001f + 0.0012f * rnd()), 0x20 + Math.round(rnd() * 0x30));
+        for (int i = 0; i < 28; i++) {
+            double ang = Math.PI * 2 * i / 28;
+            line(mx + (float) Math.cos(ang) * mr * 1.25f, my + (float) Math.sin(ang) * mr * 1.25f,
+                    mx + (float) Math.cos(ang) * u, my + (float) Math.sin(ang) * u, lw, a(fold, 0x0C));
         }
-        // Lune : halos et disque à vingt facettes.
-        disc(mx, my, mr * 1.6f, a(sh[2], 0x0C));
-        disc(mx, my, mr * 1.3f, a(sh[2], 0x14));
-        int fc = 20;
-        for (int i = 0; i < fc; i++) {
-            double t0 = Math.PI * 2 * i / fc, t1 = Math.PI * 2 * (i + 1) / fc;
-            boolean left = Math.cos((t0 + t1) / 2) < 0;
-            tri(mx, my, mx + (float) Math.cos(t0) * mr, my + (float) Math.sin(t0) * mr,
-                    mx + (float) Math.cos(t1) * mr, my + (float) Math.sin(t1) * mr, a(sh[left ? 1 : 2], (i & 1) == 0 ? 0x4A : 0x3E));
-        }
-        arcLine(mx, my, mr, 0, 360, lw * 1.4f, a(fold, 0x40));
-        // Nuages en écailles : rangées d'arcs, de plus en plus visibles vers la droite.
         for (int j = 0; j < 4; j++) {
             float r = q * (0.9f + 0.25f * j), y = my + mr * (0.5f + 0.75f * j);
             for (float x = w * (0.3f + 0.05f * j) + (j & 1) * r; x < w + r; x += r * 2) {
-                arcLine(x, y, r, 180, 180, lw, a(fold, Math.round(0x1C * (x / w))));
-                arcLine(x, y, r * 0.66f, 180, 180, lw, a(fold, Math.round(0x12 * (x / w))));
+                float k = Math.max(0f, Math.min(1f, (x / w - 0.25f) * 1.5f));
+                arcLine(x, y, r, 180, 180, lw, a(fold, Math.round(0x26 * k)));
+                arcLine(x, y, r * 0.66f, 180, 180, lw, a(fold, Math.round(0x16 * k)));
             }
         }
-        // Collines : lointaines, puis proches avec le grand mont.
+        disc(mx, my, mr * 1.45f, a(sh[2], 0x0E));
+        disc(mx, my, mr * 1.2f, a(sh[2], 0x16));
+        for (int i = 0; i < 24; i++) {
+            double t0 = Math.PI * 2 * i / 24, t1 = Math.PI * 2 * (i + 1) / 24;
+            boolean left = Math.cos((t0 + t1) / 2) < 0;
+            tri(mx, my, mx + (float) Math.cos(t0) * mr, my + (float) Math.sin(t0) * mr,
+                    mx + (float) Math.cos(t1) * mr, my + (float) Math.sin(t1) * mr, a(sh[left ? 1 : 2], (i & 1) == 0 ? 0x70 : 0x5C));
+        }
+        arcLine(mx, my, mr, 0, 360, lw * 1.4f, a(fold, 0x44));
         int steps = 64;
         for (int layer = 0; layer < 2; layer++) {
             if (layer == 1) foret(w, h, H0, ground);
@@ -1539,8 +1637,7 @@ final class Facets {
             path.moveTo(0, h);
             for (int i = 0; i <= steps; i++) {
                 float t = i / (float) steps;
-                float hh = layer == 0 ? ridge(t, H0) : hillH(t, H0);
-                path.lineTo(w * t, ground - hh);
+                path.lineTo(w * t, ground - (layer == 0 ? ridge(t, H0) : hillH(t, H0)));
             }
             path.lineTo(w, h);
             path.close();
@@ -1548,63 +1645,41 @@ final class Facets {
             c.drawPath(path, p);
             float px = 0, py = 0;
             for (int i = 0; i <= steps; i++) {
-                float t = i / (float) steps;
-                float hh = layer == 0 ? ridge(t, H0) : hillH(t, H0);
-                float x = w * t, y = ground - hh;
-                if (i > 0) line(px, py, x, y, lw * 1.3f, a(layer == 0 ? sh[1] : sh[3], layer == 0 ? 0x18 : 0x3A));
+                float t = i / (float) steps, x = w * t, y = ground - (layer == 0 ? ridge(t, H0) : hillH(t, H0));
+                if (i > 0) line(px, py, x, y, lw * 1.3f, layer == 0 ? a(sh[1], 0x18) : a(Theme.lighten(VERM, 0.3f), 0x50));
                 px = x;
                 py = y;
             }
         }
-        // Pagode sur le mont (un peu plus petite que q pour tenir dans le cadre).
-        float qFull = q;
-        q *= 0.82f;
-        float pgx = w * 0.88f, bw = q * 2.6f, y = ground - hillH(0.88f, H0) + q * 0.1f;
-        // Socle de pierre : posé sur la crête plate, plus large que la première toiture.
-        box(pgx - bw * 0.62f, y - q * 0.28f, pgx, y + q * 0.12f, a(0xFF1A0A0B, 0xFC));
-        box(pgx, y - q * 0.28f, pgx + bw * 0.62f, y + q * 0.12f, a(0xFF260F10, 0xFC));
-        line(pgx - bw * 0.62f, y - q * 0.28f, pgx + bw * 0.62f, y - q * 0.28f, lw, a(sh[3], 0x40));
-        y -= q * 0.28f;
+        // Pagode vermillon : murs laqués, toits noirs liserés, fenêtres allumées.
+        float qq = q * 0.82f, pgx = w * 0.88f, bw = qq * 2.6f, y = ground - hillH(0.88f, H0) + qq * 0.1f;
+        int edge = a(Theme.lighten(VERM, 0.4f), 0x90);
+        box(pgx - bw * 0.62f, y - qq * 0.28f, pgx, y + qq * 0.12f, a(0xFF1A0A0B, 0xFC));
+        box(pgx, y - qq * 0.28f, pgx + bw * 0.62f, y + qq * 0.12f, a(0xFF260F10, 0xFC));
+        line(pgx - bw * 0.62f, y - qq * 0.28f, pgx + bw * 0.62f, y - qq * 0.28f, lw, a(fold, 0x50));
+        y -= qq * 0.28f;
         for (int i = 0; i < 5; i++) {
-            float bwi = bw * (1f - 0.15f * i), bh = q * 0.7f;
-            box(pgx - bwi / 2, y - bh, pgx, y, a(0xFF1A0707, 0xF8));
-            box(pgx, y - bh, pgx + bwi / 2, y, a(0xFF260B0A, 0xF8));
-            box(pgx - bwi * 0.12f, y - bh * 0.7f, pgx + bwi * 0.12f, y - bh * 0.3f, a(sh[3], 0x48));
-            float yb = y - bh, ew = bwi * 0.5f + q * 0.75f;
-            poly(a(0xFF120505, 0xFA), pgx - ew - q * 0.3f, yb - q * 0.2f, pgx - ew * 0.7f, yb + q * 0.03f,
-                    pgx + ew * 0.7f, yb + q * 0.03f, pgx + ew + q * 0.3f, yb - q * 0.2f, pgx + bwi * 0.4f, yb - q * 0.42f, pgx - bwi * 0.4f, yb - q * 0.42f);
-            line(pgx - ew - q * 0.3f, yb - q * 0.2f, pgx - ew * 0.7f, yb + q * 0.03f, lw, a(fold, 0x50));
-            line(pgx + ew + q * 0.3f, yb - q * 0.2f, pgx + ew * 0.7f, yb + q * 0.03f, lw, a(fold, 0x50));
-            line(pgx + bwi * 0.4f, yb - q * 0.42f, pgx + ew + q * 0.3f, yb - q * 0.2f, lw * 1.3f, a(sh[3], 0x78));
-            y = yb - q * 0.36f;
+            float bwi = bw * (1f - 0.15f * i), bh = qq * 0.7f;
+            box(pgx - bwi / 2, y - bh, pgx, y, a(Theme.darken(VERM, 0.55f), 0xFA));
+            box(pgx, y - bh, pgx + bwi / 2, y, a(Theme.darken(VERM, 0.3f), 0xFA));
+            box(pgx - bwi * 0.12f, y - bh * 0.7f, pgx + bwi * 0.12f, y - bh * 0.3f, a(fold, 0x70));
+            float yb = y - bh, ew = bwi * 0.5f + qq * 0.75f;
+            poly(a(0xFF120505, 0xFC), pgx - ew - qq * 0.3f, yb - qq * 0.2f, pgx - ew * 0.7f, yb + qq * 0.03f,
+                    pgx + ew * 0.7f, yb + qq * 0.03f, pgx + ew + qq * 0.3f, yb - qq * 0.2f, pgx + bwi * 0.4f, yb - qq * 0.42f, pgx - bwi * 0.4f, yb - qq * 0.42f);
+            line(pgx - ew - qq * 0.3f, yb - qq * 0.2f, pgx - ew * 0.7f, yb + qq * 0.03f, lw, edge);
+            line(pgx + ew + qq * 0.3f, yb - qq * 0.2f, pgx + ew * 0.7f, yb + qq * 0.03f, lw, edge);
+            line(pgx - ew * 0.7f, yb + qq * 0.03f, pgx + ew * 0.7f, yb + qq * 0.03f, lw, a(Theme.lighten(VERM, 0.4f), 0x60));
+            y = yb - qq * 0.36f;
         }
-        line(pgx, y, pgx, y - q * 1.7f, lw * 1.6f, a(fold, 0x70));
-        for (int i = 0; i < 3; i++) line(pgx - q * 0.22f, y - q * (0.5f + 0.4f * i), pgx + q * 0.22f, y - q * (0.5f + 0.4f * i), lw, a(fold, 0x60));
-        q = qFull;
-        // Torii.
-        float[] tp = japonPts(w, h);
-        float tx = tp[0], span = tp[2], yt = ground - hillH(0.5f, H0) + q * 0.1f, ht = q * 3.6f;
-        for (int sd = -1; sd <= 1; sd += 2) {
-            float xl = tx + sd * span * 0.5f;
-            float yb = ground - hillH(xl / w, H0) + q * 0.3f;
-            poly(a(sh[0], 0xFA), xl - q * 0.15f, yb, xl + q * 0.15f, yb, xl + q * 0.11f, yt - ht, xl - q * 0.11f, yt - ht);
-            line(xl + q * 0.14f, yb, xl + q * 0.1f, yt - ht, lw * 1.2f, a(sh[3], 0x70));
-        }
-        poly(a(sh[0], 0xFA), tx - span * 0.5f, yt - ht * 0.72f, tx + span * 0.5f, yt - ht * 0.72f, tx + span * 0.5f, yt - ht * 0.72f + q * 0.17f, tx - span * 0.5f, yt - ht * 0.72f + q * 0.17f);
-        poly(a(0xFF16080A, 0xFC), tx - span * 0.68f, yt - ht - q * 0.3f, tx - span * 0.3f, yt - ht - q * 0.04f, tx + span * 0.3f, yt - ht - q * 0.04f,
-                tx + span * 0.68f, yt - ht - q * 0.3f, tx + span * 0.5f, yt - ht + q * 0.16f, tx - span * 0.5f, yt - ht + q * 0.16f);
-        line(tx - span * 0.68f, yt - ht - q * 0.3f, tx - span * 0.3f, yt - ht - q * 0.04f, lw * 1.4f, a(sh[3], 0x80));
-        line(tx - span * 0.3f, yt - ht - q * 0.04f, tx + span * 0.3f, yt - ht - q * 0.04f, lw * 1.4f, a(sh[3], 0x80));
-        line(tx + span * 0.3f, yt - ht - q * 0.04f, tx + span * 0.68f, yt - ht - q * 0.3f, lw * 1.4f, a(sh[3], 0x80));
-        // Pins et lanterne de pierre.
+        line(pgx, y, pgx, y - qq * 1.7f, lw * 1.6f, a(fold, 0x80));
+        for (int i = 0; i < 3; i++) line(pgx - qq * 0.22f, y - qq * (0.5f + 0.4f * i), pgx + qq * 0.22f, y - qq * (0.5f + 0.4f * i), lw, a(fold, 0x70));
+        // Petit torii vermillon au centre, sur la colline.
+        float base = ground - hillH(0.5f, H0) + q * 0.3f, top = ground - hillH(0.5f, H0) + q * 0.1f - q * 3.6f;
+        toriiGate(w * 0.5f, q * 3.8f, top, base, q * 3.6f, lw);
         pin(w * 0.03f, ground - hillH(0.03f, H0) + q * 0.2f, H0 * 0.34f, lw * 2.4f);
         pin(w * 0.105f, ground - hillH(0.105f, H0) + q * 0.2f, H0 * 0.16f, lw * 1.5f);
-        float lx = w * 0.17f, ly = ground - hillH(0.17f, H0) + q * 0.2f;
-        box(lx - q * 0.3f, ly - q * 0.5f, lx + q * 0.3f, ly, a(0xFF120607, 0xFA));
-        box(lx - q * 0.2f, ly - q * 1.2f, lx + q * 0.2f, ly - q * 0.5f, a(0xFF120607, 0xFA));
-        box(lx - q * 0.28f, ly - q * 1.6f, lx + q * 0.28f, ly - q * 1.2f, a(0xFF1A0909, 0xFA));
-        box(lx - q * 0.1f, ly - q * 1.5f, lx + q * 0.1f, ly - q * 1.28f, a(sh[3], 0x60));
-        poly(a(0xFF120607, 0xFA), lx - q * 0.5f, ly - q * 1.6f, lx, ly - q * 2f, lx + q * 0.5f, ly - q * 1.6f);
+        toro(w * 0.17f, ground - hillH(0.17f, H0) + q * 0.2f, q * 0.55f, lw);
+        mapleLeaves(0, w * 0.7f, h * 0.93f, h * 0.995f, 22, H0);
     }
 
     // ---- Sakura : printemps, rivière et pont
@@ -1646,8 +1721,41 @@ final class Facets {
         }
     }
 
+    /** Branche effilée (0.66.23) : trapèze sombre avec un liseré, puis deux ou trois rameaux qui montent un peu. */
+    private void branche(float x, float y, float len, double ang, float wid, int depth, java.util.ArrayList<float[]> ends) {
+        float ex = x + (float) Math.cos(ang) * len, ey = y + (float) Math.sin(ang) * len;
+        float nx = -(float) Math.sin(ang), ny = (float) Math.cos(ang), w2 = wid * 0.62f;
+        poly(a(0xFF0B060B, 0xFA), x + nx * wid / 2, y + ny * wid / 2, ex + nx * w2 / 2, ey + ny * w2 / 2,
+                ex - nx * w2 / 2, ey - ny * w2 / 2, x - nx * wid / 2, y - ny * wid / 2);
+        line(x + nx * wid * 0.35f, y + ny * wid * 0.35f, ex + nx * w2 * 0.35f, ey + ny * w2 * 0.35f, Math.max(1f, wid * 0.08f), a(sh[1], 0x50));
+        disc(ex, ey, w2 / 2, a(0xFF0B060B, 0xFA));
+        if (depth <= 0) {
+            ends.add(new float[] {ex, ey});
+            return;
+        }
+        int kids = depth > 3 ? 2 : (rnd() < 0.5f ? 3 : 2);
+        for (int i = 0; i < kids; i++) {
+            double na = ang + (i - (kids - 1) / 2.0) * (0.7 + 0.35 * rnd()) + (rnd() - 0.5) * 0.35;
+            branche(ex, ey, len * (0.7f + 0.12f * rnd()), na + (-Math.PI / 2 - na) * 0.08 * rnd() + 0.08, w2, depth - 1, ends);
+        }
+        if (depth <= 2 && rnd() < 0.6f) ends.add(new float[] {ex, ey});
+    }
+
+    /** Grand cerisier du premier plan : branches effilées et grappes de fleurs au bout de chaque rameau. */
+    private void grandCerisier(float x, float y, float len, double ang, float wid, int depth, float q, float lum) {
+        java.util.ArrayList<float[]> ends = new java.util.ArrayList<float[]>();
+        branche(x, y, len, ang, wid, depth, ends);
+        for (float[] e : ends) {
+            for (int j = 0; j < 5; j++) {
+                float r = q * (0.3f + 0.45f * rnd());
+                disc(e[0] + (rnd() - 0.5f) * q * 1.6f, e[1] + (rnd() - 0.5f) * q * 1.2f, r, a(sh[2 + (int) (rnd() * 3)], Math.round((0x0E + 0x18 * rnd()) * lum)));
+            }
+            if (rnd() < 0.75f) flower(e[0] + (rnd() - 0.5f) * q * 1.6f, e[1] + (rnd() - 0.5f) * q * 1.2f, q * 0.34f, rnd() * 6.28, Math.round(0x80 * lum));
+        }
+    }
+
     /**
-     * Nuit de printemps : lune douce, collines lointaines, rivière en écailles (seigaiha) qui reflète la lune,
+     * Nuit de printemps : lune douce, collines lointaines, rivière lisse qui reflète la lune,
      * pont en dos d'âne et cerisiers en fleurs aux bords. Le centre et la gauche restent calmes.
      */
     private void riviere(float w, float h) {
@@ -1776,7 +1884,11 @@ final class Facets {
         // Cerisiers sur les berges.
         cerisier(w * 0.975f, yw - q * 0.35f, H0 * 0.15f, -Math.PI / 2 - 0.35, q * 0.45f, q, 1f);
         cerisier(cx - sp - q * 0.5f, yw - q * 0.35f, H0 * 0.07f, -Math.PI / 2 + 0.15, q * 0.25f, q * 0.8f, 0.8f);
-        cerisier(w * 0.02f, bank + q * 0.1f, H0 * 0.14f, -Math.PI / 2 + 0.32, q * 0.42f, q, 0.9f);
+        // Grand cerisier au premier plan (0.66.23) : tronc au bord gauche, couronne qui s'étend vers la droite,
+        // et une branche fleurie qui retombe du coin haut gauche au-dessus de l'eau.
+        grandCerisier(w * 0.05f, h * 1.02f, H0 * 0.3f, -Math.PI / 2 + 0.22, q * 1.2f, 5, q * 0.9f, 1f);
+        grandCerisier(-q, h * 0.06f, H0 * 0.22f, 0.1, q * 0.5f, 3, q * 0.75f, 0.9f);
+        for (int i = 0; i < 20; i++) kite(w * 0.02f + w * 0.25f * rnd(), h * (0.9f + 0.08f * rnd()), q * 0.25f, q * 0.1f, rnd() * 6.28, 2, 4, 0x50, false);
         // Pétales portés par l'eau et par l'air.
         for (int i = 0; i < 16; i++) {
             float x = w * (0.2f + 0.8f * rnd()), yy = bank + (h - bank) * rnd();
@@ -2152,75 +2264,31 @@ final class Facets {
     }
 
     /**
-     * Sakura, manette de la rivière : l'eau vue de près, en écailles seigaiha au trait. Au milieu, le pont en
-     * dos d'âne et son reflet ferment un cercle (pont de lune), la lune pâle brille dedans et se reflète en
-     * traits ; des nuées de cerisier pendent du bord haut et des pétales dérivent. Rien de plein sous les touches.
+     * Hanami, manette (0.66.23) : l'eau de près. Le pont de lune et son reflet ferment un cercle autour de la lune
+     * pâle, deux branches de cerisier pendent des coins du haut. Ondulations et pétales : PadMotion.
      */
     private void rivierePad(float w, float h) {
-        float u = Math.max(w, h), m = Math.min(w, h), lw = Math.max(1f, u / 900f);
-        float cx = w * 0.5f;
-        vgrad(0, 0, w, h, a(0xFF100B16, 0x00), a(0xFF06040A, 0x70));
-        // Écailles d'eau, un peu plus grandes vers le bas.
-        float y = m * 0.1f;
-        int row = 0;
-        while (y < h + m * 0.2f) {
-            float t = y / h, r = m * (0.09f + 0.05f * t);
-            for (float x = -r + ((row & 1) == 0 ? 0 : r); x < w + r; x += 2 * r) {
-                arcLine(x, y, r, 180, 180, lw, a(sh[2], Math.round(0x12 + 0x10 * t)));
-                arcLine(x, y, r * 0.66f, 180, 180, lw, a(sh[3], Math.round(0x0C + 0x0A * t)));
-            }
-            y += r * 0.5f;
-            row++;
+        float u = Math.max(w, h), m = Math.min(w, h), lw = Math.max(1f, u / 900f), q = m * 0.07f;
+        vgrad(0, 0, w, h, a(0xFF1A1222, 0xF0), a(0xFF07050A, 0xFC));
+        float mx = w * 0.5f, my = h * 0.5f, mr = m * 0.13f;
+        glow(mx, my, m * 0.5f, sh[3], 0x1A);
+        disc(mx, my - m * 0.05f, mr, a(sh[4], 0x40));
+        disc(mx - mr * 0.25f, my - m * 0.05f - mr * 0.1f, mr * 0.7f, a(sh[4], 0x18));
+        float R = m * 0.3f, rr = R + q * 0.22f;
+        arcLine(mx, my, R, 185.4f, 169.2f, q * 0.45f, a(0xFF0B070C, 0xFA));
+        arcLine(mx, my, rr, 185.4f, 169.2f, lw * 1.4f, a(sh[3], 0x90));
+        for (int i = 0; i <= 12; i++) {
+            double ang = Math.PI * (1.06 + 0.88 * i / 12);
+            float x = mx + (float) Math.cos(ang) * rr, y = my + (float) Math.sin(ang) * rr;
+            line(x, y, x, y - q * 0.5f, lw, a(sh[2], 0x50));
         }
-        // Pont de lune : l'arche (tablier sombre, liseré, rambarde à barreaux) et son reflet en tirets.
-        float by = h * 0.6f, R = m * 0.3f, th = m * 0.03f;
-        disc(cx, by, R * 0.98f, a(0xFF06040A, 0x2C));
-        // La lune dans le cercle et son reflet en traits.
-        float mr = R * 0.32f, my = by - R * 0.45f;
-        disc(cx, my, mr * 1.8f, a(sh[2], 0x10));
-        disc(cx, my, mr, a(sh[4], 0x50));
-        disc(cx - mr * 0.25f, my - mr * 0.1f, mr * 0.7f, a(sh[4], 0x20));
-        for (int i = 0; i < 9; i++) {
-            float t = i / 8f, yy = by + R * (0.12f + 0.75f * t), ww = mr * (1.1f - 0.6f * t) * (0.8f + 0.4f * rnd());
-            box(cx - ww, yy, cx + ww, yy + Math.max(1.5f, m * 0.007f), a(sh[4], Math.round(0x30 * (1f - 0.6f * t))));
-        }
-        int n = 36;
-        for (int i = 0; i < n; i++) {
-            double t0 = Math.PI + Math.PI * i / n, t1 = Math.PI + Math.PI * (i + 1) / n;
-            float x0 = cx + (float) Math.cos(t0) * R, y0 = by + (float) Math.sin(t0) * R;
-            float x1 = cx + (float) Math.cos(t1) * R, y1 = by + (float) Math.sin(t1) * R;
-            float ix0 = cx + (float) Math.cos(t0) * (R - th), iy0 = by + (float) Math.sin(t0) * (R - th);
-            float ix1 = cx + (float) Math.cos(t1) * (R - th), iy1 = by + (float) Math.sin(t1) * (R - th);
-            poly(a(0xFF0B070C, 0xE0), x0, y0, x1, y1, ix1, iy1, ix0, iy0);
-            line(x0, y0, x1, y1, lw * 1.4f, a(sh[3], 0x70));
-            float rr = R + m * 0.05f;
-            line(cx + (float) Math.cos(t0) * rr, by + (float) Math.sin(t0) * rr, cx + (float) Math.cos(t1) * rr, by + (float) Math.sin(t1) * rr, lw, a(sh[2], 0x48));
-            if ((i & 1) == 0) line(x0, y0, cx + (float) Math.cos(t0) * rr, by + (float) Math.sin(t0) * rr, lw, a(sh[2], 0x40));
-            // Reflet : moitié basse en tirets qui tremblent.
-            if ((i & 1) == 0) {
-                float d = (rnd() - 0.5f) * m * 0.01f;
-                line(x0 + d, by * 2 - y0, x1 + d, by * 2 - y1, lw * 1.2f, a(sh[3], 0x30));
-            }
-        }
-        line(cx - R - m * 0.08f, by, cx + R + m * 0.08f, by, lw, a(sh[3], 0x28));
-        // Nuées de cerisier qui pendent du bord haut, de part et d'autre du bouton origami.
-        for (int side = 0; side < 2; side++) {
-            for (int i = 0; i < 14; i++) {
-                float t = rnd(), x = w * (side == 0 ? 0.1f + 0.28f * t : 0.62f + 0.28f * t);
-                float yy = m * (0.02f + 0.13f * rnd() * (float) Math.sin(Math.PI * t));
-                disc(x, yy, m * (0.035f + 0.04f * rnd()), a(sh[2 + (int) (rnd() * 3)], Math.round(0x0A + 0x0C * rnd())));
-            }
-            for (int i = 0; i < 5; i++) {
-                float t = 0.15f + 0.7f * rnd(), x = w * (side == 0 ? 0.1f + 0.28f * t : 0.62f + 0.28f * t);
-                flower(x, m * (0.03f + 0.11f * rnd() * (float) Math.sin(Math.PI * t)), m * (0.024f + 0.016f * rnd()), rnd() * 6.28, 0x34 + Math.round(rnd() * 0x14));
-            }
-        }
-        // Pétales portés par l'eau.
-        for (int i = 0; i < 18; i++) {
-            float x = w * rnd(), yy = h * (0.25f + 0.75f * rnd());
-            float s2 = m * (0.012f + 0.01f * rnd());
-            kite(x, yy, s2 * 2f, s2 * 0.7f, rnd() * 6.28, 2, 4, 0x26 + Math.round(rnd() * 0x18), false);
-        }
+        // Reflet de l'arche en tirets.
+        p.setPathEffect(new android.graphics.DashPathEffect(new float[] {q * 0.4f, q * 0.25f}, 0));
+        arcLine(mx, my, rr, 9f, 162f, lw * 1.4f, a(sh[3], 0x30));
+        p.setPathEffect(null);
+        line(0, my, w, my, lw, a(sh[3], 0x30));
+        grandCerisier(-q * 0.5f, q * 0.3f, m * 0.28f, 0.18, q * 0.5f, 3, q * 0.7f, 1f);
+        grandCerisier(w + q * 0.5f, q * 0.3f, m * 0.28f, Math.PI - 0.18, q * 0.5f, 3, q * 0.7f, 1f);
     }
 
     // ------------------------------------------------------------ Néon, Jade, Argent (0.66)

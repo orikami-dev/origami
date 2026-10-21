@@ -167,7 +167,8 @@ public class SetupActivity extends Activity {
         super.onResume();
         Theme.splashing = true;
         // Retour du sélecteur de fichiers : on met à jour les coches « importé ».
-        if (current().equals("BIOS")) go(step);
+        // Retour de la page « Accès à tous les fichiers » : l'étape Jeux se redessine avec le dossier créé.
+        if (current().equals("BIOS") || current().equals("Jeux")) go(step);
     }
 
     private void finishSetup() {
@@ -240,19 +241,39 @@ public class SetupActivity extends Activity {
     }
 
     private void folder() {
-        para("Choisis ton dossier de jeux. Ranger par console (gba/, ps2/…) aide, mais Origami "
-                + "reconnaît aussi les jeux par leur contenu.");
+        para("Origami range tout dans un dossier Origami à la racine du téléphone : tes jeux dans Origami/GAMES "
+                + "(par console si tu veux : ps3/, gba/…), tes BIOS et firmwares dans Origami/BIOS.");
+        if (!OrigamiFolder.allFiles()) {
+            row("Autoriser l'accès aux fichiers", "Android demande « Accès à tous les fichiers » : Origami en a besoin "
+                    + "pour créer son dossier et lire les gros jeux PS3 et Xbox 360", new Runnable() {
+                public void run() { OrigamiFolder.askAllFiles(SetupActivity.this); }
+            });
+            note("Reviens ici après avoir activé l'accès : le dossier se crée tout seul.");
+            return;
+        }
+        boolean ok = OrigamiFolder.ensure();
+        line((ok ? "■  " : "□  ") + "Origami/GAMES et Origami/BIOS", ok ? "Dossiers prêts à la racine du téléphone"
+                : "Création impossible : choisis un autre dossier", ok);
         String tree = store.treeUri();
-        row(tree == null ? "Choisir le dossier de jeux" : "Dossier choisi  ✓",
-                tree == null ? "Ouvre le sélecteur de fichiers d'Android" : readable(tree), new Runnable() {
+        row(tree == null ? "Utiliser Origami/GAMES" : "Dossier de jeux choisi  ✓",
+                tree == null ? "Android ouvre le dossier : touche « Utiliser ce dossier » puis « Autoriser »" : readable(tree), new Runnable() {
                     public void run() {
                         try {
-                            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
+                            startActivityForResult(OrigamiFolder.pickGames(), REQ_TREE);
                         } catch (ActivityNotFoundException e) {
                             note("Sélecteur de dossiers indisponible.");
                         }
                     }
                 });
+        row("Choisir un autre dossier", "Si tes jeux sont déjà rangés ailleurs", new Runnable() {
+            public void run() {
+                try {
+                    startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_TREE);
+                } catch (ActivityNotFoundException e) {
+                    note("Sélecteur de dossiers indisponible.");
+                }
+            }
+        });
     }
 
     @Override
@@ -371,6 +392,14 @@ public class SetupActivity extends Activity {
                 startActivity(new Intent(SetupActivity.this, Ps3Activity.class).putExtra(Ps3Activity.EXTRA_FIRMWARE, true));
             }
         });
+        if (OrigamiFolder.allFiles() && OrigamiFolder.ensure()) {
+            row("Ranger les BIOS de Origami/BIOS", "Dépose-les dans ce dossier, puis touche ici", new Runnable() {
+                public void run() {
+                    biosReport = OrigamiFolder.importBios(SetupActivity.this).text();
+                    go(step);
+                }
+            });
+        }
         if (biosReport != null) note(biosReport);
         note("Rien à importer ? Passe : Origami te le redemandera au premier jeu qui en a besoin.");
     }

@@ -949,19 +949,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             backdropView.animate().alpha(0f).setDuration(300).start();
             backdropGame = null;
         }
-        final SettingsRows.Row cur = lvSel >= 0 && lvSel < lvRows.size() ? lvRows.get(lvSel) : null;
-        if (cur != null && cur.selectable() && homeArt != null && homeArt.getVisibility() == View.VISIBLE) {
-            // La bulle de droite redit le réglage en entier : titre, valeur, description complète.
-            heroSheet.setVisibility(View.VISIBLE);
-            sheetTitle.setText(cur.title);
-            String val = cur.type == SettingsRows.Row.TOGGLE ? I18n.tr(cur.on ? "Activé" : "Désactivé") : cur.valueLabel();
-            sheetMeta.setText(up(name) + (val != null && val.length() > 0 ? " · " + val : ""));
-            sheetSummary.setText(cur.desc == null ? "" : cur.desc.replace("\n", " · "));
-            sheetSource.setText("");
-            if (animate) sheetEffect(heroSheet);
-        } else {
-            heroSheet.setVisibility(View.GONE);
-        }
+        // Pas de bulle à droite dans les réglages (demande de BOSS, 0.66.23) : la ligne choisie suffit.
+        heroSheet.setVisibility(View.GONE);
         if (lvSel < 0 || lvSel >= lvViews.size()) return;
         // La ligne choisie reste à l'écran, avec son titre de groupe quand c'est la première du groupe.
         final View child = lvViews.get(lvSel);

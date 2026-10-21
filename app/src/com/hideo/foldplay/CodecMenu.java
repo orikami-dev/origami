@@ -592,7 +592,9 @@ final class CodecMenu extends FrameLayout {
 
         @Override
         protected void onMeasure(int w, int h) {
-            if (max == Integer.MAX_VALUE) super.onMeasure(w, h);
+            // Hauteur imposée par le parent (liste avec curseur, carte opaque) : on la remplit toute, sinon le
+            // bas de la liste restait vide sous un défilement trop court (0.66.23).
+            if (max == Integer.MAX_VALUE || MeasureSpec.getMode(h) == MeasureSpec.EXACTLY) super.onMeasure(w, h);
             else super.onMeasure(w, MeasureSpec.makeMeasureSpec(max, MeasureSpec.AT_MOST));
         }
     }

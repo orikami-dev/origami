@@ -63,18 +63,7 @@ final class PadMotion {
         } else if (id.equals("ecarlate")) {
             torii(c, b, w, h, m, accent, now, dp);
         } else if (id.equals("sakura")) {
-            // Pétales qui glissent en diagonale en tournant.
-            float t = phase(now, 14000);
-            for (int i = 0; i < 12; i++) {
-                float p = fract(rnd(i, 1) + t * (1 + i % 2));
-                float x = b.left + fract(rnd(i, 2) + p * 0.6f) * w, y = b.top + p * h;
-                float rot = 360f * (rnd(i, 4) + p * 2);
-                c.save();
-                c.rotate(rot, x, y);
-                P.setColor(a(accent, 0x70));
-                c.drawOval(x - 3.5f * dp, y - 2f * dp, x + 3.5f * dp, y + 2f * dp, P);
-                c.restore();
-            }
+            hanami(c, b, w, h, m, accent, now, dp);
         } else if (id.equals("ambre")) {
             ambre(c, b, w, h, m, now, dp);
         } else if (id.equals("neon")) {
@@ -326,6 +315,66 @@ final class PadMotion {
             }
             P.setColor(a(i % 2 == 1 ? accent : gold, 0x90));
             c.drawPath(leaf, P);
+            c.restore();
+        }
+        c.restore();
+    }
+
+    /**
+     * Hanami (0.66.23) : sous la ligne d'eau, fines ondulations qui glissent et s'espacent vers le bas, plus claires
+     * sous la lune ; pétales qui flottent avec un rond qui s'élargit, d'autres qui tombent des branches.
+     */
+    private static void hanami(Canvas c, RectF b, float w, float h, float m, int accent, long now, float dp) {
+        float s = now / 1000f, bank = h * 0.5f, mx = w * 0.5f, mr = m * 0.156f, q = m * 0.0595f, lw = Math.max(1f, Math.max(w, h) / 900f);
+        int light = Theme.lighten(accent, 0.35f), pale = Theme.lighten(accent, 0.62f);
+        android.graphics.Path path = new android.graphics.Path();
+        c.save();
+        c.clipRect(b);
+        c.translate(b.left, b.top);
+        P.setStyle(Paint.Style.STROKE);
+        P.setStrokeCap(Paint.Cap.ROUND);
+        for (int i = 0; i < 26; i++) {
+            float t = (i + 0.5f) / 26, y = bank + (h - bank) * (float) Math.pow(t, 1.6) + q * 0.15f;
+            float amp = q * (0.04f + 0.16f * t), wl = q * (1.6f + 5f * t), ph = s * (0.25f + 0.35f * t) + i * 1.7f, seg = wl * 1.4f;
+            P.setStrokeWidth(lw * (0.8f + 1.2f * t));
+            float x0 = -seg + fract(rnd(i, 1) + s * 0.02f * (1 + t)) * seg;
+            for (int n = 0; x0 < w + seg && n < 200; n++) {
+                int k = (int) Math.floor(x0 / seg);
+                float len = seg * (0.45f + 0.4f * rnd(i, k + 9)), cx = x0 + len / 2;
+                float near = Math.max(0f, 1f - Math.abs(cx - mx) / (mr * (1.2f + 3.2f * t)));
+                int col = near > 0.2f ? pale : (i % 3 == 0 ? light : accent);
+                P.setColor(a(col, Math.round(0x10 + 0x18 * t + 0x70 * near * near * (0.6f + 0.4f * (float) Math.sin(s * 3 + i * 2.3f + x0)))));
+                path.reset();
+                for (int j = 0; j <= 10; j++) {
+                    float x = x0 + len * j / 10f, yy = y + (float) Math.sin(x / wl * TAU + ph) * amp;
+                    if (j == 0) path.moveTo(x, yy);
+                    else path.lineTo(x, yy);
+                }
+                c.drawPath(path, P);
+                x0 += seg * (1.15f + 0.5f * rnd(i, k + 50));
+            }
+        }
+        for (int i = 0; i < 14; i++) {
+            float t = rnd(i, 2), y = bank + (h - bank) * (0.08f + 0.9f * t), x = w * fract(rnd(i, 3) + s * 0.006f * (1 + t));
+            float s2 = q * (0.12f + 0.12f * t) * (0.8f + 0.4f * rnd(i, 4)), rp = fract(s / 4 + rnd(i, 6)), rr = s2 * (1.2f + 2.5f * rp);
+            P.setStyle(Paint.Style.STROKE);
+            P.setStrokeWidth(lw);
+            P.setColor(a(light, Math.round(0x40 * (1f - rp))));
+            c.drawOval(x - rr, y - rr * 0.3f, x + rr, y + rr * 0.3f, P);
+            P.setStyle(Paint.Style.FILL);
+            P.setColor(a(i % 2 == 1 ? light : 0xFFFFF0F7, 0x9A));
+            c.save();
+            c.rotate((float) Math.toDegrees(rnd(i, 5) * TAU + 0.3 * Math.sin(s * 0.7f + i)), x, y);
+            c.drawOval(x - s2, y - s2 * 0.55f, x + s2, y + s2 * 0.55f, P);
+            c.restore();
+        }
+        float tt = phase(now, 14000);
+        for (int i = 0; i < 14; i++) {
+            float p = fract(rnd(i, 11) + tt * (1 + i % 2)), x = w * fract(rnd(i, 12) * 0.6f + p * 0.4f), y = p * h;
+            c.save();
+            c.rotate(360f * (rnd(i, 13) + p * 2), x, y);
+            P.setColor(a(light, 0x80));
+            c.drawOval(x - 3.5f * dp, y - 2f * dp, x + 3.5f * dp, y + 2f * dp, P);
             c.restore();
         }
         c.restore();

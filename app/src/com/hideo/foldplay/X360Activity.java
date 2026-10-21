@@ -151,6 +151,7 @@ public class X360Activity extends WindowedAppActivity {
         } else if (!started) {
             askAllFiles();
         } else {
+            CoreAffinity.start(this, "x360");
             DebugLog.event("[360] onCreate : jeu « " + title + " », chemin " + path + ", profil "
                     + EngineSettings.profile(this, EngineSettings.X360));
             DebugLog.snapshot(this, "360 création");

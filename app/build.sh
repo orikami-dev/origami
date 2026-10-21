@@ -11,8 +11,8 @@ ROOT="$(cd "$HERE/.." && pwd)"
 JAR="${ANDROID_JAR:-$HOME/sdk/android-34.jar}"
 BT="${BUILD_TOOLS:-/usr/lib/android-sdk/build-tools/debian}"
 OUT="${BUILD_DIR:-$HOME/foldplay-build}"
-VERSION=0.66.22
-VERSION_CODE=94
+VERSION=0.66.24
+VERSION_CODE=96
 # Clé debug gardée dans le projet pour que chaque build s'installe par-dessus le précédent.
 KEYSTORE="${KEYSTORE:-$ROOT/keystore/foldplay-debug.jks}"
 
@@ -44,6 +44,8 @@ else
   echo "Pont natif non compilé ici : reprise de prebuilt/bridge/libfoldplay.so" >&2
   cp "$ROOT/prebuilt/bridge/libfoldplay.so" "$OUT/apk/lib/arm64-v8a/"
 fi
+# Affinité des fils (0.66.24, native/build-cores.sh).
+cp "$ROOT/prebuilt/bridge/libfoldplay_cores.so" "$OUT/apk/lib/arm64-v8a/"
 # PS3 = ARMSX3 (GPL-2.0-only) et son pont, chargés seulement par Ps3Activity (processus :ps3).
 # Xbox 360 : Xenia (BSD), compilé par native/build-xenia.sh.
 if [ -f "$ROOT/prebuilt/xenia/libxenia-app.so" ]; then cp "$ROOT/prebuilt/xenia/libxenia-app.so" "$OUT/apk/lib/arm64-v8a/"

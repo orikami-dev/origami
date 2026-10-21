@@ -803,6 +803,15 @@ final class Store {
     }
 
     /** Style de l'ATH : "line" (une ligne en haut, façon RTSS, par défaut) ou "block" (encadré sur plusieurs lignes). */
+    /** Répartition des fils du moteur (0.66.24) : auto, perf ou eco (CoreAffinity). Performance par défaut. */
+    String coresMode() {
+        return prefs.getString("cores_mode", "perf");
+    }
+
+    void setCoresMode(String m) {
+        prefs.edit().putString("cores_mode", m).apply();
+    }
+
     String hudStyle() {
         return prefs.getString("hud_style", "line");
     }

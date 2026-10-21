@@ -386,29 +386,61 @@ final class BackdropMotion {
         }
     }
 
-    /** Nuit japonaise : braises qui montent et lanternes qui se balancent sous la poutre du torii. */
+    /** Fond Torii (0.66.23) : braises qui montent, fenêtres de la pagode, deux lanternes de papier sous le nuki, feuilles d'érable qui tombent. */
     static void japon(Canvas c, float w, float h, float u, int accent, float t) {
         embers(c, w, h, u, accent, t);
         float[] tp = Facets.japonPts(w, h);
-        float q = Math.min(w, h * 1.2f) * 0.06f;
-        for (int i = 0; i < 3; i++) {
-            float x = tp[0] + (i - 1) * tp[2] * 0.3f, y = tp[1] + q * 0.1f;
-            float sw = (float) Math.sin(TAU * (t + i * 0.23f)) * 0.12f;
-            float len = q * (0.5f + 0.12f * (i & 1)), lx = x + (float) Math.sin(sw) * len, ly = y + (float) Math.cos(sw) * len;
-            P.setColor(a(0xFFFFB347, 0x70));
+        float cx = tp[0], span = tp[1], ny = tp[2], m = tp[3] * 1.3f, q = tp[3] / 3.6f, dp = Math.max(1f, u / 1100f);
+        int gold = 0xFFFFB347;
+        // Fenêtres de la pagode qui respirent.
+        for (int i = 0; i < 5; i++) {
+            float x = tp[4 + i * 3], y = tp[5 + i * 3], r = tp[6 + i * 3] * 2.2f, br = 0.5f + 0.5f * (float) Math.sin(TAU * 5 * t + i * 1.1f);
+            P.setShader(new RadialGradient(x, y, Math.max(1f, r), a(gold, Math.round(0x40 * br)), a(gold, 0), Shader.TileMode.CLAMP));
+            c.drawCircle(x, y, r, P);
+            P.setShader(null);
+        }
+        for (int i = 0; i < 2; i++) {
+            float x = cx + (i == 0 ? -1 : 1) * span * 0.2f, y = ny + q * 0.9f, r = m * 0.042f;
+            // Tours entiers sur la boucle de 24 s : le balancement reprend sans à-coup.
+            float sw = (float) Math.sin(TAU * 4 * t + i * 1.7f) * 0.06f, lx = x + (float) Math.sin(sw) * (y - ny);
+            float br = 0.6f + 0.4f * (float) Math.sin(TAU * 7 * t + i);
             P.setStyle(Paint.Style.STROKE);
-            P.setStrokeWidth(Math.max(1f, u / 1100f));
-            c.drawLine(x, y, lx, ly, P);
+            P.setStrokeWidth(1.2f * dp);
+            P.setColor(0xE60A0505);
+            c.drawLine(x, ny, lx, y - r, P);
             P.setStyle(Paint.Style.FILL);
-            R.set(lx - q * 0.2f, ly, lx + q * 0.2f, ly + q * 0.5f);
-            float fl = 0.8f + 0.2f * (float) Math.sin(TAU * (6 * t + i));
-            P.setColor(a(accent, (int) (0x24 * fl)));
-            c.drawCircle(lx, ly + q * 0.25f, q * 0.8f, P);
-            P.setColor(a(0xFFFF6A3C, (int) (0xC0 * fl)));
+            P.setShader(new RadialGradient(lx, y, r * 4.5f, a(gold, Math.round(0x60 * br)), a(gold, 0), Shader.TileMode.CLAMP));
+            c.drawCircle(lx, y, r * 4.5f, P);
+            P.setShader(null);
+            P.setColor(a(0xFFE0452B, 0xD0));
+            R.set(lx - r * 0.75f, y - r, lx + r * 0.75f, y + r);
             c.drawOval(R, P);
-            P.setColor(a(0xFFFFE0A0, (int) (0x60 * fl)));
-            R.set(lx - q * 0.08f, ly + q * 0.12f, lx + q * 0.08f, ly + q * 0.38f);
+            P.setColor(a(Theme.lighten(gold, 0.5f), Math.round(0x90 * br)));
+            R.set(lx - r * 0.32f, y - r * 0.6f, lx + r * 0.32f, y + r * 0.6f);
             c.drawOval(R, P);
+            P.setColor(0xF20A0505);
+            c.drawRect(lx - r * 0.45f, y - r * 1.12f, lx + r * 0.45f, y - r * 0.88f, P);
+            c.drawRect(lx - r * 0.45f, y + r * 0.88f, lx + r * 0.45f, y + r * 1.12f, P);
+        }
+        float s2 = m * 0.014f;
+        for (int i = 0; i < 8; i++) {
+            float k = fract(rnd(i, 5) + t * (2 + i % 2));
+            float x = w * fract(rnd(i, 6) + 0.15f * (float) Math.sin(TAU * (k * 2 + rnd(i, 7)))), y = k * h;
+            c.save();
+            c.translate(x, y);
+            c.rotate(360f * (rnd(i, 8) + k * 3));
+            PATH.reset();
+            for (int j = 0; j < 5; j++) {
+                double ang = -Math.PI / 2 + (j - 2) * 0.55;
+                PATH.moveTo(0, 0);
+                PATH.lineTo((float) Math.cos(ang - 0.25) * s2, (float) Math.sin(ang - 0.25) * s2);
+                PATH.lineTo((float) Math.cos(ang) * s2 * 2, (float) Math.sin(ang) * s2 * 2);
+                PATH.lineTo((float) Math.cos(ang + 0.25) * s2, (float) Math.sin(ang + 0.25) * s2);
+                PATH.close();
+            }
+            P.setColor(a(i % 2 == 1 ? accent : gold, 0x90));
+            c.drawPath(PATH, P);
+            c.restore();
         }
     }
 
