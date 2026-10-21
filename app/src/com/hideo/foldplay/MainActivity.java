@@ -3140,7 +3140,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Toutes les applications du téléphone, en menu codec (en attendant le lanceur Washi complet). */
     private void appsMenu() {
         final boolean grid = store.appsGrid();
-        CodecMenu m = new CodecMenu(this).title("Applications", "TRI · " + HomeApps.SORTS[store.appsSort()].toUpperCase()).grid(grid)
+        CodecMenu m = new CodecMenu(this).title("Applications", "TRI · " + HomeApps.SORTS[store.appsSort()].toUpperCase()).grid(grid).opaque()
                 .headButton(Icons.of(this, grid ? "menu" : "grid", Theme.CODEC, 22),
                         grid ? "Afficher en liste" : "Afficher en grille", new Runnable() {
                     public void run() {

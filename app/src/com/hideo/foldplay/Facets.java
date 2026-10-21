@@ -2716,41 +2716,41 @@ final class Facets {
      * radians, battement flap (1 ailes hautes, -0,4 ailes basses). Partagée avec BackdropMotion.
      */
     static void crane(Canvas c, Paint p, Path path, int[] sh, int fold, float x, float y, float size, float rot, float flap, int alpha, boolean silhouette) {
-        float s = size / Crane.SPAN, cs = (float) Math.cos(rot), sn = (float) Math.sin(rot);
-        float[][][] parts = {Crane.WING_L, Crane.WING_R, Crane.LEFT, Crane.RIGHT};
-        for (int g = 0; g < parts.length; g++) {
-            for (float[] f : parts[g]) {
-                path.reset();
-                for (int i = 1; i + 1 < f.length; i += 2) {
-                    float px = f[i] - Crane.FOLD, py = f[i + 1];
-                    if (g < 2) {
-                        // Battement (BOSS) : chaque aile pivote autour de sa racine, près du corps, pour monter ou
-                        // descendre ; elle reste jointe au corps (plus de décalage à gauche et à droite du milieu).
-                        float ang = (flap - 0.6f) * 1.6f, ca = (float) Math.cos(ang), sa = (float) Math.sin(ang);
-                        float side = g == 0 ? 1f : -1f;
-                        float dx = (px + 6f * side) * side, dy = py - 52f;
-                        px = (dx * ca - dy * sa) * side - 6f * side;
-                        py = 52f + dx * sa + dy * ca;
-                    }
-                    py -= Crane.CY;
-                    float rx = x + (px * cs - py * sn) * s, ry = y + (px * sn + py * cs) * s;
-                    if (i == 1) path.moveTo(rx, ry);
-                    else path.lineTo(rx, ry);
+        // Grue en vol de Crane.FLY (0.66.14) : les deux ailes pivotent autour de leur racine selon flap.
+        float s = size / 84f, cs = (float) Math.cos(rot), sn = (float) Math.sin(rot);
+        float ang = -(flap - 0.6f) * 0.9f, ca = (float) Math.cos(ang), sa = (float) Math.sin(ang);
+        int a8 = Math.max(0, Math.min(255, alpha)) << 24;
+        p.setStrokeJoin(Paint.Join.ROUND);
+        p.setStrokeWidth(Math.max(1f, 1.4f * s));
+        for (int i = 0; i < Crane.FLY.length; i++) {
+            float[] f = Crane.FLY[i];
+            boolean wing = i >= 3 && i <= 6;
+            float pvx = i <= 4 ? 50f : 46f, pvy = i <= 4 ? 46f : 55f;
+            path.reset();
+            for (int k = 1; k + 1 < f.length; k += 2) {
+                float px = f[k], py = f[k + 1];
+                if (wing) {
+                    float dx = px - pvx, dy = py - pvy;
+                    px = pvx + dx * ca - dy * sa;
+                    py = pvy + dx * sa + dy * ca;
                 }
-                path.close();
-                int col = silhouette ? Theme.blend(0xFF06070A, sh[(int) f[0]], 0.12f) : sh[(int) f[0]];
-                p.setColor((col & 0x00FFFFFF) | (Math.max(0, Math.min(255, alpha)) << 24));
-                c.drawPath(path, p);
+                px -= Crane.FLY_CX;
+                py -= Crane.FLY_CY;
+                float rx = x + (px * cs - py * sn) * s, ry = y + (px * sn + py * cs) * s;
+                if (k == 1) path.moveTo(rx, ry);
+                else path.lineTo(rx, ry);
             }
-        }
-        if (!silhouette) {
-            float x1 = 0, y1 = Crane.HINGE[1] - Crane.CY, y2 = Crane.HINGE[3] - Crane.CY;
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(Math.max(1f, size / 90f));
-            p.setColor((fold & 0x00FFFFFF) | (Math.max(0, Math.min(255, alpha)) << 24));
-            c.drawLine(x + (x1 * cs - y1 * sn) * s, y + (x1 * sn + y1 * cs) * s, x + (x1 * cs - y2 * sn) * s, y + (x1 * sn + y2 * cs) * s, p);
+            path.close();
+            int col = silhouette ? Theme.blend(0xFF06070A, sh[(int) f[0]], 0.12f) : sh[(int) f[0]];
+            if (i == 0 && !silhouette) col = fold;
             p.setStyle(Paint.Style.FILL);
+            p.setColor((col & 0x00FFFFFF) | a8);
+            c.drawPath(path, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setColor((Theme.darken(col | 0xFF000000, 0.45f) & 0x00FFFFFF) | a8);
+            c.drawPath(path, p);
         }
+        p.setStyle(Paint.Style.FILL);
     }
 
     /** Vol de grues du fond (x, y en fractions, envergure en H0, inclinaison, battement), partagé avec BackdropMotion. */

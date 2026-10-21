@@ -71,6 +71,8 @@ final class CodecMenu extends FrameLayout {
     private int columns = 1;
     /** Entrées en tuiles (icône au-dessus du nom), comme un lanceur d'apps. */
     private boolean grid;
+    /** Carte pleine : la liste des applications ne laisse plus voir l'accueil derrière (0.66.14). */
+    private boolean opaque;
     private android.graphics.drawable.Drawable headIcon;
     private String headDesc;
     private Runnable headAction;
@@ -143,6 +145,11 @@ final class CodecMenu extends FrameLayout {
     }
 
     /** Affiche les entrées en grille de tuiles plutôt qu'en liste. */
+    CodecMenu opaque() {
+        opaque = true;
+        return this;
+    }
+
     CodecMenu grid(boolean on) {
         grid = on;
         return this;
@@ -353,7 +360,7 @@ final class CodecMenu extends FrameLayout {
         card.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
         // Carte translucide : on devine le jeu en pause derrière.
-        bg.setColor(Theme.alpha(Theme.PANEL_HI, 0xCC)); // moins sombre (BOSS 0.66.7)
+        bg.setColor(Theme.alpha(Theme.PANEL_HI, opaque ? 0xFF : 0xCC)); // moins sombre (BOSS 0.66.7)
         bg.setCornerRadius(22 * dp);
         bg.setStroke(Math.round(1.5f * dp), Theme.alpha(Theme.CODEC, 0x66));
         card.setBackground(bg);

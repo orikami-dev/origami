@@ -103,6 +103,15 @@ final class ThemeSwitch extends View {
 
     @Override
     protected void onDraw(Canvas c) {
+        // Vue plus étroite que 48 dp (échelle des Réglages) : la piste rapetisse au lieu d'être coupée.
+        float k = Math.max(0.5f, Math.min(1f, (getWidth() - 6 * dp) / (44 * dp)));
+        c.save();
+        c.scale(k, k, getWidth() / 2f, getHeight() / 2f);
+        drawSwitch(c);
+        c.restore();
+    }
+
+    private void drawSwitch(Canvas c) {
         float tw = 44 * dp, th = 24 * dp;
         float l = (getWidth() - tw) / 2f, t = (getHeight() - th) / 2f;
         // Style selon le thème : codec nerveux, art déco carré, les autres arrondis.

@@ -217,6 +217,9 @@ final class EngineSettings {
         // les coupures quand le jeu ralentit ; volume à 80 % pour ne plus saturer.
         String[][] fixed = {
                 {"Savestate@@Compatible Savestate Mode", "true"},
+                // 0.66.15 (préchauffage) : le cache de shaders sur disque reste toujours actif. Le moteur recompile
+                // alors tous les shaders déjà vus pendant l'écran de chargement, au lieu de pendant la partie.
+                {"Video@@Disable On-Disk Shader Cache", "false"},
                 {"Audio@@Enable Buffering", "true"},
                 // 0.66 : 200 ms (le moteur accepte 4 à 250) pour que le son tienne pendant les ralentis.
                 {"Audio@@Desired Audio Buffer Duration", "250"},
