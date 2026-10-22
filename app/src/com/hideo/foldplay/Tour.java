@@ -9,6 +9,7 @@ import android.graphics.RectF;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -18,10 +19,12 @@ import java.util.List;
 /**
  * Didacticiel à bulles, après l'assistant de démarrage : l'accueil s'assombrit, un cadre entoure
  * chaque commande de la barre du haut et une bulle dit à quoi elle sert. « Passer » le ferme à tout moment.
+ * Le cadre et la bulle restent accrochés à la commande : chaque passe de mise en page (rotation, pli ou
+ * dépli du Fold, reconstruction de l'accueil) recalcule sa place.
  */
 final class Tour {
-    /** Index dans la barre du haut (logo, vue, thème, manette, réglages) ; -1 : bulle au centre. */
-    private static final int[] TARGET = {-1, 0, 1, 2, 3, 4, -1};
+    /** Commande visée, repérée par le début de sa description (pas par sa place : la barre change selon la vue) ; null : bulle au centre. */
+    private static final String[] TARGET = {null, "Applications", "Passer en mode", "Thème", "Options contrôleur", "Réglages", null};
     private static final String[] TITLE = {
         "Bienvenue dans Origami",
         "Le logo : tes applications",
@@ -42,28 +45,46 @@ final class Tour {
     };
 
     private final MainActivity host;
-    private final FrameLayout root;
     private final List<View> bar;
     private final Runnable onEnd;
     private FrameLayout overlay;
     private int step;
+    /** Dernière place connue de la cible dans l'overlay : la bulle n'est redessinée que si elle a bougé. */
+    private RectF shown;
+    private boolean shownCentered;
+    private int shownW, shownH;
+    private boolean needsShow;
+    private ViewTreeObserver.OnGlobalLayoutListener follow;
 
     Tour(MainActivity host, FrameLayout root, List<View> bar, Runnable onEnd) {
         this.host = host;
-        this.root = root;
         this.bar = bar;
         this.onEnd = onEnd;
     }
 
     void start() {
+        // Dans le contenu de la fenêtre et non dans la racine de l'accueil : reconstruire l'accueil (pli, rotation) ne l'efface pas.
+        ViewGroup content = (ViewGroup) host.findViewById(android.R.id.content);
         overlay = new FrameLayout(host);
         overlay.setClickable(true);
-        root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
-        show();
+        overlay.setElevation(dp(20));
+        content.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
+        needsShow = true;
+        follow = new ViewTreeObserver.OnGlobalLayoutListener() {
+            public void onGlobalLayout() {
+                relayout();
+            }
+        };
+        overlay.getViewTreeObserver().addOnGlobalLayoutListener(follow);
+        overlay.requestLayout();
     }
 
     private void end() {
-        if (overlay != null) root.removeView(overlay);
+        if (overlay != null) {
+            if (overlay.getViewTreeObserver().isAlive()) overlay.getViewTreeObserver().removeOnGlobalLayoutListener(follow);
+            ViewGroup parent = (ViewGroup) overlay.getParent();
+            if (parent != null) parent.removeView(overlay);
+        }
         overlay = null;
         onEnd.run();
     }
@@ -72,19 +93,48 @@ final class Tour {
         return Math.round(v * host.getResources().getDisplayMetrics().density);
     }
 
-    private void show() {
-        overlay.removeAllViews();
-        int idx = TARGET[step];
-        View target = idx >= 0 && idx < bar.size() && bar.get(idx).isShown() ? bar.get(idx) : null;
-        RectF hole = null;
-        if (target != null) {
-            int[] a = new int[2], b = new int[2];
-            target.getLocationInWindow(a);
-            root.getLocationInWindow(b);
-            float pad = dp(6);
-            hole = new RectF(a[0] - b[0] - pad, a[1] - b[1] - pad,
-                    a[0] - b[0] + target.getWidth() + pad, a[1] - b[1] + target.getHeight() + pad);
+    /** La commande visée à cette étape, si elle est affichée. */
+    private View target() {
+        String key = TARGET[step];
+        if (key == null) return null;
+        for (View v : bar) {
+            CharSequence d = v.getContentDescription();
+            if (d == null || !v.isShown() || v.getWidth() == 0) continue;
+            String s = d.toString();
+            if (s.startsWith(key) || s.startsWith(I18n.tr(key))) return v;
         }
+        return null;
+    }
+
+    private RectF holeOf(View target) {
+        int[] a = new int[2], b = new int[2];
+        target.getLocationInWindow(a);
+        overlay.getLocationInWindow(b);
+        float pad = dp(6);
+        return new RectF(a[0] - b[0] - pad, a[1] - b[1] - pad,
+                a[0] - b[0] + target.getWidth() + pad, a[1] - b[1] + target.getHeight() + pad);
+    }
+
+    /** À chaque passe de mise en page : la cible a-t-elle bougé (rotation, pli, dépli, nouvelle barre) ? Si oui, on replace cadre et bulle. */
+    private void relayout() {
+        if (overlay == null || overlay.getWidth() == 0 || overlay.getHeight() == 0) return;
+        View t = target();
+        boolean centered = t == null;
+        RectF hole = centered ? null : holeOf(t);
+        boolean same = !needsShow && centered == shownCentered
+                && (centered || (shown != null && shown.equals(hole)))
+                && shownW == overlay.getWidth() && shownH == overlay.getHeight();
+        if (same) return;
+        needsShow = false;
+        shownCentered = centered;
+        shown = hole;
+        shownW = overlay.getWidth();
+        shownH = overlay.getHeight();
+        show(hole);
+    }
+
+    private void show(RectF hole) {
+        overlay.removeAllViews();
         overlay.addView(new Scrim(host, hole), new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout bubble = new LinearLayout(host);
@@ -124,7 +174,8 @@ final class Tour {
                     end();
                 } else {
                     step++;
-                    show();
+                    needsShow = true;
+                    relayout();
                 }
             }
         });
@@ -132,18 +183,19 @@ final class Tour {
         bubble.addView(row);
 
         // La bulle s'adapte à l'écran : largeur bornée, hauteur selon le texte, sous ou au-dessus de la cible.
-        int w = Math.min(dp(340), root.getWidth() - dp(24));
+        int W = overlay.getWidth(), H = overlay.getHeight();
+        int w = Math.min(dp(340), W - dp(24));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w, ViewGroup.LayoutParams.WRAP_CONTENT);
         if (hole == null) {
             lp.gravity = Gravity.CENTER;
         } else {
             lp.gravity = Gravity.TOP | Gravity.START;
-            lp.leftMargin = (int) Math.max(dp(12), Math.min(root.getWidth() - w - dp(12), hole.centerX() - w / 2f));
-            if (hole.centerY() < root.getHeight() / 2f) {
+            lp.leftMargin = (int) Math.max(dp(12), Math.min(W - w - dp(12), hole.centerX() - w / 2f));
+            if (hole.centerY() < H / 2f) {
                 lp.topMargin = (int) hole.bottom + dp(12);
             } else {
                 lp.gravity = Gravity.BOTTOM | Gravity.START;
-                lp.bottomMargin = root.getHeight() - (int) hole.top + dp(12);
+                lp.bottomMargin = H - (int) hole.top + dp(12);
             }
         }
         overlay.addView(bubble, lp);
