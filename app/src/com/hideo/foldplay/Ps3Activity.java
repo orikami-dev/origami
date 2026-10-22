@@ -224,7 +224,7 @@ public class Ps3Activity extends Activity {
                 } catch (Throwable t) {
                     b.append(", moteur illisible");
                 }
-                b.append(", cœurs ").append(store.coresMode()).append(", pilote ").append(store.gpuDriver());
+                b.append(", cœurs ").append(store.coresMode()).append(", pilote ").append(store.gpuDriverEff());
                 b.append(", shaders : compilation ").append(shaders.compilePct()).append(" %, cache ").append(shaders.cache());
                 b.append(Ps3Audio.describe(Ps3Activity.this));
                 return b.toString();

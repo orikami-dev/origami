@@ -221,9 +221,9 @@ final class EngineSettings {
                 {"Video@@Disable On-Disk Shader Cache", "false"},
                 {"Audio@@Enable Buffering", "true"},
                 // 0.66 : 200 ms (le moteur accepte 4 à 250) pour que le son tienne pendant les ralentis.
-                {"Audio@@Desired Audio Buffer Duration", String.valueOf(new Store(ctx).ps3AudioMs())},
+                {"Audio@@Desired Audio Buffer Duration", String.valueOf(new Store(ctx).ps3AudioMsEff())},
                 // 0.66.10 (test, son distordu signalé par BOSS) : sans étirement, un ralentissement coupe au lieu de déformer.
-                {"Audio@@Enable Time Stretching", String.valueOf(new Store(ctx).ps3Stretch())},
+                {"Audio@@Enable Time Stretching", String.valueOf(new Store(ctx).ps3StretchEff())},
                 {"Audio@@Time Stretching Threshold", "75"},
                 {"Audio@@Master Volume", "80"},
         };

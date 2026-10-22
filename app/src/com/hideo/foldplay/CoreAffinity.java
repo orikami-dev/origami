@@ -79,7 +79,7 @@ final class CoreAffinity {
     /** Lance la surveillance des fils du processus du moteur ; à appeler une fois le jeu démarré. */
     static void start(final android.content.Context ctx, final String system) {
         final Store st = new Store(ctx);
-        final String mode = st.lab() ? "lab" : st.coresMode();
+        final String mode = st.lab() && "ps3".equals(system) ? "lab" : st.coresMode();
         DebugLog.event("[cœurs] mode " + mode + " pour " + system + ", gros cœurs " + Long.toBinaryString(bigMask()));
         if (watcher != null) return;
         watcher = new Thread(new Runnable() {

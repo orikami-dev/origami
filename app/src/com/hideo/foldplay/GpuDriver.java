@@ -38,7 +38,7 @@ final class GpuDriver {
 
     /** Applique le pilote choisi au moteur PS3 (avant nativeInitialize). */
     static void apply(Context c, Store store) {
-        if (!"turnip".equals(store.gpuDriver())) return;
+        if (!"turnip".equals(store.gpuDriverEff())) return;
         String lib = libName(c);
         if (lib == null) {
             DebugLog.event("[PS3] pilote Turnip demandé mais absent : pilote du téléphone");
