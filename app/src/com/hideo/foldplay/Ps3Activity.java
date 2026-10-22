@@ -208,6 +208,7 @@ public class Ps3Activity extends Activity {
             }
         }, false);
         logPeak.start();
+        startPrecompileWatch();
         final ShaderMeter shaders = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
         HudOverlay.shaderMeter = new ShaderMeter(new java.io.File(Ps3Core.root(this))); // une mesure pour l'ATH, une pour le journal
         DebugLog.perfExtra = new DebugLog.Extra() {
@@ -833,6 +834,55 @@ public class Ps3Activity extends Activity {
                     public void run() { finish(); }
                 })
                 .show(stage);
+    }
+
+    // ------------------------------------------------------------------ précompilation (essais)
+
+    private final android.os.Handler watchHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private boolean precompileDone;
+
+    /**
+     * Essai de précompilation : écran allumé au minimum (le moteur a besoin d'une surface pour compiler les shaders),
+     * puis, quand les fils de compilation sont restés calmes 90 s après le démarrage, le jeu est mis en pause et le
+     * chronomètre de session s'arrête : la durée exacte de la compilation est écrite au journal.
+     */
+    private void startPrecompileWatch() {
+        if (!store.precompile()) return;
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.screenBrightness = 0.01f;
+        getWindow().setAttributes(lp);
+        final ShaderMeter m = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
+        final long[] calmSince = {0};
+        watchHandler.postDelayed(new Runnable() {
+            public void run() {
+                if (precompileDone || isFinishing()) return;
+                long now = android.os.SystemClock.elapsedRealtime();
+                int pct = m.compilePct();
+                boolean running = booted && ready && Ps3Core.nativeState() == 3;
+                if (running && pct >= 0 && pct < 5) {
+                    if (calmSince[0] == 0) calmSince[0] = now;
+                    if (now - calmSince[0] >= 90000L && DebugLog.sessionMs() > 120000L) {
+                        precompileDone = true;
+                        DebugLog.stopSession();
+                        DebugLog.event("[PS3] compilation terminée en " + DebugLog.clock(DebugLog.sessionMs() - 90000L)
+                                + " (chrono arrêté à " + DebugLog.clock(DebugLog.sessionMs()) + ", 90 s de calme comprises) : jeu mis en pause");
+                        try {
+                            Ps3Core.nativePause();
+                        } catch (Throwable ignored) {
+                            // Déjà en pause.
+                        }
+                        android.view.WindowManager.LayoutParams back = getWindow().getAttributes();
+                        back.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+                        getWindow().setAttributes(back);
+                        return;
+                    }
+                } else {
+                    calmSince[0] = 0;
+                }
+                watchHandler.postDelayed(this, 5000);
+            }
+        }, 5000);
     }
 
     // ------------------------------------------------------------------ cycle de vie

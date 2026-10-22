@@ -194,7 +194,8 @@ final class HudOverlay {
             h.heat = pm.getCurrentThermalStatus();
         }
         h.core = core;
-        h.sessionMs = now - startedAt;
+        long ds = DebugLog.sessionMs();
+        h.sessionMs = ds >= 0 ? ds : now - startedAt;
         ShaderMeter sm = shaderMeter;
         if (sm != null && items.contains("shaders")) {
             h.shaderPct = sm.compilePct();

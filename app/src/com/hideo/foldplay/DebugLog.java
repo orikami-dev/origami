@@ -219,6 +219,17 @@ final class DebugLog {
 
     static volatile Extra perfExtra;
     private static long perfStartAt;
+    private static volatile long sessionEnd;
+
+    /** Durée de session : s'arrête quand la compilation est finie (stopSession), sinon court jusqu'à maintenant. */
+    static long sessionMs() {
+        long end = sessionEnd > 0 ? sessionEnd : android.os.SystemClock.elapsedRealtime();
+        return perfStartAt > 0 ? end - perfStartAt : -1;
+    }
+
+    static void stopSession() {
+        sessionEnd = android.os.SystemClock.elapsedRealtime();
+    }
 
     /** Durée au format « mm:ss » (ou « h:mm:ss »). */
     static String clock(long ms) {
@@ -231,6 +242,7 @@ final class DebugLog {
         if (!new Store(ctx).debug() || perfTick != null) return;
         engineOpen(ctx, tag);
         perfStartAt = android.os.SystemClock.elapsedRealtime();
+        sessionEnd = 0;
         perfHandler = new android.os.Handler(android.os.Looper.getMainLooper());
         perfLastCpu = android.os.Process.getElapsedCpuTime();
         perfLastAt = android.os.SystemClock.elapsedRealtime();
@@ -253,7 +265,7 @@ final class DebugLog {
                     }
                     String gpu = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpuclk");
                     String busy = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpubusy");
-                    event("[perf " + tag + "] session " + clock(android.os.SystemClock.elapsedRealtime() - perfStartAt) + ", charge processus " + Math.round(load) + " % (100 = un cœur), mémoire "
+                    event("[perf " + tag + "] session " + clock(sessionMs()) + ", charge processus " + Math.round(load) + " % (100 = un cœur), mémoire "
                             + Hud.residentMb() + " Mo, cœurs MHz [" + f + "], GPU " + (gpu == null ? "?" : Long.parseLong(gpu.trim()) / 1000000L)
                             + " MHz, occupation GPU " + (busy == null ? "?" : busy.trim()) + ", CPU " + Math.round(Hud.cpuC())
                             + " °C, GPU " + Math.round(Hud.gpuC()) + " °C, fils " + Thread.getAllStackTraces().size());

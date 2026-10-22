@@ -577,6 +577,64 @@ final class SettingsRows {
                 }
             });
         }
+        final Activity act = h.activity();
+        header(l, "Débogage");
+        toggle(l, "Mode débogage", "Journal détaillé et rapport de plantage, "
+                + "à partager en cas de bug", store.debug(), new Toggle() {
+            public void set(boolean on) {
+                store.setDebug(on);
+                DebugLog.sync(act);
+            }
+        });
+        if (store.debug()) {
+            toggle(l, "Profil de test KAMI-WORKS", "Applique d'un coup toutes les pistes en essai (pilote Turnip, son 150 ms avec "
+                    + "étirement précoce, 6 fils de compilation libres, minuteries précises, son et rendu sur les gros cœurs). "
+                    + "Pour nos essais seulement.",
+                    store.lab(), new Toggle() {
+                public void set(boolean on) {
+                    store.setLab(on);
+                }
+            });
+            toggle(l, "Précompilation PS3 (écran dim)", "Écran allumé au minimum pendant la partie ; quand la compilation est finie "
+                    + "(90 s sans activité), le jeu se met en pause et le chrono s'arrête. Laisse le téléphone branché.",
+                    store.precompile(), new Toggle() {
+                public void set(boolean on) {
+                    store.setPrecompile(on);
+                }
+            });
+            action(l, "Vider le cache de shaders PS3", "Pour mesurer à froid. Ne supprime que le cache, il se reconstruit au prochain lancement.",
+                    new Runnable() {
+                public void run() {
+                    java.io.File base = act.getExternalFilesDir(null);
+                    int n = ShaderMeter.clear(new java.io.File(Ps3Core.root(act)));
+                    I18n.toast(act, n + " fichiers de cache supprimés", android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+        long logSize = DebugLog.size(act);
+        if (logSize > 0) {
+            action(l, "Partager le journal", String.format(java.util.Locale.ROOT, "%.1f Mo", logSize / 1048576f)
+                    + " · fiche de l'appareil comprise", new Runnable() {
+                public void run() {
+                    DebugLog.share(act);
+                }
+            });
+            action(l, "Copier le journal", "Un clic : la fin du journal part dans le presse-papiers, à coller dans le chat",
+                    new Runnable() {
+                public void run() {
+                    DebugLog.copy(act);
+                }
+            });
+            action(l, "Effacer le journal", "Supprime les journaux et rapports enregistrés", new Runnable() {
+                public void run() {
+                    boolean on = store.debug();
+                    DebugLog.stop();
+                    DebugLog.clear(act);
+                    if (on) DebugLog.sync(act);
+                    I18n.toast(act, "Journal effacé", android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
     /**
@@ -676,55 +734,6 @@ final class SettingsRows {
             version = act.getPackageManager().getPackageInfo(act.getPackageName(), 0).versionName;
         } catch (Exception ignored) {
             // Version inconnue.
-        }
-        header(l, "Débogage");
-        toggle(l, "Mode débogage", "Journal détaillé et rapport de plantage, "
-                + "à partager en cas de bug", store.debug(), new Toggle() {
-            public void set(boolean on) {
-                store.setDebug(on);
-                DebugLog.sync(act);
-            }
-        });
-        if (store.debug()) {
-            toggle(l, "Profil de test KAMI-WORKS", "Applique d'un coup toutes les pistes en essai (pilote Turnip, son 120 ms avec "
-                    + "étirement, 5 fils de shaders, son et rendu sur les gros cœurs). Pour nos essais seulement.",
-                    store.lab(), new Toggle() {
-                public void set(boolean on) {
-                    store.setLab(on);
-                }
-            });
-            action(l, "Vider le cache de shaders PS3", "Pour mesurer à froid. Ne supprime que le cache, il se reconstruit au prochain lancement.",
-                    new Runnable() {
-                public void run() {
-                    java.io.File base = act.getExternalFilesDir(null);
-                    int n = ShaderMeter.clear(new java.io.File(Ps3Core.root(act)));
-                    I18n.toast(act, n + " fichiers de cache supprimés", android.widget.Toast.LENGTH_LONG).show();
-                }
-            });
-        }
-        long logSize = DebugLog.size(act);
-        if (logSize > 0) {
-            action(l, "Partager le journal", String.format(java.util.Locale.ROOT, "%.1f Mo", logSize / 1048576f)
-                    + " · fiche de l'appareil comprise", new Runnable() {
-                public void run() {
-                    DebugLog.share(act);
-                }
-            });
-            action(l, "Copier le journal", "Un clic : la fin du journal part dans le presse-papiers, à coller dans le chat",
-                    new Runnable() {
-                public void run() {
-                    DebugLog.copy(act);
-                }
-            });
-            action(l, "Effacer le journal", "Supprime les journaux et rapports enregistrés", new Runnable() {
-                public void run() {
-                    boolean on = store.debug();
-                    DebugLog.stop();
-                    DebugLog.clear(act);
-                    if (on) DebugLog.sync(act);
-                    I18n.toast(act, "Journal effacé", android.widget.Toast.LENGTH_SHORT).show();
-                }
-            });
         }
         l.add(new Row(Row.LOGO, "origami"));
         header(l, "ORIGAMI " + version);

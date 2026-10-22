@@ -976,6 +976,15 @@ final class Store {
         prefs.edit().putBoolean("lab_profile", on).apply();
     }
 
+    /** Précompilation (essais) : écran allumé au minimum, jeu mis en pause quand la compilation est finie. */
+    boolean precompile() {
+        return debug() && prefs.getBoolean("lab_precompile", false);
+    }
+
+    void setPrecompile(boolean on) {
+        prefs.edit().putBoolean("lab_precompile", on).apply();
+    }
+
     boolean debug() {
         return prefs.getBoolean("debug", false);
     }
