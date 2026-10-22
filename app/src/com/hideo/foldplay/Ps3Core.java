@@ -76,6 +76,7 @@ final class Ps3Core {
     }
 
     static native boolean nativeOpen(String corePath);
+    static native boolean nativeSetDriver(String dir, String lib, String hooks);
     static native String nativeLastError();
     static native boolean nativeInitialize(String root, String user, String soc);
     static native int nativeBoot(String path);

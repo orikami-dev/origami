@@ -644,7 +644,7 @@ final class Store {
 
     /** Préversions : builds de test (corrections rapides) en plus des versions stables. */
     boolean previewUpdates() {
-        return prefs.getBoolean("upd_beta", true);
+        return devUnlocked() && prefs.getBoolean("upd_beta", true);
     }
 
     void setPreviewUpdates(boolean on) {
@@ -803,9 +803,36 @@ final class Store {
     }
 
     /** Style de l'ATH : "line" (une ligne en haut, façon RTSS, par défaut) ou "block" (encadré sur plusieurs lignes). */
-    /** Répartition des fils du moteur (0.66.24) : auto, perf ou eco (CoreAffinity). Performance par défaut. */
+    /** Tampon du son PS3 en ms (4 à 250) : plus court = moins de retard sur l'image, plus long = moins de coupures. */
+    int ps3AudioMs() {
+        return prefs.getInt("ps3_audio_ms", 250);
+    }
+
+    void setPs3AudioMs(int ms) {
+        prefs.edit().putInt("ps3_audio_ms", ms).apply();
+    }
+
+    /** Étirement du temps : le son ralentit avec le jeu au lieu de couper. */
+    boolean ps3Stretch() {
+        return prefs.getBoolean("ps3_stretch", false);
+    }
+
+    void setPs3Stretch(boolean on) {
+        prefs.edit().putBoolean("ps3_stretch", on).apply();
+    }
+
+    /** Pilote graphique PS3 : auto ou turnip (GpuDriver). */
+    String gpuDriver() {
+        return prefs.getString("gpu_driver", "auto");
+    }
+
+    void setGpuDriver(String m) {
+        prefs.edit().putString("gpu_driver", m).apply();
+    }
+
+    /** Répartition des fils du moteur (0.66.24) : auto, perf ou eco (CoreAffinity). Économie par défaut (0.66.27, validé sur Demon's Souls avec Turnip). */
     String coresMode() {
-        return prefs.getString("cores_mode", "perf");
+        return prefs.getString("cores_mode", "eco");
     }
 
     void setCoresMode(String m) {
@@ -924,8 +951,64 @@ final class Store {
     }
 
     /** Mode débogage : journal détaillé des moteurs, enregistré pour être partagé. */
+    /**
+     * Profil de test KAMI-WORKS/BOSS (0.66.30, Réglages > Débogage) : applique toutes les pistes en cours d'essai
+     * (voir Lab.java) ; seuls nous y touchons, il n'est jamais proposé hors du mode débogage.
+     */
+    /** Valeurs réellement appliquées au moteur : celles du profil de test s'il est actif, sinon celles des Réglages (jamais modifiées par lui). */
+    int ps3AudioMsEff() {
+        return lab() ? Lab.AUDIO_MS : ps3AudioMs();
+    }
+
+    boolean ps3StretchEff() {
+        return lab() ? Lab.STRETCH : ps3Stretch();
+    }
+
+    String gpuDriverEff() {
+        return lab() ? "turnip" : gpuDriver();
+    }
+
+    boolean lab() {
+        return debug() && prefs.getBoolean("lab_profile", false);
+    }
+
+    void setLab(boolean on) {
+        prefs.edit().putBoolean("lab_profile", on).apply();
+    }
+
+    /** Essai écran noir Xbox 360 (0.67, Réglages > Débogage) : 0 = réglages actuels, 1.. = une piste retirée à la fois (voir SettingsRows). */
+    int x360Test() {
+        return debug() ? prefs.getInt("lab_x360_test", 0) : 0;
+    }
+
+    void setX360Test(int i) {
+        prefs.edit().putInt("lab_x360_test", i).apply();
+    }
+
+    /** Précompilation (essais) : écran allumé au minimum, jeu mis en pause quand la compilation est finie. */
+    boolean precompile() {
+        return debug() && prefs.getBoolean("lab_precompile", false);
+    }
+
+    void setPrecompile(boolean on) {
+        prefs.edit().putBoolean("lab_precompile", on).apply();
+    }
+
+    /**
+     * Mode développeur (0.67) : verrouillé par défaut, y compris pour qui met à jour depuis une version plus ancienne (clé
+     * nouvelle). Il s'ouvre en appuyant 10 fois sur le logo dans Réglages > À propos et donne accès au débogage, aux
+     * préversions et à tout le contenu expérimental.
+     */
+    boolean devUnlocked() {
+        return prefs.getBoolean("dev_unlocked", false);
+    }
+
+    void setDevUnlocked(boolean on) {
+        prefs.edit().putBoolean("dev_unlocked", on).apply();
+    }
+
     boolean debug() {
-        return prefs.getBoolean("debug", false);
+        return devUnlocked() && prefs.getBoolean("debug", false);
     }
 
     void setDebug(boolean on) {

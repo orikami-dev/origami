@@ -84,6 +84,8 @@ Chaque thème a son fond animé, sa manette assortie, ses icônes, sa police, se
 
 | Version | Ce qu'elle a apporté |
 |---|---|
+| [0.67.0](https://github.com/orikami-dev/origami/releases/tag/v0.67.0) | Débogage et préversions cachés derrière le logo, précompilation PS3 sur tous les cœurs. |
+| [0.66.25](https://github.com/orikami-dev/origami/releases/tag/v0.66.25) | PS3 : choix du pilote graphique (Auto ou Turnip). |
 | [0.66.24](https://github.com/orikami-dev/origami/releases/tag/v0.66.24) | Répartition des cœurs, dossier Origami à la racine, fonds Torii et Hanami refaits. |
 | [0.66.21](https://github.com/orikami-dev/origami/releases/tag/v0.66.21) | Thèmes renommés, touches Capture et Vidéo. |
 | [0.66.19](https://github.com/orikami-dev/origami/releases/tag/v0.66.19) | Manettes animées pour tous les thèmes. |

@@ -60,6 +60,9 @@ public class X360Activity extends WindowedAppActivity {
     /** Images du jeu présentées depuis le lancement (moteur 0.60.12 et suivants). */
     static native long nativeFrames();
 
+    /** Essai écran noir actif pour ce lancement (Store.x360Test). */
+    private int test;
+
     /** Pause (menu Codec ouvert) ou reprise du jeu. */
     static native void nativePause(boolean on);
 
@@ -133,11 +136,14 @@ public class X360Activity extends WindowedAppActivity {
             cvars.putString("hid", "origami");
             // Les fenêtres du système 360 (« connectez-vous au Xbox LIVE »…) ne se touchent pas :
             // en mode headless, le moteur choisit tout seul le bouton par défaut (0.62.1).
-            cvars.putBoolean("headless", true);
+            // Essai écran noir (0.67, Réglages > Débogage) : une piste retirée à la fois, 0 = comportement habituel.
+            test = store.x360Test();
+            if (test != 2) cvars.putBoolean("headless", true);
             // Diagnostic de l'écran noir (0.66.22, à retirer ensuite) : journal détaillé du moteur dans logcat.
-            cvars.putInt("log_level", 3);
+            if (test != 1) cvars.putInt("log_level", 3);
             // Profil et réglages graphiques choisis dans le menu Home (0.60.14).
-            EngineSettings.putCvars(this, cvars);
+            if (test != 4) EngineSettings.putCvars(this, cvars);
+            if (test == 3) cvars.putBoolean("async_shader_compilation", false);
             getIntent().putExtra(EXTRA_CVARS, cvars);
             started = true;
         }
@@ -152,6 +158,16 @@ public class X360Activity extends WindowedAppActivity {
             askAllFiles();
         } else {
             CoreAffinity.start(this, "x360");
+            DebugLog.event("[360] essai écran noir n° " + test + " (" + SettingsRows.X360_TESTS[Math.min(test, SettingsRows.X360_TESTS.length - 1)] + ")");
+            for (final int sec : new int[] {10, 30, 60, 120}) {
+                stage.postDelayed(new Runnable() {
+                    public void run() {
+                        long n;
+                        try { n = nativeFrames(); } catch (Throwable t) { n = -1; }
+                        DebugLog.event("[360] images rendues après " + sec + " s : " + n);
+                    }
+                }, sec * 1000L);
+            }
             DebugLog.event("[360] onCreate : jeu « " + title + " », chemin " + path + ", profil "
                     + EngineSettings.profile(this, EngineSettings.X360));
             DebugLog.snapshot(this, "360 création");

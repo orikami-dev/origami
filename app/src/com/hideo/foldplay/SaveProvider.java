@@ -68,7 +68,7 @@ public final class SaveProvider extends ContentProvider {
     @Override
     public String getType(Uri uri) {
         String n = String.valueOf(uri.getLastPathSegment());
-        return n.endsWith(".zip") ? "application/zip" : "application/octet-stream";
+        return n.endsWith(".zip") ? "application/zip" : n.endsWith(".txt") ? "text/plain" : "application/octet-stream";
     }
 
     @Override

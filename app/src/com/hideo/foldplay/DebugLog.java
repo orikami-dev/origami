@@ -129,10 +129,41 @@ final class DebugLog {
     /** Note au journal (étiquette Origami) : jalon d'un écran ou d'un moteur. */
     static void event(String msg) {
         android.util.Log.i("Origami", msg);
+        engineWrite(msg);
     }
 
     static void event(String msg, Throwable where) {
-        android.util.Log.i("Origami", msg + "\n" + android.util.Log.getStackTraceString(where));
+        String full = msg + "\n" + android.util.Log.getStackTraceString(where);
+        android.util.Log.i("Origami", full);
+        engineWrite(full);
+    }
+
+    /**
+     * 0.66.29 : le processus moteur (PS3, Xbox 360) double ses événements dans un fichier à lui, écrit tout de
+     * suite : logcat -f perdait la fin de session quand le moteur est tué, et « Copier le journal » ne la voyait pas.
+     */
+    private static java.io.FileOutputStream engineOut;
+    private static final java.text.SimpleDateFormat ENGINE_TIME = new java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US);
+
+    private static synchronized void engineOpen(Context ctx, String tag) {
+        if (engineOut != null) return;
+        try {
+            File d = dir(ctx);
+            d.mkdirs();
+            engineOut = new FileOutputStream(new File(d, "moteur-" + tag.toLowerCase(java.util.Locale.US) + ".txt"), false);
+        } catch (IOException e) {
+            engineOut = null;
+        }
+    }
+
+    private static synchronized void engineWrite(String msg) {
+        if (engineOut == null) return;
+        try {
+            engineOut.write((ENGINE_TIME.format(new java.util.Date()) + " " + msg + "\n").getBytes("UTF-8"));
+            engineOut.flush();
+        } catch (IOException e) {
+            engineOut = null;
+        }
     }
 
     /**
@@ -181,8 +212,37 @@ final class DebugLog {
      * mémoire, fréquence de chaque cœur et du GPU, températures, chaleur Android. Sert à comprendre
      * pourquoi un jeu rame (cœur saturé, GPU au plafond, chaleur qui bride…).
      */
+    /** Mesures propres à un moteur (images/s, son…) ajoutées à chaque relevé. */
+    interface Extra {
+        String get();
+    }
+
+    static volatile Extra perfExtra;
+    private static long perfStartAt;
+    private static volatile long sessionEnd;
+
+    /** Durée de session : s'arrête quand la compilation est finie (stopSession), sinon court jusqu'à maintenant. */
+    static long sessionMs() {
+        long end = sessionEnd > 0 ? sessionEnd : android.os.SystemClock.elapsedRealtime();
+        return perfStartAt > 0 ? end - perfStartAt : -1;
+    }
+
+    static void stopSession() {
+        sessionEnd = android.os.SystemClock.elapsedRealtime();
+    }
+
+    /** Durée au format « mm:ss » (ou « h:mm:ss »). */
+    static String clock(long ms) {
+        long s = ms / 1000;
+        return s >= 3600 ? String.format(java.util.Locale.ROOT, "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60)
+                : String.format(java.util.Locale.ROOT, "%02d:%02d", s / 60, s % 60);
+    }
+
     static void perfStart(final Context ctx, final String tag) {
         if (!new Store(ctx).debug() || perfTick != null) return;
+        engineOpen(ctx, tag);
+        perfStartAt = android.os.SystemClock.elapsedRealtime();
+        sessionEnd = 0;
         perfHandler = new android.os.Handler(android.os.Looper.getMainLooper());
         perfLastCpu = android.os.Process.getElapsedCpuTime();
         perfLastAt = android.os.SystemClock.elapsedRealtime();
@@ -205,10 +265,15 @@ final class DebugLog {
                     }
                     String gpu = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpuclk");
                     String busy = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpubusy");
-                    event("[perf " + tag + "] charge processus " + Math.round(load) + " % (100 = un cœur), mémoire "
+                    event("[perf " + tag + "] session " + clock(sessionMs()) + ", charge processus " + Math.round(load) + " % (100 = un cœur), mémoire "
                             + Hud.residentMb() + " Mo, cœurs MHz [" + f + "], GPU " + (gpu == null ? "?" : Long.parseLong(gpu.trim()) / 1000000L)
                             + " MHz, occupation GPU " + (busy == null ? "?" : busy.trim()) + ", CPU " + Math.round(Hud.cpuC())
                             + " °C, GPU " + Math.round(Hud.gpuC()) + " °C, fils " + Thread.getAllStackTraces().size());
+                    Extra ex = perfExtra;
+                    if (ex != null) {
+                        String x = ex.get();
+                        if (x != null) event("[perf " + tag + "] " + x);
+                    }
                     // 0.66 : qui consomme, fil par fil (SPU, PPU, compilateurs, rendu, son).
                     String th = ThreadLoad.top(6);
                     if (th != null) event("[perf " + tag + "] fils : " + th);
@@ -330,7 +395,7 @@ final class DebugLog {
     }
 
     /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */
-    private static final int CLIP = 60 * 1024;
+    private static final int CLIP = 4 * 1024 * 1024;
     private static final java.util.regex.Pattern NOISE = java.util.regex.Pattern.compile(
             "AudioTrack: setVolume|VRI\\[|InsetsController|InsetsSource|ImeTracker|InputTransport|ScrollView|perf_hint"
             + "|BLASTBufferQueue|SurfaceComposerClient|HWUI|InputMethodManager|ImeFocusController|ViewRootImpl"
@@ -377,9 +442,36 @@ final class DebugLog {
                     all.append("\n===== mesures des moteurs (dernière heure) =====\n").append(perf.substring(from));
                 }
             }
+            File[] eng = dir(a).listFiles();
+            if (eng != null) {
+                for (File f : eng) {
+                    if (!f.getName().startsWith("moteur-")) continue;
+                    byte[] b = read(f);
+                    int from = Math.max(0, b.length - 1024 * 1024);
+                    all.append("\n===== ").append(f.getName()).append(" (session moteur complète) =====\n")
+                            .append(new String(b, from, b.length - from, "UTF-8"));
+                }
+            }
+            // 0.66.26 : le journal complet part dans un fichier .txt déposé dans le presse-papier (adresse de
+            // contenu) : un collage dans le chat le joint tel quel, sans limite de longueur.
+            byte[] data = all.toString().getBytes("UTF-8");
+            File out = new File(SaveProvider.dir(a), "journal-origami.txt");
+            out.getParentFile().mkdirs();
+            FileOutputStream fo = new FileOutputStream(out);
+            fo.write(data);
+            fo.close();
+            try {
+                File logs = new File(OrigamiFolder.root(), "LOGS");
+                logs.mkdirs();
+                FileOutputStream lo = new FileOutputStream(new File(logs, "dernier-journal.txt"));
+                lo.write(data);
+                lo.close();
+            } catch (Exception ignore) {
+                // dossier Origami non accessible : le presse-papier suffit
+            }
             android.content.ClipboardManager cm = (android.content.ClipboardManager) a.getSystemService(Context.CLIPBOARD_SERVICE);
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("journal Origami", all.toString()));
-            I18n.toast(a, "Journal copié : colle-le dans le chat", android.widget.Toast.LENGTH_LONG).show();
+            cm.setPrimaryClip(android.content.ClipData.newUri(a.getContentResolver(), "journal Origami", SaveProvider.uri("journal-origami.txt")));
+            I18n.toast(a, "Journal copié en fichier .txt : colle-le dans le chat", android.widget.Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             I18n.toast(a, "Copie du journal impossible : " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
         }

@@ -18,6 +18,9 @@ final class CoreAffinity {
     static final String[] MODES = {"auto", "perf", "eco"};
     static final String[] LABELS = {"Auto", "Performance", "Économie"};
 
+    /** Précompilation en cours (0.67) : les fils de compilation (LLVM, shaders) vont sur tous les cœurs, le temps de la compilation. */
+    static volatile boolean boost;
+
     private static boolean loaded;
     private static Thread watcher;
 
@@ -32,6 +35,21 @@ final class CoreAffinity {
             DebugLog.event("[cœurs] bibliothèque absente : " + t);
         }
         return loaded;
+    }
+
+    /** Fréquences actuelles des cœurs en MHz, pour le journal (« 1324 1324 … »). */
+    static String freqs() {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < 16; i++) {
+            String f = read("/sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");
+            if (f == null) break;
+            try {
+                b.append(Long.parseLong(f.trim()) / 1000).append(' ');
+            } catch (NumberFormatException e) {
+                b.append("? ");
+            }
+        }
+        return b.toString().trim();
     }
 
     /** Masque des gros cœurs : ceux dont la fréquence maximale est la plus haute. */
@@ -78,7 +96,8 @@ final class CoreAffinity {
 
     /** Lance la surveillance des fils du processus du moteur ; à appeler une fois le jeu démarré. */
     static void start(final android.content.Context ctx, final String system) {
-        final String mode = new Store(ctx).coresMode();
+        final Store st = new Store(ctx);
+        final String mode = st.lab() && "ps3".equals(system) ? "lab" : st.coresMode();
         DebugLog.event("[cœurs] mode " + mode + " pour " + system + ", gros cœurs " + Long.toBinaryString(bigMask()));
         if (watcher != null) return;
         watcher = new Thread(new Runnable() {
@@ -87,8 +106,16 @@ final class CoreAffinity {
                 boolean listed = false;
                 long big = bigMask(), all = allMask(), little = all & ~big;
                 boolean act = !mode.equals("auto") && big != 0 && load();
+                boolean wasBoost = false;
                 int self = android.os.Process.myTid();
                 for (int round = 0; !Thread.interrupted(); round++) {
+                    boolean boosting = boost && big != 0 && load();
+                    if (boosting != wasBoost) {
+                        // Entrée ou sortie du plein régime : les fils sont repris un à un avec la règle du moment.
+                        done.clear();
+                        wasBoost = boosting;
+                        DebugLog.event("[cœurs] plein régime de précompilation " + (boosting ? "activé" : "terminé, répartition rétablie"));
+                    }
                     File[] tasks = new File("/proc/self/task").listFiles();
                     if (tasks != null) {
                         StringBuilder names = new StringBuilder();
@@ -104,9 +131,22 @@ final class CoreAffinity {
                             if (name == null) continue;
                             name = name.trim();
                             if (!listed) names.append(name).append(", ");
-                            if (!act || name.equals(done.get(tid))) continue;
+                            if (!(act || boosting) || name.equals(done.get(tid))) continue;
                             done.put(tid, name);
+                            if (boosting && (compiler(name) || name.toLowerCase(java.util.Locale.ROOT).contains("llvm"))) {
+                                nativePin(tid, all);
+                                DebugLog.event("[cœurs] " + name + " (" + tid + ") → tous les cœurs (précompilation)");
+                                continue;
+                            }
+                            if (!act) continue;
                             boolean crit = critical(system, name);
+                            if (mode.equals("lab")) {
+                                // Profil de test : son, rendu et compilation sur les gros cœurs, SPU/PPU sur les moyens.
+                                boolean prime = Lab.onPrime(name);
+                                nativePin(tid, prime ? big : (little == 0 ? all : little));
+                                if (prime) DebugLog.event("[cœurs] " + name + " (" + tid + ") → gros cœurs (profil de test)");
+                                continue;
+                            }
                             if (mode.equals("perf")) {
                                 if (compiler(name) && little != 0) {
                                     nativePin(tid, little);

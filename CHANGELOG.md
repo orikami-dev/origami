@@ -2,6 +2,71 @@
 
 Studio : KAMI-WORKS.
 
+## 0.67.0 ⭐
+
+- Le débogage, les préversions et le contenu expérimental sont désormais cachés : appuie 10 fois sur le logo dans Réglages > À propos pour les débloquer.
+- PS3 : la précompilation des jeux utilise tous les cœurs du processeur, avec deux jauges séparées (code du jeu et shaders) et un chrono qui s'arrête à la fin.
+- Précompilation PS3 : à la fin, la notification de l'écran verrouillé change de texte, sonne et rallume l'écran.
+- Journal : modules compilés et fréquences des cœurs.
+- Débogage : essai pas à pas pour l'écran noir de certains jeux Xbox 360.
+
+## 0.66.35
+
+- Précompilation PS3 (essai) : le jeu peut continuer de compiler écran éteint, puis se met en pause à la fin ; le téléphone se met alors en veille normalement.
+
+## 0.66.34
+
+- Réglages : la section Débogage est maintenant dans Monitoring.
+- Réglages > Monitoring > Débogage : « Précompilation PS3 », pour laisser compiler écran dim puis mettre le jeu en pause à la fin, avec la durée exacte.
+
+## 0.66.33
+
+- Mises à jour : la recherche de préversion ne peut plus renvoyer une ancienne réponse gardée par le réseau.
+- Profil de test : précision des minuteries « All Timers » (essai pour raccourcir la compilation de MGS4) ; la mesure « Shaders » compte aussi la compilation du code du jeu.
+- ATH et journal : durée de la session (chronomètre), à activer dans Réglages > Monitoring.
+
+## 0.66.32
+
+- Profil de test (usage interne) : le son tient mieux pendant les ralentis du jeu (tampon 150 ms, étirement du temps plus précoce).
+- Profil de test : la compilation des shaders peut utiliser tous les cœurs (6 fils).
+- Réglages > Débogage : bouton pour vider le cache de shaders PS3 (mesures à froid).
+- Mise à jour : le poids de la version et la vitesse de téléchargement s'affichent pendant le téléchargement.
+
+## 0.66.31
+
+- PS3 : nouveaux réglages « Son » (tampon de 60 à 250 ms, étirement du temps) pour régler le décalage avec l'image.
+- ATH : nouvelle mesure « Shaders (PS3) » (compilation en cours, taille du cache), à activer dans Réglages > Monitoring.
+- Réglages > Débogage : profil de test (usage interne) qui regroupe les pistes d'optimisation PS3 en essai.
+
+## 0.66.30
+
+- PS3 : nouveaux réglages « Son » (tampon de 60 à 250 ms, étirement du temps) pour régler le décalage avec l'image.
+- ATH : nouvelle mesure « Shaders (PS3) » (compilation en cours, taille du cache), à activer dans Réglages > Monitoring.
+- Réglages > Débogage : profil de test (usage interne) qui regroupe les pistes d'optimisation PS3 en essai.
+
+## 0.66.29
+
+- Journal de débogage : la session PS3 et Xbox 360 est écrite en direct dans un fichier à part, et « Copier le journal » la joint en entier.
+
+## 0.66.28
+
+- La répartition des cœurs passe par défaut sur Économie : le téléphone chauffe moins en PS3.
+- Journal de débogage PS3 enrichi (images par seconde, images lentes, sortie son) pour régler le son et la fluidité.
+
+## 0.66.27
+
+- Corrections et réglages de stabilité pour la PS3 et la Xbox 360.
+
+## 0.66.26
+
+- « Copier le journal » dépose un fichier .txt complet dans le presse-papier, à coller directement dans une conversation.
+- Le journal est aussi écrit dans Origami/LOGS.
+
+## 0.66.25
+
+- PS3 : nouveau réglage « Pilote graphique » (Auto ou Turnip), pour les jeux qui plantent dans le pilote du téléphone.
+- Réglages > Monitoring : bouton pour télécharger le dernier pilote Turnip.
+
 ## 0.66.24 ⭐
 
 - Fond Torii refait : la pagode vermillon allumée sur son mont, un petit torii et ses lanternes, la lune rouge en facettes, des feuilles d'érable qui tombent.
