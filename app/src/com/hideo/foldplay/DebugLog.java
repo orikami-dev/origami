@@ -373,6 +373,7 @@ final class DebugLog {
 
     static void share(Activity a) {
         List<SaveImport.Out> outs = new ArrayList<SaveImport.Out>();
+        String text = "";
         try {
             StringBuilder all = new StringBuilder(info(a)).append('\n');
             File[] fs = dir(a).listFiles();
@@ -388,7 +389,8 @@ final class DebugLog {
                     all.append(" =====\n").append(new String(b, from, b.length - from, "UTF-8")).append('\n');
                 }
             }
-            outs.add(0, new SaveImport.Out("origami-journal-" + stamp() + ".txt", all.toString().getBytes("UTF-8")));
+            text = all.toString();
+            outs.add(0, new SaveImport.Out("origami-journal-" + stamp() + ".txt", text.getBytes("UTF-8")));
         } catch (IOException e) {
             I18n.toast(a, "Lecture du journal impossible : " + e.getMessage(),
                     android.widget.Toast.LENGTH_LONG).show();
@@ -400,7 +402,18 @@ final class DebugLog {
         } catch (Exception ignored) {
         }
         SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain", SUPPORT_MAIL, "Journal Origami " + ver,
-                "Journal joint (fiche de l'appareil et journaux). Appuyez sur Envoyer pour le transmettre à l'équipe ORIKAMI.");
+                mailBody(text));
+    }
+
+    /**
+     * Corps du mail : la fiche de l'appareil et la fin du journal (60 000 caractères au plus : au-delà, le brouillon
+     * ne passerait pas dans l'intent). Le fichier complet reste en pièce jointe ; le corps se lit sans rien ouvrir.
+     */
+    private static String mailBody(String text) {
+        final int max = 60000;
+        String tail = text.length() > max ? "…" + text.substring(text.length() - max) : text;
+        return "Journal joint en entier. Appuyez sur Envoyer pour le transmettre à l'équipe ORIKAMI."
+                + "\n\n--- Fiche de l'appareil et fin du journal ---\n" + tail;
     }
 
     /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */
