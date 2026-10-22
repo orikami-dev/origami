@@ -763,11 +763,16 @@ public class Ps3Activity extends Activity {
         if (stateMsg != null) return;
         stateUntil = android.os.SystemClock.uptimeMillis() + 90000;
         stateMsg = "Partie sauvegardée.";
+        DebugLog.event("[PS3] sauvegarde rapide demandée, moteur état " + Ps3Core.nativeState() + ", titre " + Ps3Core.nativeTitleId());
         status("Sauvegarde rapide…");
         new Thread(new Runnable() {
             public void run() {
                 // Le moteur attend une image pour la vignette : pas sur le fil de l'interface.
+                long t0 = android.os.SystemClock.uptimeMillis();
                 final boolean ok = Ps3Core.nativeSaveState(1);
+                DebugLog.event("[PS3] sauvegarde rapide : " + (ok ? "ok" : "refusée par le moteur") + " en "
+                        + (android.os.SystemClock.uptimeMillis() - t0) + " ms, état " + Ps3Core.nativeState()
+                        + ", fichier présent " + Ps3Core.nativeHasState(1) + ", dernière erreur « " + Ps3Core.nativeLastError() + " »");
                 runOnUiThread(new Runnable() {
                     public void run() {
                         if (ok) return;
@@ -783,6 +788,7 @@ public class Ps3Activity extends Activity {
 
     private void quickLoad() {
         if (stateMsg != null) return;
+        DebugLog.event("[PS3] chargement rapide demandé, moteur état " + Ps3Core.nativeState() + ", fichier présent " + Ps3Core.nativeHasState(1));
         if (!Ps3Core.nativeHasState(1)) {
             I18n.toast(this, "Aucune sauvegarde rapide.", android.widget.Toast.LENGTH_SHORT).show();
             return;
@@ -790,7 +796,9 @@ public class Ps3Activity extends Activity {
         stateUntil = android.os.SystemClock.uptimeMillis() + 120000;
         stateMsg = "Sauvegarde rapide chargée.";
         status("Chargement de la sauvegarde rapide…");
-        if (!Ps3Core.nativeLoadState(1)) {
+        boolean loaded = Ps3Core.nativeLoadState(1);
+        DebugLog.event("[PS3] chargement rapide : " + (loaded ? "accepté" : "refusé par le moteur") + ", état " + Ps3Core.nativeState());
+        if (!loaded) {
             stateUntil = 0;
             stateMsg = null;
             status(null);
@@ -917,8 +925,16 @@ public class Ps3Activity extends Activity {
                         }
                         getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                         DebugLog.stopSession();
+                        // Joueur déjà dans le jeu (écran au premier plan) : on ne met rien en pause et aucune notification
+                        // n'est envoyée, la compilation s'est terminée pendant qu'il jouait (22/10, Fold 5).
+                        final boolean playing = !leftApp && hasWindowFocus();
                         DebugLog.event("[PS3] compilation terminée en " + DebugLog.clock(DebugLog.sessionMs() - 90000L)
-                                + " (chrono arrêté à " + DebugLog.clock(DebugLog.sessionMs()) + ", 90 s de calme comprises) : jeu mis en pause");
+                                + " (chrono arrêté à " + DebugLog.clock(DebugLog.sessionMs()) + ", 90 s de calme comprises) : "
+                                + (playing ? "joueur en jeu, le jeu continue" : "jeu mis en pause"));
+                        if (playing) {
+                            stopService(new Intent(Ps3Activity.this, PrecompileService.class));
+                            return;
+                        }
                         try {
                             Ps3Core.nativePause();
                         } catch (Throwable ignored) {

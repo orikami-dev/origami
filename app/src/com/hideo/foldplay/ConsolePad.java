@@ -274,10 +274,10 @@ final class ConsolePad {
         l.add("HOME", 19, 1, 6, 6, c, r);
         if (s.start != null) l.add("START", 26, 4, 5, 2, c, r).cap = s.start;
         if (!s.nav) {
-            l.add("QSAVE", 12, 1, 5, 2, c, r);
-            l.add("FAST", 19, 8, 6, 2, c, r);
-            l.add("ASPECT", 19, 11, 6, 2, c, r);
-            l.add("QLOAD", 26, 1, 5, 2, c, r);
+            l.add("QSAVE", 16, 7, 6, 3, c, r);
+            l.add("FAST", 19, 11, 6, 2, c, r);
+            l.add("ASPECT", 19, 14, 6, 2, c, r);
+            l.add("QLOAD", 22, 7, 6, 3, c, r);
             l.add("SHOT", 26, 11, 3, 2, c, r);
             l.add("REC", 15, 11, 3, 2, c, r);
         }
@@ -290,7 +290,7 @@ final class ConsolePad {
 
     // Mêmes tailles que PadDesign (cases de 16 dp).
     private static final float M = 1.25f, G = 0.5f, STICK = 8f, DPAD = 8.5f, LEVER = 9f, FACE = 3.6f;
-    private static final float SH_W = 5.75f, SH_H = 2.5f, PILL_W = 4f, PILL_H = 1.75f, HOME = 4.75f;
+    private static final float SH_W = 5.75f, SH_H = 2.5f, PILL_W = 4f, PILL_H = 1.75f, QUICK_H = 2.5f, HOME = 4.75f;
     /** Format et Accélérer : petites icônes rondes calées dans les coins du haut (0.62.3). */
     static final float ICON = 2.6f, CORNER = 0.8f;
 
@@ -498,9 +498,10 @@ final class ConsolePad {
         o.box("HOME", w / 2 - hm / 2, homeY, hm, hm);
         o.box("SELECT", w / 2 - sideX - pw / 2, cy - ph / 2, pw, ph);
         o.box("START", w / 2 + sideX - pw / 2, cy - ph / 2, pw, ph);
-        float rowY = bottom ? homeY - g - ph : homeY + hm + g;
-        o.box("QSAVE", w / 2 - g / 2 - pw, rowY, pw, ph);
-        o.box("QLOAD", w / 2 + g / 2, rowY, pw, ph);
+        float qh = QUICK_H * s, qw = hm / 2 + g + pw - g / 2;
+        float rowY = bottom ? homeY - g - qh : homeY + hm + g;
+        o.box("QSAVE", w / 2 - g / 2 - qw, rowY, qw, qh);
+        o.box("QLOAD", w / 2 + g / 2, rowY, qw, qh);
     }
 
     /** La plus grande échelle (0,45 à 1,15, 1,35 en rétro) à laquelle tout tient sans chevauchement. */
@@ -518,7 +519,7 @@ final class ConsolePad {
 
     private static boolean fits(Spec s, float w, float h, float k, boolean bottom, boolean arc) {
         float m = M * k, g = G * k;
-        float ch = (HOME / 2 + G + PILL_W) * k, cH = (HOME + 2 * G + 2 * PILL_H) * k;
+        float ch = (HOME / 2 + G + PILL_W) * k, cH = (HOME + 2 * G + QUICK_H) * k;
         int stack = arc ? 0 : Math.max(s.shL.size(), s.shR.size());
         float shBottom = stack == 0 ? 0 : m + stack * SH_H * k + (stack - 1) * g;
         if (stack > 0) shBottom = cornerBottom(k, stack) - g;

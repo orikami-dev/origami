@@ -32,6 +32,7 @@ final class PadDesign {
     private static final float SH_H = 2.5f;
     private static final float PILL_W = 4f;      // Select, Start… (64 × 28 dp)
     private static final float PILL_H = 1.75f;
+    private static final float QUICK_H = 2.5f;       // barre Sauvegarde | Chargement : couvre la rangée Select, Maison, Start
     private static final float HOME = 4.75f;     // Home (76 dp, 1,35 × l'ancien 56 dp)
 
     private PadDesign() {
@@ -209,9 +210,10 @@ final class PadDesign {
         o.box("HOME", w / 2 - hm / 2, homeY, hm, hm);
         o.box("SELECT", w / 2 - sideX - pw / 2, cy - ph / 2, pw, ph);
         o.box("START", w / 2 + sideX - pw / 2, cy - ph / 2, pw, ph);
-        float rowY = bottom ? homeY - g - ph : homeY + hm + g;
-        o.box("QSAVE", w / 2 - g / 2 - pw, rowY, pw, ph);
-        o.box("QLOAD", w / 2 + g / 2, rowY, pw, ph);
+        float qh = QUICK_H * s, qw = hm / 2 + g + pw - g / 2;
+        float rowY = bottom ? homeY - g - qh : homeY + hm + g;
+        o.box("QSAVE", w / 2 - g / 2 - qw, rowY, qw, qh);
+        o.box("QLOAD", w / 2 + g / 2, rowY, qw, qh);
     }
 
     /**
@@ -230,7 +232,7 @@ final class PadDesign {
     }
 
     private static float centerHeight() {
-        return HOME + 2 * G + 2 * PILL_H;
+        return HOME + 2 * G + QUICK_H;
     }
 
     /**
