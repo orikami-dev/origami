@@ -842,16 +842,17 @@ public class Ps3Activity extends Activity {
     private boolean precompileDone;
 
     /**
-     * Essai de précompilation : écran allumé au minimum (le moteur a besoin d'une surface pour compiler les shaders),
-     * puis, quand les fils de compilation sont restés calmes 90 s après le démarrage, le jeu est mis en pause et le
+     * Essai de précompilation : le moteur continue même écran éteint (service de premier plan), puis, quand les fils de compilation sont restés calmes 90 s après le démarrage, le jeu est mis en pause et le
      * chronomètre de session s'arrête : la durée exacte de la compilation est écrite au journal.
      */
     private void startPrecompileWatch() {
         if (!store.precompile()) return;
-        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
-        lp.screenBrightness = 0.01f;
-        getWindow().setAttributes(lp);
+        // Écran éteint possible : service de premier plan + processeur éveillé ; le moteur n'est pas mis en arrière-plan.
+        try {
+            startForegroundService(new Intent(this, PrecompileService.class));
+        } catch (Throwable t) {
+            DebugLog.event("[PS3] service de précompilation impossible", t);
+        }
         final ShaderMeter m = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
         final long[] calmSince = {0};
         watchHandler.postDelayed(new Runnable() {
@@ -872,9 +873,7 @@ public class Ps3Activity extends Activity {
                         } catch (Throwable ignored) {
                             // Déjà en pause.
                         }
-                        android.view.WindowManager.LayoutParams back = getWindow().getAttributes();
-                        back.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
-                        getWindow().setAttributes(back);
+                        stopService(new Intent(Ps3Activity.this, PrecompileService.class));
                         return;
                     }
                 } else {
@@ -903,7 +902,8 @@ public class Ps3Activity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        if (ready) Ps3Core.nativeBackground(true);
+        // Précompilation en cours : le moteur continue écran éteint (service de premier plan).
+        if (ready && !(store.precompile() && !precompileDone)) Ps3Core.nativeBackground(true);
     }
 
     /** Qui ferme l'écran du jeu, et quand : la pile d'appels est écrite au journal. */

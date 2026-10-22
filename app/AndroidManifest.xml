@@ -8,6 +8,8 @@
     <!-- Mises à jour d'Origami : notification des nouveautés et installation de l'APK téléchargé. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Jeux en plusieurs fichiers (.cue + .bin…) lus directement par le moteur intégré, sur demande. -->
@@ -276,5 +278,14 @@
             android:authorities="com.hideo.foldplay.saves"
             android:exported="false"
             android:grantUriPermissions="true" />
+        <service
+            android:name=".PrecompileService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:process=":ps3">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Compilation des shaders et du code d'un jeu pendant que l'écran est éteint" />
+        </service>
     </application>
 </manifest>

@@ -595,8 +595,9 @@ final class SettingsRows {
                     store.setLab(on);
                 }
             });
-            toggle(l, "Précompilation PS3 (écran dim)", "Écran allumé au minimum pendant la partie ; quand la compilation est finie "
-                    + "(90 s sans activité), le jeu se met en pause et le chrono s'arrête. Laisse le téléphone branché.",
+            toggle(l, "Précompilation PS3 (écran éteint)", "Le jeu continue de compiler quand l'écran s'éteint (service de premier plan) ; quand la "
+                    + "compilation est finie (90 s sans activité), le jeu se met en pause et le chrono s'arrête. Expérimental : "
+                    + "laisse le téléphone branché.",
                     store.precompile(), new Toggle() {
                 public void set(boolean on) {
                     store.setPrecompile(on);
