@@ -1597,6 +1597,18 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     /** Passage Washi / Tsuru : l'ancien écran s'efface, le nouveau arrive, au rythme du thème. */
+    /**
+     * Retire l'ancien écran une fois son fondu fini, mais jamais pendant un dessin : retirer une vue au milieu du
+     * parcours d'affichage donnait « FrameLayout contains null child at index 1 » (plantage du fil principal, Fold 5).
+     */
+    private void removeOutgoing(final View out) {
+        root.post(new Runnable() {
+            public void run() {
+                if (out.getParent() == root) root.removeView(out);
+            }
+        });
+    }
+
     private void transition(final View out, View in, boolean toTsuru) {
         float w = root.getWidth(), h = root.getHeight();
         float dir = toTsuru ? 1f : -1f;
@@ -1635,7 +1647,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             in.setTranslationX(0); in.setScaleX(1f); in.setScaleY(1f);
             in.animate().alpha(1f).setDuration(ms + 120).setInterpolator(new android.view.animation.LinearInterpolator()).start();
             out.animate().alpha(0f).setDuration(ms).withEndAction(new Runnable() {
-                public void run() { root.removeView(out); }
+                public void run() { removeOutgoing(out); }
             }).start();
             return;
         }
@@ -1643,7 +1655,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 .setDuration(ms).setInterpolator(ip).start();
         out.animate().alpha(0f).translationX(outX).translationY(outY).scaleX(outScale).scaleY(outScale)
                 .setDuration(ms * 3 / 4).setInterpolator(new android.view.animation.AccelerateInterpolator())
-                .withEndAction(new Runnable() { public void run() { root.removeView(out); } }).start();
+                .withEndAction(new Runnable() { public void run() { removeOutgoing(out); } }).start();
     }
 
     private View buildCover() {

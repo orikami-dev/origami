@@ -427,7 +427,8 @@ final class DebugLog {
         for (int i = 0; i < lines.length && n < 80; i++) {
             String l = lines[i];
             // Bruit sans importance : fichiers de cache absents au démarrage (CELL_ENOENT) et leur ligne de suite.
-            if (l.contains("CELL_ENOENT") || l.contains("sys_fs_open") || l.equals("[1]")) continue;
+            if (l.contains("CELL_ENOENT") || l.contains("sys_fs_open") || l.equals("[1]")
+                    || l.contains("vkGetInstanceProcAddr") || l.contains("VK_NULL_HANDLE") || l.startsWith("invalid")) continue;
             if (!bad.matcher(l).find()) continue;
             // Une seule fois par message identique, sans l'horodatage.
             String key = l.replaceFirst("^[0-9: .\\-]+", "");
