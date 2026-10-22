@@ -2,6 +2,10 @@
 
 Studio : KAMI-WORKS.
 
+## 0.67.3
+
+- Précompilation PS3 : dès que tu quittes le plein écran (autre app, écran d'accueil, fenêtre réduite), une notification apparaît avec la charge de compilation (code du jeu et shaders), la taille du cache et la durée ; elle disparaît quand tu reviens dans le jeu.
+
 ## 0.67.2
 
 - Mode développeur : les 10 appuis sur le logo sont pris en compte même très rapides, et le compteur « Encore N appuis » se met à jour à chaque appui, dès le 3e.

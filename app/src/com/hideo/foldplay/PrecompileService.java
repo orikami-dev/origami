@@ -16,6 +16,8 @@ public final class PrecompileService extends Service {
     private static final String CHANNEL = "precompile";
     private static final String CHANNEL_DONE = "precompile_done";
     static final String ACTION_DONE = "com.hideo.foldplay.PRECOMPILE_DONE";
+    static final String ACTION_PROGRESS = "com.hideo.foldplay.PRECOMPILE_PROGRESS";
+    private long startedAt;
     private PowerManager.WakeLock lock;
 
     @Override
@@ -26,18 +28,30 @@ public final class PrecompileService extends Service {
         }
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Précompilation", NotificationManager.IMPORTANCE_LOW));
-        Notification n = new Notification.Builder(this, CHANNEL)
-                .setSmallIcon(android.R.drawable.stat_notify_sync)
-                .setContentTitle("Origami compile les shaders")
-                .setContentText("Le téléphone se réveillera à la fin de la compilation.")
-                .setOngoing(true)
-                .build();
-        startForeground(63, n);
+        if (intent != null && ACTION_PROGRESS.equals(intent.getAction())) {
+            // Progression en direct (0.67), dans la notification seulement : mise à jour sans bruit.
+            startForeground(63, ongoing(intent.getStringExtra("text"), -1));
+            return START_NOT_STICKY;
+        }
+        if (startedAt == 0) startedAt = android.os.SystemClock.elapsedRealtime();
+        startForeground(63, ongoing("Le téléphone se réveillera à la fin de la compilation.", -1));
         if (lock == null) {
             lock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "origami:precompile");
             lock.acquire(12 * 3600 * 1000L);
         }
         return START_NOT_STICKY;
+    }
+
+    private Notification ongoing(String text, int shaderPct) {
+        Notification.Builder b = new Notification.Builder(this, CHANNEL)
+                .setSmallIcon(android.R.drawable.stat_notify_sync)
+                .setContentTitle("Origami compile les shaders")
+                .setContentText(text)
+                .setStyle(new Notification.BigTextStyle().bigText(text))
+                .setOnlyAlertOnce(true)
+                .setOngoing(true);
+        b.setProgress(100, Math.max(0, Math.min(100, shaderPct)), shaderPct < 0);
+        return b.build();
     }
 
     /** Compilation finie (0.67) : notification visible sur l'écran verrouillé, sonore, et l'écran se rallume quelques secondes. */
@@ -58,6 +72,8 @@ public final class PrecompileService extends Service {
                 .setContentIntent(tap)
                 .setAutoCancel(true)
                 .build();
+        // Lancé par startForegroundService : il faut passer au premier plan avant de s'arrêter (sinon Android tue l'app).
+        startForeground(63, ongoing("Compilation terminée.", -1));
         nm.notify(64, n);
         // Réveille le téléphone : l'écran s'allume le temps de voir la notification.
         PowerManager.WakeLock screen = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(
