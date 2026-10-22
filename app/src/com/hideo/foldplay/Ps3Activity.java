@@ -847,6 +847,24 @@ public class Ps3Activity extends Activity {
      * Essai de précompilation : le moteur continue même écran éteint (service de premier plan), puis, quand les fils de compilation sont restés calmes 90 s après le démarrage, le jeu est mis en pause et le
      * chronomètre de session s'arrête : la durée exacte de la compilation est écrite au journal.
      */
+    /** Luminosité forcée au minimum par la précompilation : rendue dès que l'utilisateur touche l'écran ou une touche. */
+    private boolean dimmed;
+
+    private void restoreBrightness() {
+        if (!dimmed) return;
+        dimmed = false;
+        android.view.WindowManager.LayoutParams back = getWindow().getAttributes();
+        back.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+        getWindow().setAttributes(back);
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        // La compilation continue écran allumé ; seule la luminosité du réglage système revient (elle restait bloquée au minimum).
+        restoreBrightness();
+    }
+
     private void startPrecompileWatch() {
         if (!store.precompile()) return;
         // Le moteur ne démarre son rendu (donc la compilation des shaders) qu'avec une surface : écran éteint, il attend sans fin
@@ -855,6 +873,7 @@ public class Ps3Activity extends Activity {
         android.view.WindowManager.LayoutParams wl = getWindow().getAttributes();
         wl.screenBrightness = 0.01f;
         getWindow().setAttributes(wl);
+        dimmed = true;
         // Service de premier plan + processeur éveillé ; le moteur n'est pas mis en arrière-plan.
         final ShaderMeter m = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
         final long[] calmSince = {0};
@@ -892,9 +911,7 @@ public class Ps3Activity extends Activity {
                     if (now - calmSince[0] >= 90000L && DebugLog.sessionMs() > 120000L) {
                         precompileDone = true;
                         CoreAffinity.boost = false;
-                        android.view.WindowManager.LayoutParams back = getWindow().getAttributes();
-                        back.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
-                        getWindow().setAttributes(back);
+                        restoreBrightness();
                         getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                         DebugLog.stopSession();
                         DebugLog.event("[PS3] compilation terminée en " + DebugLog.clock(DebugLog.sessionMs() - 90000L)
