@@ -16,6 +16,9 @@ import java.util.List;
  * de la vue qui l'affiche ; les rappels passent par l'hôte quand il faut redessiner ou démarrer un écran.
  */
 final class SettingsRows {
+    static final String[] X360_TESTS = {"0 · Réglages actuels", "1 · Sans journal détaillé du moteur", "2 · Sans mode headless",
+            "3 · Shaders synchrones", "4 · Réglages du moteur par défaut"};
+
     private SettingsRows() {
     }
 
@@ -473,6 +476,55 @@ final class SettingsRows {
         });
         note(l, "PS3 et Xbox 360. Performance : le son, le rendu et le jeu passent sur les gros cœurs, les shaders se "
                 + "compilent sur les moyens. Économie : tout sur les moyens, le téléphone chauffe moins. Auto : Android décide.");
+        header(l, "Pilote graphique (PS3)");
+        int gd = "turnip".equals(store.gpuDriver()) ? 1 : 0;
+        choice(l, "Pilote Vulkan", GpuDriver.LABELS, gd, new Choice() {
+            public void set(int i) {
+                store.setGpuDriver(GpuDriver.MODES[i]);
+            }
+        });
+        final Activity gact = h.activity();
+        final Host gh = h;
+        action(l, "Télécharger Turnip", GpuDriver.installed(gact) ? "Un pilote est installé · remplacer par le dernier" : "Pilote libre pour Adreno, utilisé à la place de celui du téléphone",
+                new Runnable() {
+            public void run() {
+                gh.toast("Téléchargement du pilote…");
+                new Thread(new Runnable() {
+                    public void run() {
+                        String r;
+                        try {
+                            r = "Pilote installé : " + GpuDriver.download(gact);
+                        } catch (Throwable t) {
+                            r = "Échec du téléchargement : " + t.getMessage();
+                        }
+                        final String msg = r;
+                        gact.runOnUiThread(new Runnable() {
+                            public void run() {
+                                gh.toast(msg);
+                                gh.refresh();
+                            }
+                        });
+                    }
+                }).start();
+            }
+        });
+        note(l, "Essaie Turnip si Demon's Souls ou un autre jeu PS3 plante dans le pilote graphique. Appliqué au prochain lancement d'un jeu PS3.");
+        header(l, "Son (PS3)");
+        final String[] msL = {"60 ms", "120 ms", "180 ms", "250 ms"};
+        final int[] msV = {60, 120, 180, 250};
+        int mi = 3;
+        for (int i = 0; i < msV.length; i++) if (msV[i] == store.ps3AudioMs()) mi = i;
+        choice(l, "Tampon du son", msL, mi, new Choice() {
+            public void set(int i) {
+                store.setPs3AudioMs(msV[i]);
+            }
+        });
+        toggle(l, "Étirement du temps", "Le son ralentit avec le jeu au lieu de couper", store.ps3Stretch(), new Toggle() {
+            public void set(boolean on) {
+                store.setPs3Stretch(on);
+            }
+        });
+        note(l, "Un tampon court réduit le décalage avec l'image mais coupe plus vite si le jeu ralentit. Appliqué au prochain lancement d'un jeu PS3.");
         header(l, "ATH en jeu");
         toggle(l, "ATH de monitoring en jeu", "Mesures en direct, façon RTSS",
                 store.hud(), new Toggle() {
@@ -525,6 +577,73 @@ final class SettingsRows {
             toggle(l, it[1], it[2], items.contains(it[0]), new Toggle() {
                 public void set(boolean on) {
                     store.setHudItem(it[0], on);
+                }
+            });
+        }
+        final Activity act = h.activity();
+        if (!store.devUnlocked()) return; // 0.67 : débogage et contenu expérimental cachés (10 appuis sur le logo)
+        header(l, "Débogage");
+        toggle(l, "Mode débogage", "Journal détaillé et rapport de plantage, "
+                + "à partager en cas de bug", store.debug(), new Toggle() {
+            public void set(boolean on) {
+                store.setDebug(on);
+                DebugLog.sync(act);
+            }
+        });
+        if (store.debug()) {
+            toggle(l, "Profil de test KAMI-WORKS", "Applique d'un coup toutes les pistes en essai (pilote Turnip, son 150 ms avec "
+                    + "étirement précoce, 6 fils de compilation libres, minuteries précises, son et rendu sur les gros cœurs). "
+                    + "Pour nos essais seulement.",
+                    store.lab(), new Toggle() {
+                public void set(boolean on) {
+                    store.setLab(on);
+                }
+            });
+            toggle(l, "Précompilation PS3 (écran éteint)", "Le jeu continue de compiler quand l'écran s'éteint (service de premier plan) ; quand la "
+                    + "compilation est finie (90 s sans activité), le jeu se met en pause et le chrono s'arrête. Expérimental : "
+                    + "laisse le téléphone branché.",
+                    store.precompile(), new Toggle() {
+                public void set(boolean on) {
+                    store.setPrecompile(on);
+                }
+            });
+            choice(l, "Essai écran noir Xbox 360", X360_TESTS, store.x360Test(), new Choice() {
+                public void set(int i) {
+                    store.setX360Test(i);
+                }
+            });
+            note(l, "Une piste retirée à la fois pour trouver ce qui bloque l'image (le choix est écrit au journal, avec le nombre d'images à 10, 30, 60 et 120 s). "
+                    + "Relance le jeu après chaque changement.");
+            action(l, "Vider le cache de shaders PS3", "Pour mesurer à froid. Ne supprime que le cache, il se reconstruit au prochain lancement.",
+                    new Runnable() {
+                public void run() {
+                    java.io.File base = act.getExternalFilesDir(null);
+                    int n = ShaderMeter.clear(new java.io.File(Ps3Core.root(act)));
+                    I18n.toast(act, n + " fichiers de cache supprimés", android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+        long logSize = DebugLog.size(act);
+        if (logSize > 0) {
+            action(l, "Partager le journal", String.format(java.util.Locale.ROOT, "%.1f Mo", logSize / 1048576f)
+                    + " · fiche de l'appareil comprise", new Runnable() {
+                public void run() {
+                    DebugLog.share(act);
+                }
+            });
+            action(l, "Copier le journal", "Un clic : la fin du journal part dans le presse-papiers, à coller dans le chat",
+                    new Runnable() {
+                public void run() {
+                    DebugLog.copy(act);
+                }
+            });
+            action(l, "Effacer le journal", "Supprime les journaux et rapports enregistrés", new Runnable() {
+                public void run() {
+                    boolean on = store.debug();
+                    DebugLog.stop();
+                    DebugLog.clear(act);
+                    if (on) DebugLog.sync(act);
+                    I18n.toast(act, "Journal effacé", android.widget.Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -601,7 +720,7 @@ final class SettingsRows {
                         }
                     }
                 });
-        toggle(l, "Préversions", "Reçois aussi les builds de test et les corrections rapides avant la version stable",
+        if (store.devUnlocked()) toggle(l, "Préversions", "Reçois aussi les builds de test et les corrections rapides avant la version stable",
                 store.previewUpdates(), new Toggle() {
                     public void set(boolean on) {
                         store.setPreviewUpdates(on);
@@ -612,6 +731,29 @@ final class SettingsRows {
         });
         // Emplacement du résultat de la recherche (menu classique seulement).
         l.add(new Row(Row.SLOT, "update"));
+    }
+
+    private static int logoTaps;
+    private static long logoLast;
+
+    /** 10 appuis rapprochés sur le logo : ouvre ou rappelle le mode développeur (débogage, préversions, expérimental). */
+    static void tapLogo(Activity act) {
+        Store st = new Store(act);
+        long now = android.os.SystemClock.elapsedRealtime();
+        logoTaps = now - logoLast > 2500 ? 1 : logoTaps + 1;
+        logoLast = now;
+        if (st.devUnlocked()) {
+            if (logoTaps == 3) I18n.toast(act, "Le mode développeur est déjà activé", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (logoTaps >= 10) {
+            st.setDevUnlocked(true);
+            logoTaps = 0;
+            I18n.toast(act, "Mode développeur activé : rouvre les Réglages pour voir le débogage et les préversions",
+                    android.widget.Toast.LENGTH_LONG).show();
+        } else if (logoTaps >= 5) {
+            I18n.toast(act, "Encore " + (10 - logoTaps) + " appuis pour activer le mode développeur", android.widget.Toast.LENGTH_SHORT).show();
+        }
     }
 
     private static void about(final Host h, List<Row> l) {
@@ -627,38 +769,6 @@ final class SettingsRows {
             version = act.getPackageManager().getPackageInfo(act.getPackageName(), 0).versionName;
         } catch (Exception ignored) {
             // Version inconnue.
-        }
-        header(l, "Débogage");
-        toggle(l, "Mode débogage", "Journal détaillé et rapport de plantage, "
-                + "à partager en cas de bug", store.debug(), new Toggle() {
-            public void set(boolean on) {
-                store.setDebug(on);
-                DebugLog.sync(act);
-            }
-        });
-        long logSize = DebugLog.size(act);
-        if (logSize > 0) {
-            action(l, "Partager le journal", String.format(java.util.Locale.ROOT, "%.1f Mo", logSize / 1048576f)
-                    + " · fiche de l'appareil comprise", new Runnable() {
-                public void run() {
-                    DebugLog.share(act);
-                }
-            });
-            action(l, "Copier le journal", "Un clic : la fin du journal part dans le presse-papiers, à coller dans le chat",
-                    new Runnable() {
-                public void run() {
-                    DebugLog.copy(act);
-                }
-            });
-            action(l, "Effacer le journal", "Supprime les journaux et rapports enregistrés", new Runnable() {
-                public void run() {
-                    boolean on = store.debug();
-                    DebugLog.stop();
-                    DebugLog.clear(act);
-                    if (on) DebugLog.sync(act);
-                    I18n.toast(act, "Journal effacé", android.widget.Toast.LENGTH_SHORT).show();
-                }
-            });
         }
         l.add(new Row(Row.LOGO, "origami"));
         header(l, "ORIGAMI " + version);

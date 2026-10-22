@@ -11,8 +11,8 @@ ROOT="$(cd "$HERE/.." && pwd)"
 JAR="${ANDROID_JAR:-$HOME/sdk/android-34.jar}"
 BT="${BUILD_TOOLS:-/usr/lib/android-sdk/build-tools/debian}"
 OUT="${BUILD_DIR:-$HOME/foldplay-build}"
-VERSION=0.66.24
-VERSION_CODE=96
+VERSION=0.67.0
+VERSION_CODE=108
 # Clé debug gardée dans le projet pour que chaque build s'installe par-dessus le précédent.
 KEYSTORE="${KEYSTORE:-$ROOT/keystore/foldplay-debug.jks}"
 
@@ -54,6 +54,8 @@ for so in libarmsx3-core.so libfoldplay_ps3.so; do
   if [ -f "$ROOT/prebuilt/armsx3/$so" ]; then cp "$ROOT/prebuilt/armsx3/$so" "$OUT/apk/lib/arm64-v8a/"
   else echo "Attention : prebuilt/armsx3/$so absent, APK sans PS3 (native/build-armsx3.sh, native/build-ps3-bridge.sh)" >&2; fi
 done
+# Crochets de libadrenotools (pilote Turnip), lus depuis nativeLibraryDir.
+cp "$ROOT"/prebuilt/adrenotools/lib*.so "$OUT/apk/lib/arm64-v8a/" 2>/dev/null || echo "Attention : prebuilt/adrenotools absent (pilote Turnip indisponible)" >&2
 for core in armsx2 dolphin; do
   if [ -f "$ROOT/prebuilt/$core/lib${core}_libretro.so" ]; then
     cp "$ROOT/prebuilt/$core/lib${core}_libretro.so" "$OUT/apk/lib/arm64-v8a/"

@@ -40,6 +40,8 @@ final class Updater {
     /** Résultat d'une recherche. error non nul : rien n'a pu être lu (dépôt privé, hors ligne…). */
     static final class Release {
         String version, summary, apkUrl, pageUrl, error;
+        /** Poids de l'APK en octets, -1 si inconnu (préversion : connu seulement au début du téléchargement). */
+        long apkSize = -1;
         boolean newer;
         String info;
     }
@@ -104,10 +106,15 @@ final class Updater {
         Release r = new Release();
         HttpURLConnection c = null;
         try {
-            c = (HttpURLConnection) new URL(PREVIEW_RAW + "preview.json?t=" + System.currentTimeMillis()).openConnection();
+            // 0.66.33 : adresse unique à chaque vérification et en-têtes « sans cache » : un relais réseau ne peut plus
+            // renvoyer l'ancien fichier de préversion.
+            c = (HttpURLConnection) new URL(PREVIEW_RAW + "preview.json?t=" + System.currentTimeMillis()
+                    + "&r=" + Long.toHexString(new java.util.Random().nextLong())).openConnection();
             c.setConnectTimeout(8000);
             c.setReadTimeout(8000);
             c.setUseCaches(false);
+            c.setRequestProperty("Cache-Control", "no-cache, no-store");
+            c.setRequestProperty("Pragma", "no-cache");
             if (c.getResponseCode() != 200) {
                 r.error = "Pas de préversion publiée.";
                 return r;
@@ -161,7 +168,10 @@ final class Updater {
             if (assets != null) {
                 for (int i = 0; i < assets.length(); i++) {
                     JSONObject a = assets.getJSONObject(i);
-                    if (a.optString("name", "").endsWith(".apk")) r.apkUrl = a.optString("browser_download_url", null);
+                    if (a.optString("name", "").endsWith(".apk")) {
+                        r.apkUrl = a.optString("browser_download_url", null);
+                        r.apkSize = a.optLong("size", -1);
+                    }
                 }
             }
             r.newer = !r.version.isEmpty() && compare(r.version, installed(ctx)) > 0;
@@ -260,9 +270,22 @@ final class Updater {
         nm.notify(62, n);
     }
 
+    static String mo(double bytes) {
+        return String.format(java.util.Locale.FRANCE, "%.1f", bytes / 1048576.0);
+    }
+
+    static String detail(long got, long total, double bytesPerSec) {
+        StringBuilder b = new StringBuilder(mo(got));
+        if (total > 0) b.append(" / ").append(mo(total));
+        b.append(" Mo");
+        if (bytesPerSec > 0) b.append(" · ").append(mo(bytesPerSec)).append(" Mo/s");
+        return b.toString();
+    }
+
     /** Suivi du téléchargement, rappelé sur le fil principal : pct de 0 à 100, puis done ou erreur. */
     interface Progress {
-        void progress(int pct);
+        /** pct de 0 à 100 ; detail : « 12,3 / 77,8 Mo · 4,5 Mo/s ». */
+        void progress(int pct, String detail);
 
         void done(boolean ok);
     }
@@ -295,14 +318,24 @@ final class Updater {
                     byte[] buf = new byte[1 << 16];
                     long got = 0;
                     int last = -1;
+                    long t0 = System.nanoTime(), tPrev = t0, gotPrev = 0;
+                    double rate = 0;
                     for (int n; (n = in.read(buf)) > 0; ) {
                         out.write(buf, 0, n);
                         got += n;
+                        long now = System.nanoTime();
+                        if (now - tPrev >= 700000000L) {
+                            double inst = (got - gotPrev) / ((now - tPrev) / 1e9);
+                            rate = rate == 0 ? inst : rate * 0.6 + inst * 0.4;
+                            tPrev = now;
+                            gotPrev = got;
+                        }
                         final int pct = total > 0 ? (int) (got * 100 / total) : 0;
-                        if (pct != last) {
+                        final String det = detail(got, total, rate);
+                        if (pct != last || now == tPrev) {
                             last = pct;
                             main.post(new Runnable() {
-                                public void run() { if (ui != null) ui.progress(pct); }
+                                public void run() { if (ui != null) ui.progress(pct, det); }
                             });
                         }
                     }

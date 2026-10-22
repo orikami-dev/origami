@@ -94,6 +94,7 @@ public class Ps3Activity extends Activity {
         status("Démarrage du moteur PS3…");
         new Thread(new Runnable() {
             public void run() {
+                GpuDriver.apply(Ps3Activity.this, store);
                 boolean ok = Ps3Core.nativeInitialize(Ps3Core.root(Ps3Activity.this), "00000001",
                         Build.VERSION.SDK_INT >= 31 ? Build.SOC_MODEL : Build.HARDWARE);
                 ready = ok;
@@ -201,6 +202,35 @@ public class Ps3Activity extends Activity {
                 return ready ? Ps3Core.nativeFramePeriodNs() : -1;
             }
         }, false);
+        final FramePeak logPeak = new FramePeak(new FramePeak.Probe() {
+            public long read() {
+                return ready ? Ps3Core.nativeFramePeriodNs() : -1;
+            }
+        }, false);
+        logPeak.start();
+        startPrecompileWatch();
+        final ShaderMeter shaders = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
+        HudOverlay.shaderMeter = new ShaderMeter(new java.io.File(Ps3Core.root(this))); // une mesure pour l'ATH, une pour le journal
+        DebugLog.perfExtra = new DebugLog.Extra() {
+            public String get() {
+                StringBuilder b = new StringBuilder("jeu : ");
+                float fps = logPeak.takeFps();
+                b.append(fps > 0 ? Math.round(fps * 10) / 10f + " i/s" : "i/s ?");
+                float ms = logPeak.takeMs();
+                b.append(", image la plus lente ").append(ms > 0 ? Math.round(ms) + " ms" : "?");
+                b.append(", images > 40 ms ").append(logPeak.takeSlow());
+                try {
+                    b.append(", moteur état ").append(Ps3Core.nativeState()).append(" titre ").append(Ps3Core.nativeTitleId());
+                    b.append(", échelle ").append(Ps3Core.nativeSettingsGet("Video@@Resolution Scale").trim());
+                } catch (Throwable t) {
+                    b.append(", moteur illisible");
+                }
+                b.append(", cœurs ").append(store.coresMode()).append(", pilote ").append(store.gpuDriverEff());
+                b.append(", compilation : code ").append(shaders.codePct()).append(" %, shaders ").append(shaders.shaderPct()).append(" %, cache ").append(shaders.cache());
+                b.append(Ps3Audio.describe(Ps3Activity.this));
+                return b.toString();
+            }
+        };
         hud = new HudOverlay(this, stage, store, "armsx3", new HudOverlay.Source() {
             public float fps(float seconds) {
                 if (!ready) return -1;
@@ -806,6 +836,70 @@ public class Ps3Activity extends Activity {
                 .show(stage);
     }
 
+    // ------------------------------------------------------------------ précompilation (essais)
+
+    private final android.os.Handler watchHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private boolean precompileDone;
+
+    /**
+     * Essai de précompilation : le moteur continue même écran éteint (service de premier plan), puis, quand les fils de compilation sont restés calmes 90 s après le démarrage, le jeu est mis en pause et le
+     * chronomètre de session s'arrête : la durée exacte de la compilation est écrite au journal.
+     */
+    private void startPrecompileWatch() {
+        if (!store.precompile()) return;
+        // Écran éteint possible : service de premier plan + processeur éveillé ; le moteur n'est pas mis en arrière-plan.
+        try {
+            startForegroundService(new Intent(this, PrecompileService.class));
+        } catch (Throwable t) {
+            DebugLog.event("[PS3] service de précompilation impossible", t);
+        }
+        final ShaderMeter m = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
+        final long[] calmSince = {0};
+        final long[] lastLog = {0};
+        CoreAffinity.boost = true;
+        watchHandler.postDelayed(new Runnable() {
+            public void run() {
+                if (precompileDone || isFinishing()) {
+                    CoreAffinity.boost = false;
+                    return;
+                }
+                long now = android.os.SystemClock.elapsedRealtime();
+                int code = m.codePct(), shader = m.shaderPct();
+                boolean running = booted && ready && Ps3Core.nativeState() == 3;
+                for (String mod : m.newModules()) DebugLog.event("[PS3] module compilé : " + mod);
+                if (now - lastLog[0] >= 30000L) {
+                    lastLog[0] = now;
+                    DebugLog.event("[PS3] précompilation : code PS3 " + code + " %, shaders " + shader + " %, cœurs " + CoreAffinity.freqs());
+                }
+                // Deux jauges séparées : le chrono s'arrête quand le code PS3 ET les shaders sont restés calmes 90 s.
+                if (running && code >= 0 && shader >= 0 && code < 5 && shader < 5) {
+                    if (calmSince[0] == 0) calmSince[0] = now;
+                    if (now - calmSince[0] >= 90000L && DebugLog.sessionMs() > 120000L) {
+                        precompileDone = true;
+                        CoreAffinity.boost = false;
+                        DebugLog.stopSession();
+                        DebugLog.event("[PS3] compilation terminée en " + DebugLog.clock(DebugLog.sessionMs() - 90000L)
+                                + " (chrono arrêté à " + DebugLog.clock(DebugLog.sessionMs()) + ", 90 s de calme comprises) : jeu mis en pause");
+                        try {
+                            Ps3Core.nativePause();
+                        } catch (Throwable ignored) {
+                            // Déjà en pause.
+                        }
+                        try {
+                            startForegroundService(new Intent(Ps3Activity.this, PrecompileService.class).setAction(PrecompileService.ACTION_DONE));
+                        } catch (Throwable t) {
+                            stopService(new Intent(Ps3Activity.this, PrecompileService.class));
+                        }
+                        return;
+                    }
+                } else {
+                    calmSince[0] = 0;
+                }
+                watchHandler.postDelayed(this, 5000);
+            }
+        }, 5000);
+    }
+
     // ------------------------------------------------------------------ cycle de vie
 
     @Override
@@ -824,7 +918,8 @@ public class Ps3Activity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        if (ready) Ps3Core.nativeBackground(true);
+        // Précompilation en cours : le moteur continue écran éteint (service de premier plan).
+        if (ready && !(store.precompile() && !precompileDone)) Ps3Core.nativeBackground(true);
     }
 
     /** Qui ferme l'écran du jeu, et quand : la pile d'appels est écrite au journal. */

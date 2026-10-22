@@ -127,6 +127,10 @@ final class HudOverlay {
         timer.removeCallbacks(tick);
     }
 
+    /** Mesure des shaders fournie par le moteur PS3 (0.66.30), absente pour les autres. */
+    static volatile ShaderMeter shaderMeter;
+
+    private final long startedAt = android.os.SystemClock.elapsedRealtime();
     private float recentPeak;
 
     private void update() {
@@ -190,6 +194,13 @@ final class HudOverlay {
             h.heat = pm.getCurrentThermalStatus();
         }
         h.core = core;
+        long ds = DebugLog.sessionMs();
+        h.sessionMs = ds >= 0 ? ds : now - startedAt;
+        ShaderMeter sm = shaderMeter;
+        if (sm != null && items.contains("shaders")) {
+            h.shaderPct = sm.compilePct();
+            h.shaderCache = sm.cache();
+        }
         if (screen != null) {
             h.width = screen.getWidth();
             h.height = screen.getHeight();
