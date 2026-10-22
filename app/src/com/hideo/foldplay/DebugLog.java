@@ -422,13 +422,19 @@ final class DebugLog {
         java.util.regex.Pattern bad = java.util.regex.Pattern.compile(
                 "FATAL|SIGSEGV|SIGABRT|backtrace|Exception|crash|ANR|Erreur|erreur|failed|échec|vkCreate|\\[PS3\\] (état|compilation|recompilation)");
         StringBuilder errs = new StringBuilder();
+        java.util.HashSet<String> seen = new java.util.HashSet<String>();
         int n = 0;
-        for (String l : lines) {
-            if (n >= 80) break;
-            if (bad.matcher(l).find()) {
-                errs.append(l.length() > 300 ? l.substring(0, 300) : l).append('\n');
-                n++;
-            }
+        for (int i = 0; i < lines.length && n < 80; i++) {
+            String l = lines[i];
+            // Bruit sans importance : fichiers de cache absents au démarrage (CELL_ENOENT) et leur ligne de suite.
+            if (l.contains("CELL_ENOENT") || l.contains("sys_fs_open") || l.equals("[1]")) continue;
+            if (!bad.matcher(l).find()) continue;
+            // Une seule fois par message identique, sans l'horodatage.
+            String key = l.replaceFirst("^[0-9: .\\-]+", "");
+            if (key.length() > 120) key = key.substring(0, 120);
+            if (!seen.add(key)) continue;
+            errs.append(l.length() > 300 ? l.substring(0, 300) : l).append('\n');
+            n++;
         }
         StringBuilder out = new StringBuilder("Journal Origami joint en entier (pièce jointe). Résumé :\n\n");
         out.append(info).append("\n\n=== Lignes d'erreur et d'état (").append(n).append(") ===\n").append(errs);
