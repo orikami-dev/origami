@@ -473,6 +473,39 @@ final class SettingsRows {
         });
         note(l, "PS3 et Xbox 360. Performance : le son, le rendu et le jeu passent sur les gros cœurs, les shaders se "
                 + "compilent sur les moyens. Économie : tout sur les moyens, le téléphone chauffe moins. Auto : Android décide.");
+        header(l, "Pilote graphique (PS3)");
+        int gd = "turnip".equals(store.gpuDriver()) ? 1 : 0;
+        choice(l, "Pilote Vulkan", GpuDriver.LABELS, gd, new Choice() {
+            public void set(int i) {
+                store.setGpuDriver(GpuDriver.MODES[i]);
+            }
+        });
+        final Activity gact = h.activity();
+        final Host gh = h;
+        action(l, "Télécharger Turnip", GpuDriver.installed(gact) ? "Un pilote est installé · remplacer par le dernier" : "Pilote libre pour Adreno, utilisé à la place de celui du téléphone",
+                new Runnable() {
+            public void run() {
+                gh.toast("Téléchargement du pilote…");
+                new Thread(new Runnable() {
+                    public void run() {
+                        String r;
+                        try {
+                            r = "Pilote installé : " + GpuDriver.download(gact);
+                        } catch (Throwable t) {
+                            r = "Échec du téléchargement : " + t.getMessage();
+                        }
+                        final String msg = r;
+                        gact.runOnUiThread(new Runnable() {
+                            public void run() {
+                                gh.toast(msg);
+                                gh.refresh();
+                            }
+                        });
+                    }
+                }).start();
+            }
+        });
+        note(l, "Essaie Turnip si Demon's Souls ou un autre jeu PS3 plante dans le pilote graphique. Appliqué au prochain lancement d'un jeu PS3.");
         header(l, "ATH en jeu");
         toggle(l, "ATH de monitoring en jeu", "Mesures en direct, façon RTSS",
                 store.hud(), new Toggle() {

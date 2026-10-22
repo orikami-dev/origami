@@ -94,6 +94,7 @@ public class Ps3Activity extends Activity {
         status("Démarrage du moteur PS3…");
         new Thread(new Runnable() {
             public void run() {
+                GpuDriver.apply(Ps3Activity.this, store);
                 boolean ok = Ps3Core.nativeInitialize(Ps3Core.root(Ps3Activity.this), "00000001",
                         Build.VERSION.SDK_INT >= 31 ? Build.SOC_MODEL : Build.HARDWARE);
                 ready = ok;

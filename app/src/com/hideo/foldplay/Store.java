@@ -803,6 +803,15 @@ final class Store {
     }
 
     /** Style de l'ATH : "line" (une ligne en haut, façon RTSS, par défaut) ou "block" (encadré sur plusieurs lignes). */
+    /** Pilote graphique PS3 : auto ou turnip (GpuDriver). */
+    String gpuDriver() {
+        return prefs.getString("gpu_driver", "auto");
+    }
+
+    void setGpuDriver(String m) {
+        prefs.edit().putString("gpu_driver", m).apply();
+    }
+
     /** Répartition des fils du moteur (0.66.24) : auto, perf ou eco (CoreAffinity). Performance par défaut. */
     String coresMode() {
         return prefs.getString("cores_mode", "perf");

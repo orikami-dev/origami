@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <android/log.h>
 #include <string>
+#include <adrenotools/driver.h>
 #include <string_view>
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "OrigamiPS3", __VA_ARGS__)
@@ -15,6 +16,7 @@
 namespace {
 
 struct Core {
+  void *(*setCustomDriver)(void *);
   bool (*initialize)(std::string_view rootDir, std::string_view user);
   void (*setSocInfo)(std::string_view socInfo);
   bool (*processCompilationQueue)(JNIEnv *env);
@@ -97,6 +99,7 @@ FN(jboolean, nativeOpen)(JNIEnv *env, jclass, jstring path) {
     LOG("cœur non chargé : %s", lastError.c_str());
     return JNI_FALSE;
   }
+  bind(core.setCustomDriver, "_rpcsx_setCustomDriver");
   bind(core.initialize, "_rpcsx_initialize");
   bind(core.setSocInfo, "_rpcsx_setSocInfo");
   bind(core.processCompilationQueue, "_rpcsx_processCompilationQueue");
@@ -209,4 +212,16 @@ FN(jboolean, nativeHasState)(JNIEnv *, jclass, jint slot) {
 
 FN(jstring, nativeVersion)(JNIEnv *env, jclass) {
   return jstr(env, core.getVersion ? core.getVersion() : std::string());
+}
+
+// Pilote Vulkan personnalisé (Turnip) : à appeler après nativeOpen et avant nativeInitialize.
+FN(jboolean, nativeSetDriver)(JNIEnv *env, jclass, jstring dir, jstring lib, jstring hooks) {
+  if (!core.setCustomDriver) { lastError = "cœur sans _rpcsx_setCustomDriver"; return JNI_FALSE; }
+  std::string d = str(env, dir) + "/", l = str(env, lib), h = str(env, hooks) + "/";
+  void *loader = adrenotools_open_libvulkan(RTLD_NOW, ADRENOTOOLS_DRIVER_CUSTOM, nullptr, h.c_str(), d.c_str(), l.c_str(), nullptr, nullptr);
+  if (!loader) { lastError = "pilote " + l + " refusé par adrenotools"; LOG("%s", lastError.c_str()); return JNI_FALSE; }
+  void *prev = core.setCustomDriver(loader);
+  if (prev) dlclose(prev);
+  LOG("pilote personnalisé chargé : %s", l.c_str());
+  return JNI_TRUE;
 }
