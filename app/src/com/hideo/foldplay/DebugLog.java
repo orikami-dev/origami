@@ -330,7 +330,7 @@ final class DebugLog {
     }
 
     /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */
-    private static final int CLIP = 60 * 1024;
+    private static final int CLIP = 4 * 1024 * 1024;
     private static final java.util.regex.Pattern NOISE = java.util.regex.Pattern.compile(
             "AudioTrack: setVolume|VRI\\[|InsetsController|InsetsSource|ImeTracker|InputTransport|ScrollView|perf_hint"
             + "|BLASTBufferQueue|SurfaceComposerClient|HWUI|InputMethodManager|ImeFocusController|ViewRootImpl"
@@ -377,9 +377,26 @@ final class DebugLog {
                     all.append("\n===== mesures des moteurs (dernière heure) =====\n").append(perf.substring(from));
                 }
             }
+            // 0.66.26 : le journal complet part dans un fichier .txt déposé dans le presse-papier (adresse de
+            // contenu) : un collage dans le chat le joint tel quel, sans limite de longueur.
+            byte[] data = all.toString().getBytes("UTF-8");
+            File out = new File(SaveProvider.dir(a), "journal-origami.txt");
+            out.getParentFile().mkdirs();
+            FileOutputStream fo = new FileOutputStream(out);
+            fo.write(data);
+            fo.close();
+            try {
+                File logs = new File(OrigamiFolder.root(), "LOGS");
+                logs.mkdirs();
+                FileOutputStream lo = new FileOutputStream(new File(logs, "dernier-journal.txt"));
+                lo.write(data);
+                lo.close();
+            } catch (Exception ignore) {
+                // dossier Origami non accessible : le presse-papier suffit
+            }
             android.content.ClipboardManager cm = (android.content.ClipboardManager) a.getSystemService(Context.CLIPBOARD_SERVICE);
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("journal Origami", all.toString()));
-            I18n.toast(a, "Journal copié : colle-le dans le chat", android.widget.Toast.LENGTH_LONG).show();
+            cm.setPrimaryClip(android.content.ClipData.newUri(a.getContentResolver(), "journal Origami", SaveProvider.uri("journal-origami.txt")));
+            I18n.toast(a, "Journal copié en fichier .txt : colle-le dans le chat", android.widget.Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             I18n.toast(a, "Copie du journal impossible : " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
         }
