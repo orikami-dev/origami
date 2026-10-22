@@ -2,6 +2,14 @@
 
 Studio : ORIKAMI.
 
+## 0.67.7
+
+- Précompilation PS3 : la luminosité n'est baissée que pendant la recompilation du cœur avant le jeu ; elle revient dès qu'elle est finie, et la compilation des shaders en jeu ne la touche plus.
+- Chargement rapide : nouveau pictogramme (flèche de retour autour d'une disquette), plus explicite que l'ancien plateau.
+- Didacticiel : le cadre se cale sur le bon bouton de la barre et suit la rotation, le pli et le dépli.
+
+- Accueil Tsuru : le nom de la catégorie choisie (« Jeux mobiles ») n'est plus coupé.
+
 ## 0.67.6
 
 - Didacticiel en 7 bulles après le premier démarrage : il montre chaque commande de la barre du haut et à quoi elle sert. « Passer » le ferme à tout moment, et on le relance depuis Réglages > Version.

@@ -850,14 +850,18 @@ public class Ps3Activity extends Activity {
     private void startPrecompileWatch() {
         if (!store.precompile()) return;
         // Le moteur ne démarre son rendu (donc la compilation des shaders) qu'avec une surface : écran éteint, il attend sans fin
-        // (journal du Fold 5, 22/10). L'écran reste donc allumé au minimum de luminosité, le téléphone branché.
+        // (journal du Fold 5, 22/10). L'écran reste donc allumé, avec la luminosité de l'utilisateur.
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // Luminosité au minimum seulement pendant la recompilation du cœur avant le jeu ; elle revient dès que la jauge
+        // « code PS3 » est restée calme 10 s, la compilation des shaders en jeu ne la baisse jamais.
         android.view.WindowManager.LayoutParams wl = getWindow().getAttributes();
         wl.screenBrightness = 0.01f;
         getWindow().setAttributes(wl);
         // Service de premier plan + processeur éveillé ; le moteur n'est pas mis en arrière-plan.
         final ShaderMeter m = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
         final long[] calmSince = {0};
+        final long[] codeCalm = {0};
+        final boolean[] dimmed = {true};
         final long[] lastLog = {0};
         CoreAffinity.boost = true;
         watchHandler.postDelayed(new Runnable() {
@@ -870,6 +874,20 @@ public class Ps3Activity extends Activity {
                 int code = m.codePct(), shader = m.shaderPct();
                 boolean running = booted && ready && Ps3Core.nativeState() == 3;
                 for (String mod : m.newModules()) DebugLog.event("[PS3] module compilé : " + mod);
+                if (dimmed[0]) {
+                    if (running && code >= 0 && code < 5) {
+                        if (codeCalm[0] == 0) codeCalm[0] = now;
+                    } else {
+                        codeCalm[0] = 0;
+                    }
+                    if (codeCalm[0] != 0 && now - codeCalm[0] >= 10000L) {
+                        dimmed[0] = false;
+                        android.view.WindowManager.LayoutParams back = getWindow().getAttributes();
+                        back.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+                        getWindow().setAttributes(back);
+                        DebugLog.event("[PS3] recompilation d'avant-jeu terminée : luminosité rendue");
+                    }
+                }
                 // Progression en direct dans la notification (pas à l'écran), toutes les 5 s.
                 if (!precompileDone && leftApp) {
                     try {
@@ -892,9 +910,11 @@ public class Ps3Activity extends Activity {
                     if (now - calmSince[0] >= 90000L && DebugLog.sessionMs() > 120000L) {
                         precompileDone = true;
                         CoreAffinity.boost = false;
-                        android.view.WindowManager.LayoutParams back = getWindow().getAttributes();
-                        back.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
-                        getWindow().setAttributes(back);
+                        if (dimmed[0]) {
+                            android.view.WindowManager.LayoutParams back = getWindow().getAttributes();
+                            back.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+                            getWindow().setAttributes(back);
+                        }
                         getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                         DebugLog.stopSession();
                         DebugLog.event("[PS3] compilation terminée en " + DebugLog.clock(DebugLog.sessionMs() - 90000L)
