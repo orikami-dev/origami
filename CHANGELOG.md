@@ -2,6 +2,10 @@
 
 Studio : KAMI-WORKS.
 
+## 0.67.1
+
+- PS3 : le téléchargement de Turnip détecte le GPU du téléphone (tous les Snapdragon Adreno, pas seulement les Fold) et choisit le pilote adapté ; les téléphones sans Adreno gardent leur pilote.
+
 ## 0.67.0 ⭐
 
 - Le débogage, les préversions et le contenu expérimental sont désormais cachés : appuie 10 fois sur le logo dans Réglages > À propos pour les débloquer.
