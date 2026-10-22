@@ -840,6 +840,8 @@ public class Ps3Activity extends Activity {
 
     private final android.os.Handler watchHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private boolean precompileDone;
+    /** L'utilisateur est passé sur une autre app : la notification de compilation est alors affichée (0.67). */
+    private boolean leftApp;
 
     /**
      * Essai de précompilation : le moteur continue même écran éteint (service de premier plan), puis, quand les fils de compilation sont restés calmes 90 s après le démarrage, le jeu est mis en pause et le
@@ -854,11 +856,6 @@ public class Ps3Activity extends Activity {
         wl.screenBrightness = 0.01f;
         getWindow().setAttributes(wl);
         // Service de premier plan + processeur éveillé ; le moteur n'est pas mis en arrière-plan.
-        try {
-            startForegroundService(new Intent(this, PrecompileService.class));
-        } catch (Throwable t) {
-            DebugLog.event("[PS3] service de précompilation impossible", t);
-        }
         final ShaderMeter m = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
         final long[] calmSince = {0};
         final long[] lastLog = {0};
@@ -873,6 +870,18 @@ public class Ps3Activity extends Activity {
                 int code = m.codePct(), shader = m.shaderPct();
                 boolean running = booted && ready && Ps3Core.nativeState() == 3;
                 for (String mod : m.newModules()) DebugLog.event("[PS3] module compilé : " + mod);
+                // Progression en direct dans la notification (pas à l'écran), toutes les 5 s.
+                if (!precompileDone && leftApp) {
+                    try {
+                        long sec = DebugLog.sessionMs() / 1000;
+                        String text = "Charge : code PS3 " + Math.max(code, 0) + " % · shaders " + Math.max(shader, 0) + " % d'un cœur · cache " + m.cache()
+                                + " · " + String.format(java.util.Locale.ROOT, "%d:%02d", sec / 60, sec % 60);
+                        startForegroundService(new Intent(Ps3Activity.this, PrecompileService.class)
+                                .setAction(PrecompileService.ACTION_PROGRESS).putExtra("text", text));
+                    } catch (Throwable ignored) {
+                        // Notification non mise à jour : la compilation continue.
+                    }
+                }
                 if (now - lastLog[0] >= 30000L) {
                     lastLog[0] = now;
                     DebugLog.event("[PS3] précompilation : code PS3 " + code + " %, shaders " + shader + " %, cœurs " + CoreAffinity.freqs());
@@ -923,6 +932,29 @@ public class Ps3Activity extends Activity {
             place();
         }
         if (ready) Ps3Core.nativeBackground(false);
+        if (leftApp) {
+            // De retour dans le jeu : la notification de compilation disparaît.
+            leftApp = false;
+            stopService(new Intent(this, PrecompileService.class));
+        }
+    }
+
+    /** Fenêtre réduite (écran partagé, fenêtre flottante) : l'app n'est plus en plein écran, la notification de compilation apparaît. */
+    @Override
+    public void onMultiWindowModeChanged(boolean inMultiWindow) {
+        super.onMultiWindowModeChanged(inMultiWindow);
+        if (!store.precompile() || precompileDone || !ready) return;
+        if (inMultiWindow && !leftApp) {
+            leftApp = true;
+            try {
+                startForegroundService(new Intent(this, PrecompileService.class));
+            } catch (Throwable t) {
+                DebugLog.event("[PS3] service de précompilation impossible", t);
+            }
+        } else if (!inMultiWindow && leftApp) {
+            leftApp = false;
+            stopService(new Intent(this, PrecompileService.class));
+        }
     }
 
     @Override
@@ -930,6 +962,15 @@ public class Ps3Activity extends Activity {
         super.onPause();
         // Précompilation en cours : le moteur continue écran éteint (service de premier plan).
         if (ready && !(store.precompile() && !precompileDone)) Ps3Core.nativeBackground(true);
+        if (ready && store.precompile() && !precompileDone && !isFinishing()) {
+            // Passage sur une autre app pendant la compilation : le service de premier plan et sa notification démarrent.
+            leftApp = true;
+            try {
+                startForegroundService(new Intent(this, PrecompileService.class));
+            } catch (Throwable t) {
+                DebugLog.event("[PS3] service de précompilation impossible", t);
+            }
+        }
     }
 
     /** Qui ferme l'écran du jeu, et quand : la pile d'appels est écrite au journal. */
