@@ -76,16 +76,88 @@ final class GpuDriver {
         return name;
     }
 
-    /** Télécharge le dernier Turnip publié (réseau, hors thread principal). */
+    private static String sys(String path) {
+        try {
+            java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(path));
+            try {
+                return r.readLine();
+            } finally {
+                r.close();
+            }
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static String prop(String key) {
+        try {
+            Class<?> c = Class.forName("android.os.SystemProperties");
+            return String.valueOf(c.getMethod("get", String.class, String.class).invoke(null, key, ""));
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
+    /** Modèle Adreno du téléphone (ex. 740), 0 si GPU non Adreno (Mali, Xclipse…), -1 si introuvable (0.67). */
+    static int adreno() {
+        String g = sys("/sys/class/kgsl/kgsl-3d0/gpu_model");
+        if (g != null) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{3})").matcher(g);
+            if (g.toLowerCase(java.util.Locale.ROOT).contains("adreno") && m.find()) return Integer.parseInt(m.group(1));
+        }
+        // Tous les téléphones : le pilote Vulkan déclaré par le fabricant (adreno, mali, powervr, xclipse…).
+        String vk = (prop("ro.hardware.vulkan") + " " + prop("ro.hardware.egl")).toLowerCase(java.util.Locale.ROOT);
+        boolean viaProp = false;
+        if (vk.contains("mali") || vk.contains("powervr") || vk.contains("xclipse") || vk.contains("pastel") || vk.contains("immortalis")
+                || vk.contains("emulation") || vk.contains("swiftshader") || vk.contains("ranchu") || vk.contains("gfxstream")) return 0;
+        if (vk.contains("adreno")) viaProp = true;
+        String soc = (android.os.Build.VERSION.SDK_INT >= 31 ? android.os.Build.SOC_MODEL : "") + " " + android.os.Build.HARDWARE + " " + android.os.Build.BOARD;
+        soc = soc.toUpperCase(java.util.Locale.ROOT);
+        // Snapdragon, tous modèles : le lecteur kgsl et le pilote déclaré passent d abord, cette table sert de dernier recours (Fold 5 = SM8550 / 740).
+        String[][] map = {{"SM8850", "840"}, {"SM8750", "830"}, {"SM8650", "750"}, {"SM8550", "740"}, {"SM8475", "730"}, {"SM8450", "730"},
+                {"SM8350", "660"}, {"SM8250", "650"}, {"KALAMA", "740"}, {"PINEAPPLE", "750"}, {"SUN", "830"}, {"LAHAINA", "660"}, {"TASMAN", "840"}};
+        for (String[] e : map) if (soc.contains(e[0])) return Integer.parseInt(e[1]);
+        if (viaProp) return -1; // Adreno d'un modèle inconnu : pilote générique, pas de blocage.
+        if (soc.contains("EXYNOS") || soc.contains("S5E") || soc.contains("MT6") || soc.contains("TENSOR") || soc.contains("GS")) return 0;
+        return -1;
+    }
+
+    /** Score d'un fichier de pilote pour ce GPU : les noms qui citent la famille (a7xx, 740…) passent devant le générique. */
+    private static int score(String name, int gpu) {
+        String n = name.toLowerCase(java.util.Locale.ROOT);
+        if (gpu <= 0) return 0;
+        int fam = gpu / 100;
+        int sc = 0;
+        if (n.contains("a" + fam + "xx") || n.contains("adreno" + fam) || n.contains("a" + gpu) || n.contains(String.valueOf(gpu))) sc += 10;
+        // Une famille précise citée ailleurs que la nôtre : mauvais candidat.
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("a([6-9])xx").matcher(n);
+        while (m.find()) if (Integer.parseInt(m.group(1)) != fam) sc -= 20;
+        if (n.contains("v8") || n.contains("v7")) sc += 0;
+        return sc;
+    }
+
+    /** Télécharge le Turnip adapté au GPU du téléphone (réseau, hors thread principal). */
     static String download(Context c) throws Exception {
+        int gpu = adreno();
+        if (gpu == 0) throw new Exception("Turnip ne fonctionne que sur les GPU Adreno (Snapdragon) : ce téléphone garde son pilote");
+        if (gpu > 0 && gpu < 600) throw new Exception("Adreno " + gpu + " trop ancien pour Turnip");
         JSONObject rel = new JSONObject(new String(read(open(RELEASES))));
         JSONArray assets = rel.getJSONArray("assets");
         String url = null;
-        for (int i = 0; i < assets.length() && url == null; i++) {
-            String n = assets.getJSONObject(i).getString("name").toLowerCase();
-            if (n.endsWith(".zip") && n.contains("turnip")) url = assets.getJSONObject(i).getString("browser_download_url");
+        int best = Integer.MIN_VALUE;
+        String pick = null;
+        for (int i = 0; i < assets.length(); i++) {
+            String n = assets.getJSONObject(i).getString("name");
+            if (!n.toLowerCase(java.util.Locale.ROOT).endsWith(".zip") || !n.toLowerCase(java.util.Locale.ROOT).contains("turnip")) continue;
+            int sc = score(n, gpu);
+            if (sc > best) {
+                best = sc;
+                pick = n;
+                url = assets.getJSONObject(i).getString("browser_download_url");
+            }
         }
         if (url == null) throw new Exception("aucun pilote Turnip dans la dernière version");
+        DebugLog.event("[PS3] GPU Adreno " + (gpu > 0 ? gpu : "inconnu") + " : pilote choisi " + pick + " (score " + best + ")");
         return installZip(c, open(url));
     }
 
