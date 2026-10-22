@@ -2,6 +2,13 @@
 
 Studio : KAMI-WORKS.
 
+## 0.67.2
+
+- Mode développeur : les 10 appuis sur le logo sont pris en compte même très rapides, et le compteur « Encore N appuis » se met à jour à chaque appui, dès le 3e.
+- Turnip : le pilote est choisi d'après la génération Adreno citée dans le nom du fichier (Gen7, Gen8…).
+- Sauvegarde et chargement rapides : des pictogrammes (disquette, plateau) aux couleurs du thème remplacent les mots SAVE et LOAD.
+- Précompilation PS3 : l'écran reste allumé au minimum de luminosité pendant la compilation, car sans écran le moteur ne démarrait pas son rendu.
+
 ## 0.67.1
 
 - PS3 : le téléchargement de Turnip détecte le GPU du téléphone (tous les Snapdragon Adreno, pas seulement les Fold) et choisit le pilote adapté ; les téléphones sans Adreno gardent leur pilote.

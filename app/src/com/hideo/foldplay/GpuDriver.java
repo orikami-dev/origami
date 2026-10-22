@@ -128,9 +128,9 @@ final class GpuDriver {
         if (gpu <= 0) return 0;
         int fam = gpu / 100;
         int sc = 0;
-        if (n.contains("a" + fam + "xx") || n.contains("adreno" + fam) || n.contains("a" + gpu) || n.contains(String.valueOf(gpu))) sc += 10;
+        if (n.contains("gen" + fam) || n.contains("a" + fam + "xx") || n.contains("adreno" + fam) || n.contains("a" + gpu) || n.contains(String.valueOf(gpu))) sc += 10;
         // Une famille précise citée ailleurs que la nôtre : mauvais candidat.
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("a([6-9])xx").matcher(n);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?:a|gen)([6-9])(?:xx|[^0-9]|$)").matcher(n);
         while (m.find()) if (Integer.parseInt(m.group(1)) != fam) sc -= 20;
         if (n.contains("v8") || n.contains("v7")) sc += 0;
         return sc;

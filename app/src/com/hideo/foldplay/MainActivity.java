@@ -802,11 +802,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         if (r.type == SettingsRows.Row.LOGO) {
             android.widget.ImageView mark = new android.widget.ImageView(this);
             mark.setImageDrawable(new Crane.Logo());
-            mark.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-                    SettingsRows.tapLogo(MainActivity.this);
-                }
-            });
+            SettingsRows.bindLogo(mark, MainActivity.this);
             FrameLayout box = new FrameLayout(this);
             box.setPadding(0, dp(10), 0, dp(6));
             box.addView(mark, new FrameLayout.LayoutParams(dp(96 * s), dp(96 * s), Gravity.CENTER_HORIZONTAL));

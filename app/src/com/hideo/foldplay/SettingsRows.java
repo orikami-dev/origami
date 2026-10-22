@@ -1,6 +1,7 @@
 package com.hideo.foldplay;
 
 import android.app.Activity;
+import android.view.View;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
@@ -599,9 +600,9 @@ final class SettingsRows {
                     store.setLab(on);
                 }
             });
-            toggle(l, "Précompilation PS3 (écran éteint)", "Le jeu continue de compiler quand l'écran s'éteint (service de premier plan) ; quand la "
-                    + "compilation est finie (90 s sans activité), le jeu se met en pause et le chrono s'arrête. Expérimental : "
-                    + "laisse le téléphone branché.",
+            toggle(l, "Précompilation PS3", "L'écran reste allumé au minimum de luminosité pendant la compilation (sans écran, le moteur n'a pas de surface "
+                    + "pour rendre) ; quand elle est finie (90 s sans activité), le jeu se met en pause, le téléphone sonne et se réveille. "
+                    + "Expérimental : laisse le téléphone branché.",
                     store.precompile(), new Toggle() {
                 public void set(boolean on) {
                     store.setPrecompile(on);
@@ -735,25 +736,42 @@ final class SettingsRows {
 
     private static int logoTaps;
     private static long logoLast;
+    private static android.widget.Toast logoToast;
 
-    /** 10 appuis rapprochés sur le logo : ouvre ou rappelle le mode développeur (débogage, préversions, expérimental). */
+    /** Message du compteur : un seul toast réutilisé, mis à jour tout de suite, pour suivre des appuis rapides. */
+    private static void logoSay(Activity act, String text) {
+        if (logoToast != null) logoToast.cancel();
+        logoToast = I18n.toast(act.getApplicationContext(), text, android.widget.Toast.LENGTH_SHORT);
+        logoToast.show();
+    }
+
+    /** 10 appuis sur le logo (chacun dans les 3 s du précédent, même très rapides) : ouvre le mode développeur. */
     static void tapLogo(Activity act) {
         Store st = new Store(act);
         long now = android.os.SystemClock.elapsedRealtime();
-        logoTaps = now - logoLast > 2500 ? 1 : logoTaps + 1;
+        logoTaps = now - logoLast > 3000 ? 1 : logoTaps + 1;
         logoLast = now;
         if (st.devUnlocked()) {
-            if (logoTaps == 3) I18n.toast(act, "Le mode développeur est déjà activé", android.widget.Toast.LENGTH_SHORT).show();
+            if (logoTaps == 3) logoSay(act, "Le mode développeur est déjà activé");
             return;
         }
         if (logoTaps >= 10) {
             st.setDevUnlocked(true);
             logoTaps = 0;
-            I18n.toast(act, "Mode développeur activé : rouvre les Réglages pour voir le débogage et les préversions",
-                    android.widget.Toast.LENGTH_LONG).show();
-        } else if (logoTaps >= 5) {
-            I18n.toast(act, "Encore " + (10 - logoTaps) + " appuis pour activer le mode développeur", android.widget.Toast.LENGTH_SHORT).show();
+            logoSay(act, "Mode développeur activé : rouvre les Réglages pour voir le débogage et les préversions");
+        } else if (logoTaps >= 3) {
+            logoSay(act, "Encore " + (10 - logoTaps) + " appuis pour activer le mode développeur");
         }
+    }
+
+    /** Écoute les appuis dès le doigt levé, sans attendre la fin d'un éventuel double appui ni d'un clic long. */
+    static void bindLogo(final View mark, final Activity act) {
+        mark.setOnTouchListener(new View.OnTouchListener() {
+            public boolean onTouch(View v, android.view.MotionEvent e) {
+                if (e.getActionMasked() == android.view.MotionEvent.ACTION_UP) tapLogo(act);
+                return true;
+            }
+        });
     }
 
     private static void about(final Host h, List<Row> l) {

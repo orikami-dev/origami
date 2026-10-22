@@ -670,7 +670,18 @@ public class GameActivity extends Activity {
             String[][] keys = {{"QSAVE", "SAVE"}, {"QLOAD", "LOAD"}, {"FAST", "×2"}};
             for (final String[] k : keys) {
                 TextView b = new TextView(this);
-                b.setText(k[1]);
+                if (k[0].equals("QSAVE") || k[0].equals("QLOAD")) {
+                    b.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null);
+                    b.setCompoundDrawables(null, null, null, null);
+                    final QuickIcon icon = new QuickIcon(k[0].equals("QSAVE"), Theme.logo(Theme.LOGO));
+                    icon.setBounds(0, 0, dp(26), dp(26));
+                    b.setCompoundDrawables(icon, null, null, null);
+                    b.setCompoundDrawablePadding(0);
+                    b.setPadding(dp(16), 0, 0, 0);
+                    b.setContentDescription(k[0].equals("QSAVE") ? "Sauvegarde rapide" : "Chargement rapide");
+                } else {
+                    b.setText(k[1]);
+                }
                 b.setTextSize(12);
                 b.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF,
                         android.graphics.Typeface.BOLD));
