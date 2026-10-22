@@ -85,6 +85,7 @@ Chaque thème a son fond animé, sa manette assortie, ses icônes, sa police, se
 | Version | Ce qu'elle a apporté |
 |---|---|
 | [0.67.9](https://github.com/orikami-dev/origami/releases/tag/v0.67.9) | Journal par mail : résumé plus lisible dans le message. |
+| [0.67.10](https://github.com/orikami-dev/origami/releases/tag/v0.67.10) | Didacticiel aligné sur les icônes, luminosité rendue après la recompilation, icône de chargement rapide, étiquettes sans coupure. |
 | [0.67.8](https://github.com/orikami-dev/origami/releases/tag/v0.67.8) | Journal par mail : le message contient la fiche de l'appareil et la fin du journal. |
 | [0.67.7](https://github.com/orikami-dev/origami/releases/tag/v0.67.7) | Luminosité rendue après la recompilation d'avant-jeu, didacticiel aligné, nouvelle icône de chargement rapide. |
 | [0.67.6](https://github.com/orikami-dev/origami/releases/tag/v0.67.6) | Didacticiel à bulles, journal envoyé par mail en un geste, notes de mise à jour détaillées. |
