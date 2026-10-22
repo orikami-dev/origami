@@ -23,6 +23,10 @@ Origami réunit l'émulation et les jeux de ton téléphone pliant dans une seul
   <img src="docs/images/captures-0.66.png" width="92%" alt="Bibliothèque et Demon's Souls sur PS3">
 </p>
 
+<p align="center">
+  <img src="docs/images/xmb-tsuru-0.66.png" width="75%" alt="Accueil XMB en mode Tsuru">
+</p>
+
 | | |
 |---|---|
 | 🎮 **Mode Tsuru** | Téléphone à moitié plié : accueil façon XMB, jeu en haut, manette tactile en bas. |
