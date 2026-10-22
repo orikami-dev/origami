@@ -78,7 +78,8 @@ final class CoreAffinity {
 
     /** Lance la surveillance des fils du processus du moteur ; à appeler une fois le jeu démarré. */
     static void start(final android.content.Context ctx, final String system) {
-        final String mode = new Store(ctx).coresMode();
+        final Store st = new Store(ctx);
+        final String mode = st.lab() ? "lab" : st.coresMode();
         DebugLog.event("[cœurs] mode " + mode + " pour " + system + ", gros cœurs " + Long.toBinaryString(bigMask()));
         if (watcher != null) return;
         watcher = new Thread(new Runnable() {
@@ -107,6 +108,13 @@ final class CoreAffinity {
                             if (!act || name.equals(done.get(tid))) continue;
                             done.put(tid, name);
                             boolean crit = critical(system, name);
+                            if (mode.equals("lab")) {
+                                // Profil de test : son, rendu et compilation sur les gros cœurs, SPU/PPU sur les moyens.
+                                boolean prime = Lab.onPrime(name);
+                                nativePin(tid, prime ? big : (little == 0 ? all : little));
+                                if (prime) DebugLog.event("[cœurs] " + name + " (" + tid + ") → gros cœurs (profil de test)");
+                                continue;
+                            }
                             if (mode.equals("perf")) {
                                 if (compiler(name) && little != 0) {
                                     nativePin(tid, little);

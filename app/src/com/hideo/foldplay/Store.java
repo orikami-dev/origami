@@ -803,9 +803,27 @@ final class Store {
     }
 
     /** Style de l'ATH : "line" (une ligne en haut, façon RTSS, par défaut) ou "block" (encadré sur plusieurs lignes). */
+    /** Tampon du son PS3 en ms (4 à 250) : plus court = moins de retard sur l'image, plus long = moins de coupures. */
+    int ps3AudioMs() {
+        return lab() ? Lab.AUDIO_MS : prefs.getInt("ps3_audio_ms", 250);
+    }
+
+    void setPs3AudioMs(int ms) {
+        prefs.edit().putInt("ps3_audio_ms", ms).apply();
+    }
+
+    /** Étirement du temps : le son ralentit avec le jeu au lieu de couper. */
+    boolean ps3Stretch() {
+        return lab() ? Lab.STRETCH : prefs.getBoolean("ps3_stretch", false);
+    }
+
+    void setPs3Stretch(boolean on) {
+        prefs.edit().putBoolean("ps3_stretch", on).apply();
+    }
+
     /** Pilote graphique PS3 : auto ou turnip (GpuDriver). */
     String gpuDriver() {
-        return prefs.getString("gpu_driver", "auto");
+        return lab() ? "turnip" : prefs.getString("gpu_driver", "auto");
     }
 
     void setGpuDriver(String m) {
@@ -933,6 +951,18 @@ final class Store {
     }
 
     /** Mode débogage : journal détaillé des moteurs, enregistré pour être partagé. */
+    /**
+     * Profil de test KAMI-WORKS/BOSS (0.66.30, Réglages > Débogage) : applique toutes les pistes en cours d'essai
+     * (voir Lab.java) ; seuls nous y touchons, il n'est jamais proposé hors du mode débogage.
+     */
+    boolean lab() {
+        return debug() && prefs.getBoolean("lab_profile", false);
+    }
+
+    void setLab(boolean on) {
+        prefs.edit().putBoolean("lab_profile", on).apply();
+    }
+
     boolean debug() {
         return prefs.getBoolean("debug", false);
     }

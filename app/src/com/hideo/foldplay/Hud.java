@@ -33,6 +33,7 @@ final class Hud {
             {"temp", "Température", "Température de la batterie"},
             {"heat", "Température CPU et GPU", "Degrés du processeur et de la carte graphique"},
             {"res", "Moteur et résolution", "Cœur utilisé et taille de l'image"},
+            {"shaders", "Shaders (PS3)", "Compilation en cours et taille du cache de shaders"},
             {"clock", "Heure", "Heure actuelle"},
     };
 
@@ -90,6 +91,9 @@ final class Hud {
         boolean paused;
         /** Résolution interne du jeu (ex. « 1280×720 »), ou null : on affiche alors la taille de la surface. */
         String renderRes;
+        /** PS3 : charge de compilation des shaders (% d'un cœur, -1 inconnu) et description du cache. */
+        int shaderPct = -1;
+        String shaderCache;
     }
 
     private static final String[] HEAT = {"normale", "légère", "modérée", "forte", "critique", "urgence", "arrêt"};
@@ -125,6 +129,10 @@ final class Hud {
         if (items.contains("heat")) {
             if (!Float.isNaN(s.cpuC)) w.item("CPU", fmt0(deg(s.cpuC, s.fahrenheit)), unit);
             if (!Float.isNaN(s.gpuC)) w.item("GPU", fmt0(deg(s.gpuC, s.fahrenheit)), unit);
+        }
+        if (items.contains("shaders") && s.shaderCache != null) {
+            w.item("SHD", s.shaderPct > 5 ? "compile " + s.shaderPct : "ok", s.shaderPct > 5 ? "%" : null);
+            w.extra(s.shaderCache, null);
         }
         if (items.contains("clock")) {
             java.util.Calendar c = java.util.Calendar.getInstance();

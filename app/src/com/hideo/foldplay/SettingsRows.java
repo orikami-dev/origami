@@ -506,6 +506,22 @@ final class SettingsRows {
             }
         });
         note(l, "Essaie Turnip si Demon's Souls ou un autre jeu PS3 plante dans le pilote graphique. Appliqué au prochain lancement d'un jeu PS3.");
+        header(l, "Son (PS3)");
+        final String[] msL = {"60 ms", "120 ms", "180 ms", "250 ms"};
+        final int[] msV = {60, 120, 180, 250};
+        int mi = 3;
+        for (int i = 0; i < msV.length; i++) if (msV[i] == store.ps3AudioMs()) mi = i;
+        choice(l, "Tampon du son", msL, mi, new Choice() {
+            public void set(int i) {
+                store.setPs3AudioMs(msV[i]);
+            }
+        });
+        toggle(l, "Étirement du temps", "Le son ralentit avec le jeu au lieu de couper", store.ps3Stretch(), new Toggle() {
+            public void set(boolean on) {
+                store.setPs3Stretch(on);
+            }
+        });
+        note(l, "Un tampon court réduit le décalage avec l'image mais coupe plus vite si le jeu ralentit. Appliqué au prochain lancement d'un jeu PS3.");
         header(l, "ATH en jeu");
         toggle(l, "ATH de monitoring en jeu", "Mesures en direct, façon RTSS",
                 store.hud(), new Toggle() {
@@ -669,6 +685,15 @@ final class SettingsRows {
                 DebugLog.sync(act);
             }
         });
+        if (store.debug()) {
+            toggle(l, "Profil de test KAMI-WORKS", "Applique d'un coup toutes les pistes en essai (pilote Turnip, son 120 ms avec "
+                    + "étirement, 5 fils de shaders, son et rendu sur les gros cœurs). Pour nos essais seulement.",
+                    store.lab(), new Toggle() {
+                public void set(boolean on) {
+                    store.setLab(on);
+                }
+            });
+        }
         long logSize = DebugLog.size(act);
         if (logSize > 0) {
             action(l, "Partager le journal", String.format(java.util.Locale.ROOT, "%.1f Mo", logSize / 1048576f)

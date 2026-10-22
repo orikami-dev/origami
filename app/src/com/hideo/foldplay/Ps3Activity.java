@@ -208,6 +208,8 @@ public class Ps3Activity extends Activity {
             }
         }, false);
         logPeak.start();
+        final ShaderMeter shaders = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
+        HudOverlay.shaderMeter = new ShaderMeter(new java.io.File(Ps3Core.root(this))); // une mesure pour l'ATH, une pour le journal
         DebugLog.perfExtra = new DebugLog.Extra() {
             public String get() {
                 StringBuilder b = new StringBuilder("jeu : ");
@@ -223,6 +225,7 @@ public class Ps3Activity extends Activity {
                     b.append(", moteur illisible");
                 }
                 b.append(", cœurs ").append(store.coresMode()).append(", pilote ").append(store.gpuDriver());
+                b.append(", shaders : compilation ").append(shaders.compilePct()).append(" %, cache ").append(shaders.cache());
                 b.append(Ps3Audio.describe(Ps3Activity.this));
                 return b.toString();
             }

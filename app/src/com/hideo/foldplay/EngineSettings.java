@@ -221,9 +221,9 @@ final class EngineSettings {
                 {"Video@@Disable On-Disk Shader Cache", "false"},
                 {"Audio@@Enable Buffering", "true"},
                 // 0.66 : 200 ms (le moteur accepte 4 à 250) pour que le son tienne pendant les ralentis.
-                {"Audio@@Desired Audio Buffer Duration", "250"},
+                {"Audio@@Desired Audio Buffer Duration", String.valueOf(new Store(ctx).ps3AudioMs())},
                 // 0.66.10 (test, son distordu signalé par BOSS) : sans étirement, un ralentissement coupe au lieu de déformer.
-                {"Audio@@Enable Time Stretching", "false"},
+                {"Audio@@Enable Time Stretching", String.valueOf(new Store(ctx).ps3Stretch())},
                 {"Audio@@Time Stretching Threshold", "75"},
                 {"Audio@@Master Volume", "80"},
         };
@@ -241,7 +241,7 @@ final class EngineSettings {
                 {"Core@@Max SPURS Threads", new String[] {"4", "6"}[prof]},
                 {"Core@@Preferred SPU Threads", "0"},
                 // 0.66.14 : 3 au lieu de 6, le pilote Adreno a planté deux fois dans vkCreateGraphicsPipelines au démarrage (journal du 21/10).
-                {"Video@@Shader Compiler Threads", "3"},
+                {"Video@@Shader Compiler Threads", String.valueOf(new Store(ctx).lab() ? Lab.COMPILER_THREADS : 3)},
                 {"Video@@Relaxed ZCULL Sync", "true"},
                 {"Video@@Vulkan@@Asynchronous Texture Streaming", "true"},
                 // 0.66 (nœuds relus dans libarmsx3-core.so, valeurs par défaut du moteur dans system_config.h) :
