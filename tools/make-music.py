@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-make-music.py : musiques de thème d'Origami (KAMI-WORKS, pour BOSS).
+make-music.py : musiques de thème d'Origami (ORIKAMI, pour BOSS).
 
 Synthèse pure (numpy), sans aucun échantillon. Chaque morceau est écrit (mélodie, accords,
 arrangement par sections) puis rendu dans un tampon CIRCULAIRE d'un nombre entier de secondes :

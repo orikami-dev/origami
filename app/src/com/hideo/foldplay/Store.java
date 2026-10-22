@@ -443,6 +443,15 @@ final class Store {
         prefs.edit().putBoolean("tsuru_on_open", on).apply();
     }
 
+    /** Didacticiel à bulles vu (ou passé). */
+    boolean tourDone() {
+        return prefs.getBoolean("tour_done", false);
+    }
+
+    void setTourDone(boolean on) {
+        prefs.edit().putBoolean("tour_done", on).apply();
+    }
+
     boolean intro() {
         return prefs.getBoolean("intro", true);
     }
@@ -952,7 +961,7 @@ final class Store {
 
     /** Mode débogage : journal détaillé des moteurs, enregistré pour être partagé. */
     /**
-     * Profil de test KAMI-WORKS/BOSS (0.66.30, Réglages > Débogage) : applique toutes les pistes en cours d'essai
+     * Profil de test ORIKAMI/BOSS (0.66.30, Réglages > Débogage) : applique toutes les pistes en cours d'essai
      * (voir Lab.java) ; seuls nous y touchons, il n'est jamais proposé hors du mode débogage.
      */
     /** Valeurs réellement appliquées au moteur : celles du profil de test s'il est actif, sinon celles des Réglages (jamais modifiées par lui). */

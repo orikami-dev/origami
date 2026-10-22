@@ -1,6 +1,17 @@
 # 📝 Journal des versions
 
-Studio : KAMI-WORKS.
+Studio : ORIKAMI.
+
+## 0.67.6
+
+- Didacticiel en 7 bulles après le premier démarrage : il montre chaque commande de la barre du haut et à quoi elle sert. « Passer » le ferme à tout moment, et on le relance depuis Réglages > Version.
+- Réglages : « Partager le journal » ouvre la messagerie par défaut avec l'adresse de l'équipe, l'objet et le journal en pièce jointe déjà remplis ; il ne reste qu'à appuyer sur Envoyer.
+- Le studio s'appelle désormais ORIKAMI (écran À propos et textes dans toutes les langues).
+
+## 0.67.4
+
+- Mises à jour : la fenêtre « Mise à jour disponible » détaille tout ce que la version apporte (jusqu'à 12 puces, phrases entières) au lieu d'un résumé coupé.
+- La zone de texte de cette fenêtre s'adapte à son contenu, défile au-delà de 40 % de la hauteur et ne chevauche plus la liste ni les boutons.
 
 ## 0.67.3
 

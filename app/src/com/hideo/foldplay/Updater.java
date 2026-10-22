@@ -183,7 +183,7 @@ final class Updater {
         return r;
     }
 
-    /** Les trois premières puces des notes de version, sans la mise en forme. */
+    /** Toutes les puces des notes de version (jusqu'à 12), sans la mise en forme ; chacune garde sa phrase entière (0.67). */
     static String summary(String body) {
         StringBuilder b = new StringBuilder();
         int n = 0;
@@ -191,11 +191,10 @@ final class Updater {
             String t = line.trim();
             if (!t.startsWith("- ") && !t.startsWith("* ")) continue;
             t = t.substring(2).replaceAll("\\*\\*|__|`", "").replaceAll("\\[([^]]*)]\\([^)]*\\)", "$1");
-            int cut = t.indexOf(" : ");
-            if (t.length() > 90) t = (cut > 0 && cut < 70 ? t.substring(0, cut) : t.substring(0, 87).trim() + "…");
+            if (t.length() > 260) t = t.substring(0, 257).trim() + "…";
             if (b.length() > 0) b.append('\n');
             b.append("• ").append(t);
-            if (++n == 3) break;
+            if (++n == 12) break;
         }
         return b.toString();
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Script d'installation du SDK Android pour l'environnement cloud du projet KAMI-WORKS.
+# Script d'installation du SDK Android pour l'environnement cloud du projet ORIKAMI.
 # À coller dans "Setup script" de l'environnement cloud. Nécessite dl.google.com et
 # maven.google.com dans les domaines autorisés.
 set -euo pipefail

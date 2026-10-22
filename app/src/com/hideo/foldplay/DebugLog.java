@@ -368,6 +368,9 @@ final class DebugLog {
      * suite. En texte, l'envoi est accepté par toutes les apps, Claude compris (0.62) ; les
      * rapports binaires (.pb) restent sur le téléphone.
      */
+    /** Boîte qui reçoit les journaux envoyés depuis Réglages ; vide = partage libre. */
+    static final String SUPPORT_MAIL = "orikami.logs@gmail.com";
+
     static void share(Activity a) {
         List<SaveImport.Out> outs = new ArrayList<SaveImport.Out>();
         try {
@@ -391,7 +394,13 @@ final class DebugLog {
                     android.widget.Toast.LENGTH_LONG).show();
             return;
         }
-        SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain");
+        String ver = "";
+        try {
+            ver = a.getPackageManager().getPackageInfo(a.getPackageName(), 0).versionName;
+        } catch (Exception ignored) {
+        }
+        SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain", SUPPORT_MAIL, "Journal Origami " + ver,
+                "Journal joint (fiche de l'appareil et journaux). Appuyez sur Envoyer pour le transmettre à l'équipe ORIKAMI.");
     }
 
     /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */

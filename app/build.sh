@@ -11,8 +11,8 @@ ROOT="$(cd "$HERE/.." && pwd)"
 JAR="${ANDROID_JAR:-$HOME/sdk/android-34.jar}"
 BT="${BUILD_TOOLS:-/usr/lib/android-sdk/build-tools/debian}"
 OUT="${BUILD_DIR:-$HOME/foldplay-build}"
-VERSION=0.67.3
-VERSION_CODE=111
+VERSION=0.67.6
+VERSION_CODE=114
 # Clé debug gardée dans le projet pour que chaque build s'installe par-dessus le précédent.
 KEYSTORE="${KEYSTORE:-$ROOT/keystore/foldplay-debug.jks}"
 
@@ -73,7 +73,7 @@ if [ ! -f "$KEYSTORE" ]; then
   mkdir -p "$(dirname "$KEYSTORE")"
   keytool -genkeypair -keystore "$KEYSTORE" -storepass foldplay -keypass foldplay \
     -alias foldplay -keyalg RSA -keysize 2048 -validity 10000 \
-    -dname "CN=Origami debug, O=KAMI-WORKS" >/dev/null 2>&1
+    -dname "CN=Origami debug, O=ORIKAMI" >/dev/null 2>&1
 fi
 "$BT/apksigner" sign --v4-signing-enabled false --ks "$KEYSTORE" --ks-pass pass:foldplay --key-pass pass:foldplay \
   --out "$ROOT/dist/origami-$VERSION-debug.apk" "$OUT/aligned.apk"

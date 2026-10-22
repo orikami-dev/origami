@@ -460,7 +460,16 @@ final class CodecMenu extends FrameLayout {
             msg.setTextColor(Theme.TEXT);
             msg.setLineSpacing(0, 1.15f);
             msg.setPadding(px(18), px(2), px(18), px(10));
-            card.addView(msg);
+            // 0.67 : la zone de texte s'adapte à son contenu mais s'arrête avant la liste (≈ 40 % de la hauteur de l'hôte) ;
+            // au-delà elle défile, la liste dessous garde sa place et le texte ne la recouvre plus.
+            int mh = host != null ? host.getHeight() : 0;
+            Capped box = new Capped(getContext());
+            box.max = mh > 0 ? Math.max(px(90), Math.round(mh * (hostPortrait() ? 0.34f : 0.40f))) : px(220);
+            box.setVerticalScrollBarEnabled(false);
+            box.setVerticalFadingEdgeEnabled(true);
+            box.setFadingEdgeLength(px(14));
+            box.addView(msg);
+            card.addView(box, new LinearLayout.LayoutParams(-1, -2));
         }
         progressView = null;
         if (progressPct >= 0) {
