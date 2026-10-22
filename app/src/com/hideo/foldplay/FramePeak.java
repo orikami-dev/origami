@@ -65,6 +65,8 @@ final class FramePeak {
 
     private synchronized void note(long ns) {
         if (ns > maxNs) maxNs = ns;
+        total++;
+        if (ns > 40000000L) slow++;
     }
 
     private synchronized void rate(long periodNs) {
@@ -88,5 +90,15 @@ final class FramePeak {
         float ms = maxNs > 0 ? maxNs / 1e6f : -1;
         maxNs = 0;
         return ms;
+    }
+
+    private int slow, total;
+
+    /** Images lentes (plus de 40 ms) sur le nombre de relevés depuis le dernier appel, au format « lentes/relevés ». */
+    synchronized String takeSlow() {
+        String r = slow + "/" + total;
+        slow = 0;
+        total = 0;
+        return r;
     }
 }

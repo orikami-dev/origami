@@ -181,6 +181,13 @@ final class DebugLog {
      * mémoire, fréquence de chaque cœur et du GPU, températures, chaleur Android. Sert à comprendre
      * pourquoi un jeu rame (cœur saturé, GPU au plafond, chaleur qui bride…).
      */
+    /** Mesures propres à un moteur (images/s, son…) ajoutées à chaque relevé. */
+    interface Extra {
+        String get();
+    }
+
+    static volatile Extra perfExtra;
+
     static void perfStart(final Context ctx, final String tag) {
         if (!new Store(ctx).debug() || perfTick != null) return;
         perfHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -209,6 +216,11 @@ final class DebugLog {
                             + Hud.residentMb() + " Mo, cœurs MHz [" + f + "], GPU " + (gpu == null ? "?" : Long.parseLong(gpu.trim()) / 1000000L)
                             + " MHz, occupation GPU " + (busy == null ? "?" : busy.trim()) + ", CPU " + Math.round(Hud.cpuC())
                             + " °C, GPU " + Math.round(Hud.gpuC()) + " °C, fils " + Thread.getAllStackTraces().size());
+                    Extra ex = perfExtra;
+                    if (ex != null) {
+                        String x = ex.get();
+                        if (x != null) event("[perf " + tag + "] " + x);
+                    }
                     // 0.66 : qui consomme, fil par fil (SPU, PPU, compilateurs, rendu, son).
                     String th = ThreadLoad.top(6);
                     if (th != null) event("[perf " + tag + "] fils : " + th);

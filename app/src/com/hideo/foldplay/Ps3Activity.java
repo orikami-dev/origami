@@ -202,6 +202,31 @@ public class Ps3Activity extends Activity {
                 return ready ? Ps3Core.nativeFramePeriodNs() : -1;
             }
         }, false);
+        final FramePeak logPeak = new FramePeak(new FramePeak.Probe() {
+            public long read() {
+                return ready ? Ps3Core.nativeFramePeriodNs() : -1;
+            }
+        }, false);
+        logPeak.start();
+        DebugLog.perfExtra = new DebugLog.Extra() {
+            public String get() {
+                StringBuilder b = new StringBuilder("jeu : ");
+                float fps = logPeak.takeFps();
+                b.append(fps > 0 ? Math.round(fps * 10) / 10f + " i/s" : "i/s ?");
+                float ms = logPeak.takeMs();
+                b.append(", image la plus lente ").append(ms > 0 ? Math.round(ms) + " ms" : "?");
+                b.append(", images > 40 ms ").append(logPeak.takeSlow());
+                try {
+                    b.append(", moteur état ").append(Ps3Core.nativeState()).append(" titre ").append(Ps3Core.nativeTitleId());
+                    b.append(", échelle ").append(Ps3Core.nativeSettingsGet("Video@@Resolution Scale").trim());
+                } catch (Throwable t) {
+                    b.append(", moteur illisible");
+                }
+                b.append(", cœurs ").append(store.coresMode()).append(", pilote ").append(store.gpuDriver());
+                b.append(Ps3Audio.describe(Ps3Activity.this));
+                return b.toString();
+            }
+        };
         hud = new HudOverlay(this, stage, store, "armsx3", new HudOverlay.Source() {
             public float fps(float seconds) {
                 if (!ready) return -1;

@@ -812,9 +812,9 @@ final class Store {
         prefs.edit().putString("gpu_driver", m).apply();
     }
 
-    /** Répartition des fils du moteur (0.66.24) : auto, perf ou eco (CoreAffinity). Performance par défaut. */
+    /** Répartition des fils du moteur (0.66.24) : auto, perf ou eco (CoreAffinity). Économie par défaut (0.66.27, validé sur Demon's Souls avec Turnip). */
     String coresMode() {
-        return prefs.getString("cores_mode", "perf");
+        return prefs.getString("cores_mode", "eco");
     }
 
     void setCoresMode(String m) {
