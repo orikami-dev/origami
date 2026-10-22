@@ -254,6 +254,9 @@ final class EngineSettings {
                 {"Core@@SPU Cache", "true"},
                 {"Core@@LLVM Precompilation", "true"},
                 {"Video@@Vulkan@@Asynchronous Queue Scheduler", "Fast"},
+                // Profil de test : un utilisateur de MGS4 sur ordinateur rapporte une compilation des modules PPU
+                // plus courte (3 h → 1 h) avec « All Timers » ; à confirmer sur le Fold (Lab.java).
+                {"Core@@Sleep Timers Accuracy", new Store(ctx).lab() ? Lab.SLEEP_TIMERS : "As Host"},
         };
         for (String[] kv : cpu) {
             try {

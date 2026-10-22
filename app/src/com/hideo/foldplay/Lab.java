@@ -18,6 +18,7 @@ final class Lab {
     static final int STRETCH_THRESHOLD = 90;
     static final boolean STRETCH = true;
     static final int COMPILER_THREADS = 6;
+    static final String SLEEP_TIMERS = "All Timers";
 
     private Lab() {
     }

@@ -218,10 +218,19 @@ final class DebugLog {
     }
 
     static volatile Extra perfExtra;
+    private static long perfStartAt;
+
+    /** Durée au format « mm:ss » (ou « h:mm:ss »). */
+    static String clock(long ms) {
+        long s = ms / 1000;
+        return s >= 3600 ? String.format(java.util.Locale.ROOT, "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60)
+                : String.format(java.util.Locale.ROOT, "%02d:%02d", s / 60, s % 60);
+    }
 
     static void perfStart(final Context ctx, final String tag) {
         if (!new Store(ctx).debug() || perfTick != null) return;
         engineOpen(ctx, tag);
+        perfStartAt = android.os.SystemClock.elapsedRealtime();
         perfHandler = new android.os.Handler(android.os.Looper.getMainLooper());
         perfLastCpu = android.os.Process.getElapsedCpuTime();
         perfLastAt = android.os.SystemClock.elapsedRealtime();
@@ -244,7 +253,7 @@ final class DebugLog {
                     }
                     String gpu = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpuclk");
                     String busy = Hud.readLine("/sys/class/kgsl/kgsl-3d0/gpubusy");
-                    event("[perf " + tag + "] charge processus " + Math.round(load) + " % (100 = un cœur), mémoire "
+                    event("[perf " + tag + "] session " + clock(android.os.SystemClock.elapsedRealtime() - perfStartAt) + ", charge processus " + Math.round(load) + " % (100 = un cœur), mémoire "
                             + Hud.residentMb() + " Mo, cœurs MHz [" + f + "], GPU " + (gpu == null ? "?" : Long.parseLong(gpu.trim()) / 1000000L)
                             + " MHz, occupation GPU " + (busy == null ? "?" : busy.trim()) + ", CPU " + Math.round(Hud.cpuC())
                             + " °C, GPU " + Math.round(Hud.gpuC()) + " °C, fils " + Thread.getAllStackTraces().size());

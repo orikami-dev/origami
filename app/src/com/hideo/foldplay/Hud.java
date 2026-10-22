@@ -34,6 +34,7 @@ final class Hud {
             {"heat", "Température CPU et GPU", "Degrés du processeur et de la carte graphique"},
             {"res", "Moteur et résolution", "Cœur utilisé et taille de l'image"},
             {"shaders", "Shaders (PS3)", "Compilation en cours et taille du cache de shaders"},
+            {"session", "Durée de session", "Chronomètre depuis le début de la partie"},
             {"clock", "Heure", "Heure actuelle"},
     };
 
@@ -93,6 +94,8 @@ final class Hud {
         String renderRes;
         /** PS3 : charge de compilation des shaders (% d'un cœur, -1 inconnu) et description du cache. */
         int shaderPct = -1;
+        /** Durée depuis le début de la partie, en ms (-1 : inconnue). */
+        long sessionMs = -1;
         String shaderCache;
     }
 
@@ -134,6 +137,7 @@ final class Hud {
             w.item("SHD", s.shaderPct > 5 ? "compile " + s.shaderPct : "ok", s.shaderPct > 5 ? "%" : null);
             w.extra(s.shaderCache, null);
         }
+        if (items.contains("session") && s.sessionMs >= 0) w.item("TPS", DebugLog.clock(s.sessionMs), null);
         if (items.contains("clock")) {
             java.util.Calendar c = java.util.Calendar.getInstance();
             w.item(null, String.format(Locale.ROOT, "%02d:%02d", c.get(java.util.Calendar.HOUR_OF_DAY),

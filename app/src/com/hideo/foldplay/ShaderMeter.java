@@ -20,6 +20,12 @@ final class ShaderMeter {
         this.root = root;
     }
 
+    /** Fils de compilation : shaders (RSX.W) et code du jeu (modules PPU/LLVM, « ps3-compile »), qui pèse le plus sur MGS4. */
+    private static boolean isCompiler(String name) {
+        String s = name.toLowerCase(java.util.Locale.ROOT);
+        return s.startsWith("rsx.w") || s.contains("compil") || s.contains("llvm");
+    }
+
     /** Charge des fils de compilation depuis le dernier appel, en % d'un cœur ; -1 au premier appel. */
     synchronized int compilePct() {
         long now = android.os.SystemClock.elapsedRealtime();
@@ -32,7 +38,7 @@ final class ShaderMeter {
                 String stat = Hud.readLine(t.getPath() + "/stat");
                 if (stat == null) continue;
                 int open = stat.indexOf('('), close = stat.lastIndexOf(')');
-                if (open < 0 || close < open || !stat.substring(open + 1, close).startsWith("RSX.W")) continue;
+                if (open < 0 || close < open || !isCompiler(stat.substring(open + 1, close))) continue;
                 String[] f = stat.substring(close + 2).split(" ");
                 long tk = Long.parseLong(f[11]) + Long.parseLong(f[12]);
                 int tid = Integer.parseInt(t.getName());

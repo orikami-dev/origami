@@ -106,10 +106,15 @@ final class Updater {
         Release r = new Release();
         HttpURLConnection c = null;
         try {
-            c = (HttpURLConnection) new URL(PREVIEW_RAW + "preview.json?t=" + System.currentTimeMillis()).openConnection();
+            // 0.66.33 : adresse unique à chaque vérification et en-têtes « sans cache » : un relais réseau ne peut plus
+            // renvoyer l'ancien fichier de préversion.
+            c = (HttpURLConnection) new URL(PREVIEW_RAW + "preview.json?t=" + System.currentTimeMillis()
+                    + "&r=" + Long.toHexString(new java.util.Random().nextLong())).openConnection();
             c.setConnectTimeout(8000);
             c.setReadTimeout(8000);
             c.setUseCaches(false);
+            c.setRequestProperty("Cache-Control", "no-cache, no-store");
+            c.setRequestProperty("Pragma", "no-cache");
             if (c.getResponseCode() != 200) {
                 r.error = "Pas de préversion publiée.";
                 return r;
