@@ -2,6 +2,10 @@
 
 Studio : ORIKAMI.
 
+## 0.67.8
+
+- Partage du journal : le corps du mail contient maintenant la fiche de l'appareil, les lignes d'erreur et la fin du journal, lisibles tout de suite ; le journal complet reste en pièce jointe.
+
 ## 0.67.7
 
 - Précompilation PS3 : la luminosité n'est baissée que pendant la recompilation du cœur avant le jeu ; elle revient dès qu'elle est finie, et la compilation des shaders en jeu ne la touche plus.
