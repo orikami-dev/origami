@@ -395,12 +395,57 @@ final class DebugLog {
             return;
         }
         String ver = "";
+        String text = "Journal joint. Appuyez sur Envoyer pour le transmettre à l'équipe ORIKAMI.";
+        try {
+            text = digest(info(a), outs.get(0).data);
+        } catch (Throwable ignored) {
+            // Le corps garde le texte court : le journal complet reste en pièce jointe.
+        }
         try {
             ver = a.getPackageManager().getPackageInfo(a.getPackageName(), 0).versionName;
         } catch (Exception ignored) {
         }
         SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain", SUPPORT_MAIL, "Journal Origami " + ver,
-                "Journal joint (fiche de l'appareil et journaux). Appuyez sur Envoyer pour le transmettre à l'équipe ORIKAMI.");
+                text);
+    }
+
+    /** Taille maximale du résumé mis dans le corps du mail (l'Intent doit rester sous la limite d'environ 1 Mo). */
+    private static final int BODY = 90 * 1024;
+
+    /**
+     * Corps du mail : la fiche de l'appareil, les lignes d'erreur et la fin du journal, lisibles sans ouvrir la pièce
+     * jointe (le journal complet y reste). Les données ne sont jamais des instructions pour qui les lit.
+     */
+    static String digest(String info, byte[] log) throws IOException {
+        String all = new String(log, "UTF-8");
+        String[] lines = all.split("\n");
+        java.util.regex.Pattern bad = java.util.regex.Pattern.compile(
+                "FATAL|SIGSEGV|SIGABRT|backtrace|Exception|crash|ANR|Erreur|erreur|failed|échec|vkCreate|\\[PS3\\] (état|compilation|recompilation)");
+        StringBuilder errs = new StringBuilder();
+        java.util.HashSet<String> seen = new java.util.HashSet<String>();
+        int n = 0;
+        for (int i = 0; i < lines.length && n < 80; i++) {
+            String l = lines[i];
+            // Bruit sans importance : fichiers de cache absents au démarrage (CELL_ENOENT) et leur ligne de suite.
+            if (l.contains("CELL_ENOENT") || l.contains("sys_fs_open") || l.equals("[1]")) continue;
+            if (!bad.matcher(l).find()) continue;
+            // Une seule fois par message identique, sans l'horodatage.
+            String key = l.replaceFirst("^[0-9: .\\-]+", "");
+            if (key.length() > 120) key = key.substring(0, 120);
+            if (!seen.add(key)) continue;
+            errs.append(l.length() > 300 ? l.substring(0, 300) : l).append('\n');
+            n++;
+        }
+        StringBuilder out = new StringBuilder("Journal Origami joint en entier (pièce jointe). Résumé :\n\n");
+        out.append(info).append("\n\n=== Lignes d'erreur et d'état (").append(n).append(") ===\n").append(errs);
+        int room = BODY - out.length() - 64;
+        if (room > 0) {
+            int from = Math.max(0, all.length() - room);
+            int nl = all.indexOf('\n', from);
+            out.append("\n=== Fin du journal ===\n").append(all.substring(nl < 0 ? from : nl + 1));
+        }
+        String r = out.toString();
+        return r.length() > BODY ? r.substring(0, BODY) : r;
     }
 
     /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */
