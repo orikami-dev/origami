@@ -159,7 +159,7 @@ public class SettingsActivity extends Activity {
 
                                 public void done(boolean ok) {
                                     UiSound.play(SettingsActivity.this, ok ? UiSound.DONE : UiSound.ERROR);
-                                    goBtn.setText(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android"
+                                    goBtn.setText(I18n.tr(ok ? "Mise à jour en cours"
                                             : "Échec du téléchargement"));
                                 }
                             });

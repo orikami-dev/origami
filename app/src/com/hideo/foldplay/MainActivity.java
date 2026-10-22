@@ -1160,7 +1160,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
 
             public void done(boolean ok) {
                 UiSound.play(MainActivity.this, ok ? UiSound.DONE : UiSound.ERROR);
-                m.updateMessage(I18n.tr(ok ? "Installation : confirme dans la fenêtre Android" : "Échec du téléchargement"));
+                m.updateMessage(I18n.tr(ok ? "Mise à jour en cours" : "Échec du téléchargement"));
             }
         });
     }

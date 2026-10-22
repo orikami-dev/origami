@@ -2,6 +2,13 @@
 
 Studio : ORIKAMI.
 
+## 0.67.12
+
+- PS3 : journal détaillé de la sauvegarde et du chargement rapides.
+- Mise à jour : texte « Mise à jour en cours » après validation.
+- PS3 : fin de précompilation sans pause si le joueur est en jeu.
+- Manettes : icône de chargement refaite, boutons Sauvegarde/Charge en barre plus grande.
+
 ## 0.67.11
 
 - Pilotes GPU adaptés à la puce détectée ; cœurs en Auto sur les puces modestes.
