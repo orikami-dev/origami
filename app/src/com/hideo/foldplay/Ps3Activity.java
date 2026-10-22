@@ -847,7 +847,13 @@ public class Ps3Activity extends Activity {
      */
     private void startPrecompileWatch() {
         if (!store.precompile()) return;
-        // Écran éteint possible : service de premier plan + processeur éveillé ; le moteur n'est pas mis en arrière-plan.
+        // Le moteur ne démarre son rendu (donc la compilation des shaders) qu'avec une surface : écran éteint, il attend sans fin
+        // (journal du Fold 5, 22/10). L'écran reste donc allumé au minimum de luminosité, le téléphone branché.
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        android.view.WindowManager.LayoutParams wl = getWindow().getAttributes();
+        wl.screenBrightness = 0.01f;
+        getWindow().setAttributes(wl);
+        // Service de premier plan + processeur éveillé ; le moteur n'est pas mis en arrière-plan.
         try {
             startForegroundService(new Intent(this, PrecompileService.class));
         } catch (Throwable t) {
@@ -877,6 +883,10 @@ public class Ps3Activity extends Activity {
                     if (now - calmSince[0] >= 90000L && DebugLog.sessionMs() > 120000L) {
                         precompileDone = true;
                         CoreAffinity.boost = false;
+                        android.view.WindowManager.LayoutParams back = getWindow().getAttributes();
+                        back.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+                        getWindow().setAttributes(back);
+                        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                         DebugLog.stopSession();
                         DebugLog.event("[PS3] compilation terminée en " + DebugLog.clock(DebugLog.sessionMs() - 90000L)
                                 + " (chrono arrêté à " + DebugLog.clock(DebugLog.sessionMs()) + ", 90 s de calme comprises) : jeu mis en pause");

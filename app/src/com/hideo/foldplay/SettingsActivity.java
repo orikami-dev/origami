@@ -395,11 +395,7 @@ public class SettingsActivity extends Activity {
                 case SettingsRows.Row.LOGO: {
                     android.widget.ImageView mark = new android.widget.ImageView(this);
                     mark.setImageDrawable(new Crane.Logo());
-                    mark.setOnClickListener(new View.OnClickListener() {
-                        public void onClick(View v) {
-                            SettingsRows.tapLogo(SettingsActivity.this);
-                        }
-                    });
+                    SettingsRows.bindLogo(mark, SettingsActivity.this);
                     LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(120), dp(120));
                     mlp.gravity = Gravity.CENTER_HORIZONTAL;
                     mlp.topMargin = dp(16);

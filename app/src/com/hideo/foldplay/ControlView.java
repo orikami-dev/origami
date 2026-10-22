@@ -163,6 +163,7 @@ final class ControlView extends View {
         else if (t.startsWith("STICK")) drawStick(c, w, h);
         else if (t.equals("TOUCHPAD")) drawPad(c, w, h);
         else if (t.equals("FAST") || t.equals("ASPECT") || t.equals("SHOT") || t.equals("REC")) drawCornerKey(c, w, h, t);
+        else if (t.equals("QSAVE") || t.equals("QLOAD")) drawQuickKey(c, w, h, t.equals("QSAVE"));
         else if (ControlLayout.pill(t)) drawPill(c, w, h, control.cap != null ? pillCap(control.cap) : pillLabel(t));
         else drawShoulder(c, w, h, t);
 
@@ -344,6 +345,22 @@ final class ControlView extends View {
         logo.accent = Theme.logo(accent);
         logo.draw(c);
         c.restore();
+    }
+
+    /**
+     * Sauvegarde et chargement rapides (0.67) : pastille à pictogramme, sans texte. Sauvegarde : disquette avec une
+     * flèche qui y entre ; chargement : plateau avec une flèche qui en sort. Le pictogramme prend la couleur du
+     * thème (accent), voir QuickIcon.
+     */
+    private void drawQuickKey(Canvas c, float w, float h, boolean save) {
+        r.set(dp, dp, w - dp, h - dp);
+        RectF box = new RectF(r);
+        c.drawRoundRect(r, r.height() / 2, r.height() / 2, body(pressed ? steel : panelHi, r.top, r.bottom));
+        rimRect(c, box, box.height() / 2);
+        int ink = pressed ? Theme.lighten(accent, 0.3f) : accent;
+        float u = Math.min(w * 0.5f, h) * 0.3f;
+        QuickIcon.paint(c, ring, path, w / 2, h / 2, u, save, ink);
+        ring.setStrokeWidth(2 * dp);
     }
 
     private void drawPill(Canvas c, float w, float h, String t) {
