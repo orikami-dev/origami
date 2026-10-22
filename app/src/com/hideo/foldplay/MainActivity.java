@@ -2678,7 +2678,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                     public void run() { lb.setVisibility(View.INVISIBLE); }
                 }).start();
             }
-            cell.animate().alpha(on ? 1f : 0.55f).setDuration(d).start();
+            icon.animate().alpha(on ? 1f : 0.55f).setDuration(d).start();
+            if (label instanceof TextView) ((TextView) label).setTextColor(on ? Theme.CODEC : Theme.TEXT);
             if (on) chosen = cell;
         }
         if (chosen != null) {
@@ -2759,7 +2760,8 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             llp.leftMargin = llp.rightMargin = -(lw - size) / 2;
             cell.setClipChildren(false);
             cell.addView(label, llp);
-            cell.setAlpha(on ? 1f : 0.55f);
+            // L'opacité va à l'icône seule : sur la cellule, elle découpait l'étiquette (« Jeux mobiles » coupée) qui déborde.
+            icon.setAlpha(on ? 1f : 0.55f);
             cell.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
