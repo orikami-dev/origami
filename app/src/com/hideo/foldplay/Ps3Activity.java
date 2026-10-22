@@ -877,6 +877,7 @@ public class Ps3Activity extends Activity {
         // Service de premier plan + processeur éveillé ; le moteur n'est pas mis en arrière-plan.
         final ShaderMeter m = new ShaderMeter(new java.io.File(Ps3Core.root(this)));
         final long[] calmSince = {0};
+        final long[] codeCalmSince = {0};
         final long[] lastLog = {0};
         CoreAffinity.boost = true;
         watchHandler.postDelayed(new Runnable() {
@@ -904,6 +905,14 @@ public class Ps3Activity extends Activity {
                 if (now - lastLog[0] >= 30000L) {
                     lastLog[0] = now;
                     DebugLog.event("[PS3] précompilation : code PS3 " + code + " %, shaders " + shader + " %, cœurs " + CoreAffinity.freqs());
+                }
+                // La luminosité minimale ne sert que pendant la recompilation du code PS3 avant le jeu : dès que ce code est calme 10 s,
+                // elle revient, même si les shaders continuent de compiler pendant la partie.
+                if (dimmed && running && code >= 0 && code < 5) {
+                    if (codeCalmSince[0] == 0) codeCalmSince[0] = now;
+                    if (now - codeCalmSince[0] >= 10000L) restoreBrightness();
+                } else {
+                    codeCalmSince[0] = 0;
                 }
                 // Deux jauges séparées : le chrono s'arrête quand le code PS3 ET les shaders sont restés calmes 90 s.
                 if (running && code >= 0 && shader >= 0 && code < 5 && shader < 5) {
