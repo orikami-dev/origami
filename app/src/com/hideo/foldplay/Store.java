@@ -841,7 +841,8 @@ final class Store {
 
     /** Répartition des fils du moteur (0.66.24) : auto, perf ou eco (CoreAffinity). Économie par défaut (0.66.27, validé sur Demon's Souls avec Turnip). */
     String coresMode() {
-        return prefs.getString("cores_mode", "eco");
+        // Économie validée sur Adreno 830+ (Fold 8) ; les puces plus modestes gardent Auto pour ne pas brider les fils SPU/PPU.
+        return prefs.getString("cores_mode", GpuDriver.adreno() >= 830 ? "eco" : "auto");
     }
 
     void setCoresMode(String m) {

@@ -2,6 +2,15 @@
 
 Studio : ORIKAMI.
 
+## 0.67.11
+
+- Pilotes GPU adaptés à la puce détectée ; cœurs en Auto sur les puces modestes.
+
+## 0.67.10
+
+- Accueil : plantage « FrameLayout contains null child » corrigé, l'ancien écran n'est plus retiré pendant le dessin au changement de vue (Tsuru, Washi), vu sur un Fold 5.
+- Partage du journal : le résumé ignore aussi les messages sans importance du chargeur Vulkan.
+
 ## 0.67.9
 
 - Partage du journal par mail : le résumé du message ne compte plus les lignes sans importance (fichiers de cache absents au démarrage) ni les messages répétés, la fin du journal et les vraies erreurs y tiennent mieux.

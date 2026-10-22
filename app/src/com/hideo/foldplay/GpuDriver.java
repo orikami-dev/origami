@@ -150,13 +150,14 @@ final class GpuDriver {
             String n = assets.getJSONObject(i).getString("name");
             if (!n.toLowerCase(java.util.Locale.ROOT).endsWith(".zip") || !n.toLowerCase(java.util.Locale.ROOT).contains("turnip")) continue;
             int sc = score(n, gpu);
+            if (gpu > 0 && sc < 0) continue; // pilote d'une autre famille Adreno : ni proposé ni téléchargé
             if (sc > best) {
                 best = sc;
                 pick = n;
                 url = assets.getJSONObject(i).getString("browser_download_url");
             }
         }
-        if (url == null) throw new Exception("aucun pilote Turnip dans la dernière version");
+        if (url == null) throw new Exception("aucun pilote Turnip adapté à ce GPU (Adreno " + (gpu > 0 ? gpu : "inconnu") + ") dans la dernière version");
         DebugLog.event("[PS3] GPU Adreno " + (gpu > 0 ? gpu : "inconnu") + " : pilote choisi " + pick + " (score " + best + ")");
         return installZip(c, open(url));
     }
