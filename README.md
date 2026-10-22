@@ -84,6 +84,7 @@ Chaque thème a son fond animé, sa manette assortie, ses icônes, sa police, se
 
 | Version | Ce qu'elle a apporté |
 |---|---|
+| [0.67.6](https://github.com/orikami-dev/origami/releases/tag/v0.67.6) | Didacticiel à bulles, journal envoyé par mail en un geste, notes de mise à jour détaillées. |
 | [0.67.3](https://github.com/orikami-dev/origami/releases/tag/v0.67.3) | Précompilation PS3 : suivi en direct dans la notification. |
 | [0.67.2](https://github.com/orikami-dev/origami/releases/tag/v0.67.2) | Sauvegarde et chargement rapides en pictogrammes, 10 appuis sur le logo plus fiables. |
 | [0.67.1](https://github.com/orikami-dev/origami/releases/tag/v0.67.1) | Turnip : détection du GPU sur tous les téléphones Android. |
