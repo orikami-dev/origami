@@ -2678,7 +2678,9 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                     public void run() { lb.setVisibility(View.INVISIBLE); }
                 }).start();
             }
-            cell.animate().alpha(on ? 1f : 0.55f).setDuration(d).start();
+            // L'opacité va à l'icône seule : sur la cellule, Android découpait l'étiquette à la largeur de la cellule.
+            icon.animate().alpha(on ? 1f : 0.55f).setDuration(d).start();
+            if (label instanceof TextView) ((TextView) label).setTextColor(on ? Theme.CODEC : Theme.TEXT);
             if (on) chosen = cell;
         }
         if (chosen != null) {
@@ -2742,7 +2744,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             // Pas de défilement (marquee) : pendant l'ouverture/fermeture, une mesure intermédiaire
             // trop étroite faisait défiler/couper « Tous » et « Favoris » sur une 2e ligne (BOSS).
             label.setSingleLine(true);
-            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
             label.setGravity(Gravity.CENTER_HORIZONTAL);
             label.setPadding(0, dp(4), 0, 0);
             label.setShadowLayer(dp(4), 0, dp(1), 0xE6000000);
@@ -2754,12 +2755,14 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             // Les étiquettes des icônes non choisies sont carrément absentes de l'affichage.
             label.setVisibility(on && named ? View.VISIBLE : View.INVISIBLE);
             // L'étiquette déborde de la cellule sans l'élargir : « Paramètres » en entier, voisines à leur place.
-            int lw = Math.round(dp(150 * s));
+            // Largeur du texte mesurée (« Jeux mobiles » était coupé des deux côtés), au moins celle de l'icône.
+            int lw = Math.max(Math.round(dp(150 * s)),
+                    Math.round(label.getPaint().measureText(label.getText().toString()) + dp(24)));
             LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(lw, -2);
             llp.leftMargin = llp.rightMargin = -(lw - size) / 2;
             cell.setClipChildren(false);
             cell.addView(label, llp);
-            cell.setAlpha(on ? 1f : 0.55f);
+            icon.setAlpha(on ? 1f : 0.55f);
             cell.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -3063,7 +3066,6 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             }
         });
         bar.addView(mark, mlp);
-        barButtons.add(mark);
         titles.addView(logo);
         titles.addView(postureTag);
         bar.addView(titles, new LinearLayout.LayoutParams(0, -2, 1f));

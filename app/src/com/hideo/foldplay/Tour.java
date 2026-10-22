@@ -24,8 +24,8 @@ final class Tour {
     private static final int[] TARGET = {-1, 0, 1, 2, 3, 4, -1};
     private static final String[] TITLE = {
         "Bienvenue dans Origami",
-        "Le logo : tes applications",
-        "Washi ou Tsuru",
+        "Le logo : Washi ou Tsuru",
+        "Tes applications",
         "Le thème",
         "La manette",
         "Les réglages",
@@ -33,8 +33,8 @@ final class Tour {
     };
     private static final String[] TEXT = {
         "Un petit tour de 30 secondes pour te montrer où tout se trouve. Touche « Suivant » pour avancer, « Passer » pour quitter.",
-        "Touche la grue pour ouvrir les applications du téléphone. Les jeux et les émulateurs s'y lancent aussi.",
-        "Ce bouton change l'accueil : Washi montre la bibliothèque en grille, Tsuru en frise avec le détail du jeu.",
+        "Touche la grue pour changer l'accueil : Washi montre la bibliothèque en liste à plat, Tsuru en frise quand le téléphone est à moitié plié.",
+        "Ce bouton ouvre les applications du téléphone. Les jeux et les émulateurs s'y lancent aussi.",
         "Couleurs, fond, icônes, sons et musique : chaque thème change toute l'interface sans redémarrer.",
         "Choisis la manette à l'écran, sa disposition et son retour de vibration. Elle se modifie doigt par doigt dans l'éditeur.",
         "Dossier de jeux, moteurs intégrés, mises à jour, accessibilité. Tu peux relancer ce didacticiel depuis À propos.",
@@ -60,10 +60,44 @@ final class Tour {
         overlay.setClickable(true);
         root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
         show();
+        poll();
+    }
+
+    private final Runnable watch = new Runnable() {
+        public void run() {
+            if (overlay == null) return;
+            // L'accueil se reconstruit à la rotation, au pli et au dépli : l'ouverture suit alors le nouveau bouton.
+            boolean moved = false;
+            if (overlay.getParent() == null) {
+                root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
+                moved = true;
+            } else if (root.getChildAt(root.getChildCount() - 1) != overlay) {
+                overlay.bringToFront();
+                moved = true;
+            }
+            int idx = TARGET[step];
+            View t = idx >= 0 && idx < bar.size() ? bar.get(idx) : null;
+            int[] a = new int[2];
+            if (t != null && t.isShown()) t.getLocationInWindow(a);
+            String sig = root.getWidth() + "x" + root.getHeight() + ":" + (t != null && t.isShown() ? a[0] + "," + a[1] + "," + t.getWidth() + "," + t.getHeight() : "-");
+            if (moved || !sig.equals(lastSig)) {
+                lastSig = sig;
+                show();
+            }
+            overlay.postDelayed(this, 250);
+        }
+    };
+    private String lastSig = "";
+
+    private void poll() {
+        overlay.postDelayed(watch, 250);
     }
 
     private void end() {
-        if (overlay != null) root.removeView(overlay);
+        if (overlay != null) {
+            overlay.removeCallbacks(watch);
+            if (overlay.getParent() != null) root.removeView(overlay);
+        }
         overlay = null;
         onEnd.run();
     }
@@ -80,7 +114,7 @@ final class Tour {
         if (target != null) {
             int[] a = new int[2], b = new int[2];
             target.getLocationInWindow(a);
-            root.getLocationInWindow(b);
+            overlay.getLocationInWindow(b);
             float pad = dp(6);
             hole = new RectF(a[0] - b[0] - pad, a[1] - b[1] - pad,
                     a[0] - b[0] + target.getWidth() + pad, a[1] - b[1] + target.getHeight() + pad);

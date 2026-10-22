@@ -8,8 +8,7 @@ import android.graphics.PixelFormat;
 import android.graphics.drawable.Drawable;
 
 /**
- * Pictogrammes de sauvegarde et de chargement rapides (0.67). Sauvegarde : disquette ; chargement : plateau avec une
- * flèche qui en sort. Les thèmes doux (Sakura, Ambre, Hanami) arrondissent le trait, les autres le gardent net.
+ * Pictogrammes de sauvegarde et de chargement rapides (0.67). Sauvegarde : disquette ; chargement : flèche circulaire de retour autour d'une disquette. Les thèmes doux (Sakura, Ambre, Hanami) arrondissent le trait, les autres le gardent net.
  */
 final class QuickIcon extends Drawable {
     private final boolean save;
@@ -57,16 +56,25 @@ final class QuickIcon extends Drawable {
             c.drawLine(cx - u * 0.55f, cy + u * 0.35f, cx + u * 0.55f, cy + u * 0.35f, ring);
             c.drawLine(cx + u * 0.55f, cy + u * 0.35f, cx + u * 0.55f, cy + u, ring);
         } else {
-            path.moveTo(cx - u, cy + u * 0.1f);
-            path.lineTo(cx - u, cy + u);
-            path.lineTo(cx + u, cy + u);
-            path.lineTo(cx + u, cy + u * 0.1f);
-            c.drawPath(path, ring);
-            c.drawLine(cx, cy + u * 0.35f, cx, cy - u, ring);
+            // Restaurer : flèche circulaire anti-horaire (retour à l'état sauvegardé) autour d'une petite disquette.
+            android.graphics.RectF r = new android.graphics.RectF(cx - u, cy - u, cx + u, cy + u);
+            c.drawArc(r, -60, -280, false, ring);
+            // Pointe de flèche au début de l'arc (en haut à droite), orientée dans le sens du retour.
+            float ax = cx + u * 0.5f, ay = cy - u * 0.87f;
             path.reset();
-            path.moveTo(cx - u * 0.55f, cy - u * 0.45f);
-            path.lineTo(cx, cy - u);
-            path.lineTo(cx + u * 0.55f, cy - u * 0.45f);
+            path.moveTo(ax + u * 0.65f, ay - u * 0.05f);
+            path.lineTo(ax, ay);
+            path.lineTo(ax + u * 0.15f, ay - u * 0.7f);
+            c.drawPath(path, ring);
+            // Disquette réduite au centre : ce que l'on recharge.
+            float k = u * 0.38f;
+            path.reset();
+            path.moveTo(cx - k, cy - k);
+            path.lineTo(cx + k * 0.4f, cy - k);
+            path.lineTo(cx + k, cy - k * 0.4f);
+            path.lineTo(cx + k, cy + k);
+            path.lineTo(cx - k, cy + k);
+            path.close();
             c.drawPath(path, ring);
         }
         ring.setStrokeCap(Paint.Cap.BUTT);
