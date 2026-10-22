@@ -142,7 +142,7 @@ public class SettingsActivity extends Activity {
                 } else {
                     result.addView(text("Origami " + r.version, 18, Theme.CODEC));
                     if (r.summary != null && !r.summary.isEmpty()) result.addView(text(r.summary, 14, Theme.TEXT));
-                    TextView go = text(I18n.tr("Télécharger et installer"), 16, Theme.BG);
+                    TextView go = text(I18n.tr("Télécharger et installer") + (r.apkSize > 0 ? " · " + Updater.mo(r.apkSize) + " Mo" : ""), 16, Theme.BG);
                     go.setBackground(Theme.pill(Theme.CODEC, dp(20)));
                     go.setPadding(dp(18), dp(10), dp(18), dp(10));
                     final TextView goBtn = go;
@@ -152,8 +152,8 @@ public class SettingsActivity extends Activity {
                             goBtn.setTextColor(Theme.TEXT);
                             goBtn.setText(I18n.tr("Téléchargement… 0 %"));
                             Updater.install(SettingsActivity.this, r, new Updater.Progress() {
-                                public void progress(int pct) {
-                                    goBtn.setText(I18n.tr("Téléchargement…") + " " + pct + " %");
+                                public void progress(int pct, String detail) {
+                                    goBtn.setText(I18n.tr("Téléchargement…") + " " + pct + " % · " + detail);
                                     goBtn.setBackground(Theme.progressPill(pct / 100f, dp(20)));
                                 }
 

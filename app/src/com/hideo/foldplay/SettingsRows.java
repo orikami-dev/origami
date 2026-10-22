@@ -693,6 +693,14 @@ final class SettingsRows {
                     store.setLab(on);
                 }
             });
+            action(l, "Vider le cache de shaders PS3", "Pour mesurer à froid. Ne supprime que le cache, il se reconstruit au prochain lancement.",
+                    new Runnable() {
+                public void run() {
+                    java.io.File base = act.getExternalFilesDir(null);
+                    int n = ShaderMeter.clear(new java.io.File(Ps3Core.root(act)));
+                    I18n.toast(act, n + " fichiers de cache supprimés", android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
         }
         long logSize = DebugLog.size(act);
         if (logSize > 0) {

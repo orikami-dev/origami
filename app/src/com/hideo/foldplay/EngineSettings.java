@@ -224,7 +224,7 @@ final class EngineSettings {
                 {"Audio@@Desired Audio Buffer Duration", String.valueOf(new Store(ctx).ps3AudioMsEff())},
                 // 0.66.10 (test, son distordu signalé par BOSS) : sans étirement, un ralentissement coupe au lieu de déformer.
                 {"Audio@@Enable Time Stretching", String.valueOf(new Store(ctx).ps3StretchEff())},
-                {"Audio@@Time Stretching Threshold", "75"},
+                {"Audio@@Time Stretching Threshold", String.valueOf(new Store(ctx).lab() ? Lab.STRETCH_THRESHOLD : 75)},
                 {"Audio@@Master Volume", "80"},
         };
         // Réglages processeur par profil, calés sur la puce du Fold 8 (8 cœurs Oryon, 0.62.5) :

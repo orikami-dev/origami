@@ -69,6 +69,10 @@ final class ShaderMeter {
             if (f.isDirectory()) {
                 String n = f.getName().toLowerCase();
                 if (n.contains("shader") || n.contains("pipeline") || depth < 3) walkAll(f, n.contains("shader") || n.contains("pipeline"), depth + 1);
+            } else if (f.getName().toLowerCase().contains("pipeline")) {
+                // vk_pipeline_cache.bin : le résultat de la conversion du pilote, gardé entre deux lancements.
+                cacheFiles++;
+                cacheKb += f.length() / 1024;
             }
         }
     }
@@ -85,5 +89,27 @@ final class ShaderMeter {
                 cacheKb += f.length() / 1024;
             }
         }
+    }
+
+    /** Vide le cache de shaders (jamais les sauvegardes) ; renvoie le nombre de fichiers supprimés. */
+    static int clear(File root) {
+        return clearDir(new File(root, "cache"), false, 0);
+    }
+
+    private static int clearDir(File d, boolean inCache, int depth) {
+        File[] fs = d.listFiles();
+        if (fs == null || depth > 8) return 0;
+        int n = 0;
+        for (File f : fs) {
+            String name = f.getName().toLowerCase();
+            boolean hit = inCache || name.contains("shader") || name.contains("pipeline");
+            if (f.isDirectory()) {
+                n += clearDir(f, hit, depth + 1);
+                if (hit) f.delete();
+            } else if (hit && f.delete()) {
+                n++;
+            }
+        }
+        return n;
     }
 }

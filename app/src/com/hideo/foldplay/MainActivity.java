@@ -1146,14 +1146,14 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     /** Téléchargement de la mise à jour, avec le pourcentage dans la même fenêtre codec. */
     private void updateDownload(final Updater.Release r) {
         final CodecMenu m = new CodecMenu(this).title("Mise à jour", "Origami " + r.version)
-                .message(I18n.tr("Téléchargement…") + " 0 %").progress(0);
+                .message(I18n.tr("Téléchargement…") + " 0 %" + (r.apkSize > 0 ? " · " + Updater.mo(r.apkSize) + " Mo" : "")).progress(0);
         m.item("Fermer", null, new Runnable() {
             public void run() { }
         });
         m.show(menuHost());
         Updater.install(this, r, new Updater.Progress() {
-            public void progress(int pct) {
-                m.progress(pct).updateMessage(I18n.tr("Téléchargement…") + " " + pct + " %");
+            public void progress(int pct, String detail) {
+                m.progress(pct).updateMessage(I18n.tr("Téléchargement…") + " " + pct + " % · " + detail);
             }
 
             public void done(boolean ok) {
