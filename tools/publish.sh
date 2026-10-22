@@ -38,7 +38,7 @@ publish_orphan() { # $1 = branche, $2 = nom du fichier apk, $3 = nom du json
   cp "$APK" "$T/$2"
   printf '{"version":"%s","apk":"%s","notes":"%s"}\n' "$V" "$2" "$SUMMARY" > "$T/${3:-preview.json}"
   git -C "$T" add -A
-  git -C "$T" -c user.name=KAMI-WORKS -c user.email=noreply@kami-works.invalid commit -q -m "Origami $V"
+  git -C "$T" -c user.name=ORIKAMI -c user.email=noreply@orikami.invalid commit -q -m "Origami $V"
   git -C "$T" remote add origin "$URL"
   push -C "$T" push -f origin "$1"
   rm -rf "$T"

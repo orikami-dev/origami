@@ -183,19 +183,25 @@ final class Updater {
         return r;
     }
 
-    /** Les trois premières puces des notes de version, sans la mise en forme. */
+    /**
+     * Ce que la version apporte : chaque puce des notes, sans la mise en forme, avec son détail
+     * (jusqu'à 8 puces de 280 caractères, coupées à la fin d'une phrase ou d'un mot).
+     */
     static String summary(String body) {
         StringBuilder b = new StringBuilder();
         int n = 0;
         for (String line : body.split("\n")) {
             String t = line.trim();
             if (!t.startsWith("- ") && !t.startsWith("* ")) continue;
-            t = t.substring(2).replaceAll("\\*\\*|__|`", "").replaceAll("\\[([^]]*)]\\([^)]*\\)", "$1");
-            int cut = t.indexOf(" : ");
-            if (t.length() > 90) t = (cut > 0 && cut < 70 ? t.substring(0, cut) : t.substring(0, 87).trim() + "…");
+            t = t.substring(2).replaceAll("\\*\\*|__|`", "").replaceAll("\\[([^]]*)]\\([^)]*\\)", "$1").trim();
+            if (t.length() > 280) {
+                int dot = t.lastIndexOf(". ", 277);
+                int sp = t.lastIndexOf(' ', 277);
+                t = dot > 120 ? t.substring(0, dot + 1) : t.substring(0, sp > 0 ? sp : 277).trim() + "…";
+            }
             if (b.length() > 0) b.append('\n');
             b.append("• ").append(t);
-            if (++n == 3) break;
+            if (++n == 8) break;
         }
         return b.toString();
     }

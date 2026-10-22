@@ -73,7 +73,7 @@ if [ ! -f "$KEYSTORE" ]; then
   mkdir -p "$(dirname "$KEYSTORE")"
   keytool -genkeypair -keystore "$KEYSTORE" -storepass foldplay -keypass foldplay \
     -alias foldplay -keyalg RSA -keysize 2048 -validity 10000 \
-    -dname "CN=Origami debug, O=KAMI-WORKS" >/dev/null 2>&1
+    -dname "CN=Origami debug, O=ORIKAMI" >/dev/null 2>&1
 fi
 "$BT/apksigner" sign --v4-signing-enabled false --ks "$KEYSTORE" --ks-pass pass:foldplay --key-pass pass:foldplay \
   --out "$ROOT/dist/origami-$VERSION-debug.apk" "$OUT/aligned.apk"

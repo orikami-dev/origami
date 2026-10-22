@@ -1,6 +1,6 @@
 # 📝 Journal des versions
 
-Studio : KAMI-WORKS.
+Studio : ORIKAMI.
 
 ## 0.67.3
 

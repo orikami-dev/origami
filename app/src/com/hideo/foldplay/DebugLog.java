@@ -363,6 +363,9 @@ final class DebugLog {
     /** Part la plus récente d'un journal gardée dans l'envoi (assez pour un retour de bug). */
     private static final int KEEP = 1536 * 1024;
 
+    /** Boîte qui reçoit les journaux (vide : le partage reste un choix libre d'application). */
+    static final String SUPPORT_MAIL = "orikami.logs@gmail.com";
+
     /**
      * Un seul fichier texte (text/plain) : fiche de l'appareil, puis chaque journal et rapport à la
      * suite. En texte, l'envoi est accepté par toutes les apps, Claude compris (0.62) ; les
@@ -391,7 +394,8 @@ final class DebugLog {
                     android.widget.Toast.LENGTH_LONG).show();
             return;
         }
-        SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain");
+        SaveTransfer.share(a, outs, "Envoyer le journal", "text/plain", SUPPORT_MAIL,
+                "Journal Origami " + Updater.installed(a));
     }
 
     /** Part du journal mise dans le presse-papiers : assez pour un retour de bug, collable dans un message. */

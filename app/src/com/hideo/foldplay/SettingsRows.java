@@ -592,7 +592,7 @@ final class SettingsRows {
             }
         });
         if (store.debug()) {
-            toggle(l, "Profil de test KAMI-WORKS", "Applique d'un coup toutes les pistes en essai (pilote Turnip, son 150 ms avec "
+            toggle(l, "Profil de test ORIKAMI", "Applique d'un coup toutes les pistes en essai (pilote Turnip, son 150 ms avec "
                     + "étirement précoce, 6 fils de compilation libres, minuteries précises, son et rendu sur les gros cœurs). "
                     + "Pour nos essais seulement.",
                     store.lab(), new Toggle() {
@@ -782,6 +782,12 @@ final class SettingsRows {
                 act.startActivity(new Intent(act, SetupActivity.class));
             }
         });
+        action(l, "Revoir le didacticiel", "Les bulles qui expliquent l'accueil, au prochain retour sur l'écran principal", new Runnable() {
+            public void run() {
+                store.setTourDone(false);
+                h.toast(I18n.tr("Retourne à l'accueil : le didacticiel redémarre."));
+            }
+        });
         String version = "?";
         try {
             version = act.getPackageManager().getPackageInfo(act.getPackageName(), 0).versionName;
@@ -790,7 +796,7 @@ final class SettingsRows {
         }
         l.add(new Row(Row.LOGO, "origami"));
         header(l, "ORIGAMI " + version);
-        note(l, "Déplie. Joue. Une production KAMI-WORKS.");
+        note(l, "Déplie. Joue. Une production ORIKAMI.");
         note(l, "Origami n'est affilié à aucun fabricant de consoles ni éditeur de jeux. Les noms de "
                 + "consoles cités servent uniquement à indiquer la compatibilité et appartiennent à leurs "
                 + "propriétaires respectifs.");

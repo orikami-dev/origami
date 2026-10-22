@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Origami</h1>
-<p align="center"><b>Déplie. Joue.</b><br>par KAMI-WORKS</p>
+<p align="center"><b>Déplie. Joue.</b><br>par ORIKAMI</p>
 
 <p align="center">
   <a href="https://github.com/orikami-dev/origami/releases/latest">⬇️ <b>Télécharger la dernière version</b></a>
