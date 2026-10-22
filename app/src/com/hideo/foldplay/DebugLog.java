@@ -129,10 +129,41 @@ final class DebugLog {
     /** Note au journal (étiquette Origami) : jalon d'un écran ou d'un moteur. */
     static void event(String msg) {
         android.util.Log.i("Origami", msg);
+        engineWrite(msg);
     }
 
     static void event(String msg, Throwable where) {
-        android.util.Log.i("Origami", msg + "\n" + android.util.Log.getStackTraceString(where));
+        String full = msg + "\n" + android.util.Log.getStackTraceString(where);
+        android.util.Log.i("Origami", full);
+        engineWrite(full);
+    }
+
+    /**
+     * 0.66.29 : le processus moteur (PS3, Xbox 360) double ses événements dans un fichier à lui, écrit tout de
+     * suite : logcat -f perdait la fin de session quand le moteur est tué, et « Copier le journal » ne la voyait pas.
+     */
+    private static java.io.FileOutputStream engineOut;
+    private static final java.text.SimpleDateFormat ENGINE_TIME = new java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US);
+
+    private static synchronized void engineOpen(Context ctx, String tag) {
+        if (engineOut != null) return;
+        try {
+            File d = dir(ctx);
+            d.mkdirs();
+            engineOut = new FileOutputStream(new File(d, "moteur-" + tag.toLowerCase(java.util.Locale.US) + ".txt"), false);
+        } catch (IOException e) {
+            engineOut = null;
+        }
+    }
+
+    private static synchronized void engineWrite(String msg) {
+        if (engineOut == null) return;
+        try {
+            engineOut.write((ENGINE_TIME.format(new java.util.Date()) + " " + msg + "\n").getBytes("UTF-8"));
+            engineOut.flush();
+        } catch (IOException e) {
+            engineOut = null;
+        }
     }
 
     /**
@@ -190,6 +221,7 @@ final class DebugLog {
 
     static void perfStart(final Context ctx, final String tag) {
         if (!new Store(ctx).debug() || perfTick != null) return;
+        engineOpen(ctx, tag);
         perfHandler = new android.os.Handler(android.os.Looper.getMainLooper());
         perfLastCpu = android.os.Process.getElapsedCpuTime();
         perfLastAt = android.os.SystemClock.elapsedRealtime();
@@ -387,6 +419,16 @@ final class DebugLog {
                 if (perf.length() > 0) {
                     int from = Math.max(0, perf.length() - 24 * 1024);
                     all.append("\n===== mesures des moteurs (dernière heure) =====\n").append(perf.substring(from));
+                }
+            }
+            File[] eng = dir(a).listFiles();
+            if (eng != null) {
+                for (File f : eng) {
+                    if (!f.getName().startsWith("moteur-")) continue;
+                    byte[] b = read(f);
+                    int from = Math.max(0, b.length - 1024 * 1024);
+                    all.append("\n===== ").append(f.getName()).append(" (session moteur complète) =====\n")
+                            .append(new String(b, from, b.length - from, "UTF-8"));
                 }
             }
             // 0.66.26 : le journal complet part dans un fichier .txt déposé dans le presse-papier (adresse de
