@@ -222,6 +222,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         }
         if (splashDone) rebuild();
         loadApps();
+        maybeTour();
         final android.content.Context app = getApplicationContext();
         new Thread(new Runnable() {
             public void run() {
@@ -389,7 +390,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
             {"pads", "Manette", "Manette tactile et manettes branchées : disposition, éditeur, touches et vibrations."},
             {"sec:a11y", "Accessibilité", "Textes plus grands et plus contrastés, animations réduites, gâchettes à bascule et vibrations renforcées."},
             {"sec:monitoring", "Monitoring", "ATH en jeu façon RTSS : images par seconde, processeur, mémoire, température."},
-            {"sec:updates", "Version", "Version installée, vérification automatique, préversions, équipe KAMI-WORKS, licences et mode débogage."},
+            {"sec:updates", "Version", "Version installée, vérification automatique, préversions, équipe ORIKAMI, licences et mode débogage."},
         };
         for (String[] r : e) {
             Game g = new Game(r[1], SystemInfo.SETTINGS, "action:set:" + r[0]);
@@ -1412,7 +1413,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
         name.setLetterSpacing(0.35f);
         name.setGravity(Gravity.CENTER);
         foot.addView(name);
-        TextView team = text("KAMI-WORKS", 10, Theme.MUTED, false);
+        TextView team = text("ORIKAMI", 10, Theme.MUTED, false);
         team.setGravity(Gravity.CENTER);
         team.setTypeface(Fonts.wide(this));
         team.setLetterSpacing(0.45f);
@@ -1434,6 +1435,7 @@ public class MainActivity extends Activity implements SensorEventListener, Color
                 rebuild();
                 root.setAlpha(0f);
                 root.animate().alpha(1f).setDuration(260).start();
+                maybeTour();
             }
         };
         crane.play(new OrigamiSplash.Done() {
@@ -3002,6 +3004,25 @@ public class MainActivity extends Activity implements SensorEventListener, Color
     }
 
     // ---------------------------------------------------------------- barre du haut
+
+    private Tour tour;
+
+    /** Didacticiel à bulles : une fois, dès que l'assistant est fini et que l'accueil est affiché. */
+    private void maybeTour() {
+        if (tour != null || !store.setupDone() || store.tourDone() || !splashDone) return;
+        root.postDelayed(new Runnable() {
+            public void run() {
+                if (tour != null || store.tourDone() || !resumed || barButtons.isEmpty()) return;
+                tour = new Tour(MainActivity.this, root, barButtons, new Runnable() {
+                    public void run() {
+                        store.setTourDone(true);
+                        tour = null;
+                    }
+                });
+                tour.start();
+            }
+        }, 900);
+    }
 
     private View topBar() {
         barButtons.clear();

@@ -141,7 +141,7 @@ public class SettingsActivity extends Activity {
                     if (r.info != null) result.addView(text(r.info, 11, Theme.MUTED));
                 } else {
                     result.addView(text("Origami " + r.version, 18, Theme.CODEC));
-                    if (r.summary != null && !r.summary.isEmpty()) result.addView(text(r.summary, 14, Theme.TEXT));
+                    if (r.summary != null && !r.summary.isEmpty()) addReleaseNotes(result, r.summary);
                     TextView go = text(I18n.tr("Télécharger et installer") + (r.apkSize > 0 ? " · " + Updater.mo(r.apkSize) + " Mo" : ""), 16, Theme.BG);
                     go.setBackground(Theme.pill(Theme.CODEC, dp(20)));
                     go.setPadding(dp(18), dp(10), dp(18), dp(10));
@@ -778,6 +778,19 @@ public class SettingsActivity extends Activity {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.VERTICAL);
         return l;
+    }
+
+    /** Une ligne par nouveauté : le texte passe à la ligne et la zone grandit avec lui, sans recouvrir ce qui l'entoure. */
+    private void addReleaseNotes(LinearLayout into, String summary) {
+        for (String line : summary.split("\n")) {
+            if (line.isEmpty()) continue;
+            TextView t = text(line, 14, Theme.TEXT);
+            t.setSingleLine(false);
+            t.setHorizontallyScrolling(false);
+            t.setLineSpacing(0, 1.15f);
+            t.setPadding(dp(4), dp(6), dp(4), dp(6));
+            into.addView(t, new LinearLayout.LayoutParams(-1, -2));
+        }
     }
 
     private TextView text(String s, float sp, int color) {

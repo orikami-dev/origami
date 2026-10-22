@@ -30,7 +30,7 @@ git -C "$REPO_DIR" diff --cached --quiet || git -C "$REPO_DIR" commit -q -m "${M
 push -C "$REPO_DIR" push -u origin "$BR"
 
 [ -f "$SRC/docs/releases/$V.md" ] || { echo "ERREUR : docs/releases/$V.md manque : sans lui, la mise à jour sans fil n'affiche aucune note."; exit 1; }
-SUMMARY="$(grep -E '^[-*] ' "$SRC/docs/releases/$V.md" 2>/dev/null | head -6 | sed 's/^[-*] //; s/\*\*//g' | tr '\n' '|' | sed 's/|$//; s/|/\\n• /g; s/^/• /' || true)"
+SUMMARY="$(grep -E '^[-*] ' "$SRC/docs/releases/$V.md" 2>/dev/null | head -12 | sed 's/^[-*] //; s/\*\*//g' | tr '\n' '|' | sed 's/|$//; s/|/\\n• /g; s/^/• /' || true)"
 
 publish_orphan() { # $1 = branche, $2 = nom du fichier apk, $3 = nom du json
   T="$(mktemp -d)"
@@ -38,7 +38,7 @@ publish_orphan() { # $1 = branche, $2 = nom du fichier apk, $3 = nom du json
   cp "$APK" "$T/$2"
   printf '{"version":"%s","apk":"%s","notes":"%s"}\n' "$V" "$2" "$SUMMARY" > "$T/${3:-preview.json}"
   git -C "$T" add -A
-  git -C "$T" -c user.name=KAMI-WORKS -c user.email=noreply@kami-works.invalid commit -q -m "Origami $V"
+  git -C "$T" -c user.name=ORIKAMI -c user.email=noreply@orikami.invalid commit -q -m "Origami $V"
   git -C "$T" remote add origin "$URL"
   push -C "$T" push -f origin "$1"
   rm -rf "$T"

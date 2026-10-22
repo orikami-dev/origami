@@ -81,6 +81,11 @@ final class SaveTransfer {
     }
 
     static void share(Activity a, List<SaveImport.Out> outs, String title, String mime) {
+        share(a, outs, title, mime, null, null, null);
+    }
+
+    /** Comme share, mais vers la messagerie par défaut avec destinataire, objet et texte pré-remplis (to peut être null). */
+    static void share(Activity a, List<SaveImport.Out> outs, String title, String mime, String to, String subject, String body) {
         File dir = SaveProvider.dir(a);
         File[] old = dir.listFiles();
         if (old != null) for (File f : old) f.delete();
@@ -112,6 +117,20 @@ final class SaveTransfer {
         for (int i = 1; i < uris.size(); i++) clip.addItem(new android.content.ClipData.Item(uris.get(i)));
         send.setClipData(clip);
         send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if (to != null && !to.isEmpty()) {
+            send.putExtra(Intent.EXTRA_EMAIL, new String[]{to});
+            if (subject != null) send.putExtra(Intent.EXTRA_SUBJECT, subject);
+            if (body != null) send.putExtra(Intent.EXTRA_TEXT, body);
+            // Le sélecteur restreint l'envoi aux apps de messagerie (la par défaut de l'utilisateur).
+            Intent mail = new Intent(send);
+            mail.setSelector(new Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")));
+            try {
+                a.startActivity(mail);
+                return;
+            } catch (ActivityNotFoundException e) {
+                // Pas d'appli de messagerie : retour au choix libre, avec le même destinataire.
+            }
+        }
         try {
             a.startActivity(Intent.createChooser(send, title));
         } catch (ActivityNotFoundException e) {
